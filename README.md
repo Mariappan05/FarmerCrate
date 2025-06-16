@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Farmer Crate Backend
 
 A backend service for the Farmer Crate application that connects farmers and consumers, allowing direct product sales with a 10% commission model for administrators.
@@ -92,3 +93,6 @@ A backend service for the Farmer Crate application that connects farmers and con
 ## License
 
 MIT 
+=======
+# FarmerCrate
+>>>>>>> cd573c9bbdba86873e5d29ffd45f5ab4dd272c15
