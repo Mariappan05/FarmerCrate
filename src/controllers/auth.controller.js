@@ -1,6 +1,8 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const sequelize = require('../config/database').sequelize;
+const { Sequelize } = require('sequelize');
 
 // Register new user
 exports.register = async (req, res) => {
