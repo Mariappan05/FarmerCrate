@@ -31,7 +31,10 @@ const cartRoutes = require('./routes/cart.routes');
 const startServer = async () => {
   try {
     // Initialize database
-    await initializeDatabase();
+    const dbInitialized = await initializeDatabase();
+    if (!dbInitialized) {
+      console.log('Warning: Database initialization had issues, but server will continue to start');
+    }
 
     // Routes
     app.use('/api/auth', authRoutes);
