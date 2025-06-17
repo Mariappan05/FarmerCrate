@@ -1,17 +1,36 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/product.model');
+const User = require('../models/user.model');
 const { Op } = require('sequelize');
 
 // Get all products
 exports.getAllProducts = async (req, res) => {
   try {
+    let whereClause = {};
+    
+    // If user is not admin or farmer, only show available products
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'farmer')) {
+      whereClause.status = 'available';
+    }
+    
+    // If user is a farmer, show their own products regardless of status
+    if (req.user && req.user.role === 'farmer') {
+      whereClause = {
+        [Op.or]: [
+          { status: 'available' },
+          { farmerId: req.user.id }
+        ]
+      };
+    }
+
     const products = await Product.findAll({
-      where: { status: 'available' },
+      where: whereClause,
       include: [{
         model: User,
         as: 'farmer',
-        attributes: ['username', 'email']
-      }]
+        attributes: ['username', 'email', 'mobileNumber']
+      }],
+      order: [['createdAt', 'DESC']]
     });
 
     res.json({
