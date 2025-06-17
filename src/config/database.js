@@ -1,14 +1,14 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Create Sequelize instance with Railway MySQL credentials
+// Create Sequelize instance with environment variables
 const sequelize = new Sequelize(
-  'railway',
-  'root',
-  'nPBcINVORdTwsJSHmjyeLCctECcwPgwV',
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
   {
-    host: 'interchange.proxy.rlwy.net',
-    port: 41805,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     dialect: 'mysql',
     logging: false, // Set to console.log to see SQL queries
     dialectOptions: {
