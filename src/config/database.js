@@ -29,7 +29,6 @@ const initializeDatabase = async () => {
     require('../models/order.model');
     require('../models/transaction.model');
     require('../models/cart.model');
-    require('../models/otp.model');
 
     // Test database connection
     await sequelize.authenticate();
@@ -37,29 +36,14 @@ const initializeDatabase = async () => {
 
     // Sync all models with database
     await sequelize.sync({ 
-      alter: true,
-      // Add these options to handle constraint errors
+      alter: false, // Changed to false to prevent automatic schema changes
       logging: console.log,
       force: false
     });
     console.log('Database synchronized successfully.');
 
-    // Create admin user if not exists
-    const adminExists = await User.findOne({ where: { email: 'admin@farmercrate.com' } });
-    if (!adminExists) {
-      await User.create({
-        username: 'admin',
-        email: 'admin@farmercrate.com',
-        password: 'admin123',
-        role: 'admin'
-      });
-      console.log('Admin user created successfully.');
-    }
-
   } catch (error) {
     console.error('Unable to initialize database:', error);
-    // Instead of throwing the error, we'll log it and continue
-    // This prevents the server from crashing due to constraint errors
     console.log('Continuing with server startup despite database sync issues...');
     return false;
   }
