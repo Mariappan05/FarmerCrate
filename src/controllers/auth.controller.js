@@ -1,10 +1,17 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const OTP = require('../models/otp.model');
 const { sendOTPEmail } = require('../utils/email.util');
 const sequelize = require('../config/database').sequelize;
 const { Sequelize } = require('sequelize');
+
+// In-memory OTP storage
+const otpStore = new Map();
+
+// Generate OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 // Register new user
 exports.register = async (req, res) => {
@@ -101,13 +108,8 @@ exports.login = async (req, res) => {
   }
 };
 
-// Generate OTP
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-// Forgot password
-exports.forgotPassword = async (req, res) => {
+// Send OTP for password reset
+exports.sendOTP = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -119,13 +121,13 @@ exports.forgotPassword = async (req, res) => {
 
     // Generate OTP
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const timestamp = Date.now();
 
-    // Save OTP to database
-    await OTP.create({
-      email,
+    // Store OTP in memory
+    otpStore.set(email, {
       otp,
-      expiresAt
+      timestamp,
+      attempts: 0
     });
 
     // Send OTP via email
@@ -135,51 +137,62 @@ exports.forgotPassword = async (req, res) => {
     }
 
     res.json({
-      message: 'OTP sent successfully',
-      email
+      success: true,
+      message: 'OTP sent successfully to your email'
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ message: 'Error processing forgot password request' });
+    console.error('Send OTP error:', error);
+    res.status(500).json({ message: 'Error sending OTP' });
   }
 };
 
-// Verify OTP and reset password
-exports.resetPassword = async (req, res) => {
+// Verify OTP
+exports.verifyOTP = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email, otp } = req.body;
+    const storedData = otpStore.get(email);
 
-    // Find the most recent valid OTP
-    const otpRecord = await OTP.findOne({
-      where: {
-        email,
-        otp,
-        isUsed: false,
-        expiresAt: {
-          [Sequelize.Op.gt]: new Date()
-        }
-      },
-      order: [['createdAt', 'DESC']]
-    });
-
-    if (!otpRecord) {
-      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    if (!storedData) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP expired or not found'
+      });
     }
 
-    // Update user's password
-    const user = await User.findOne({ where: { email } });
-    user.password = newPassword;
-    await user.save();
+    // Check if OTP has expired (10 minutes)
+    if (Date.now() - storedData.timestamp > 600000) {
+      otpStore.delete(email);
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired'
+      });
+    }
 
-    // Mark OTP as used
-    otpRecord.isUsed = true;
-    await otpRecord.save();
+    // Verify OTP
+    if (storedData.otp === otp) {
+      otpStore.delete(email);
+      return res.status(200).json({
+        success: true,
+        message: 'OTP verified successfully'
+      });
+    }
 
-    res.json({
-      message: 'Password reset successful'
+    // Increment attempts
+    storedData.attempts += 1;
+    if (storedData.attempts >= 3) {
+      otpStore.delete(email);
+      return res.status(400).json({
+        success: false,
+        message: 'Too many failed attempts. Please request a new OTP'
+      });
+    }
+
+    res.status(400).json({
+      success: false,
+      message: 'Invalid OTP'
     });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ message: 'Error resetting password' });
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ message: 'Error verifying OTP' });
   }
 }; 
