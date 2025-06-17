@@ -9,7 +9,7 @@ const registerValidation = [
   body('email').isEmail().withMessage('Please enter a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('mobileNumber').notEmpty().withMessage('Mobile number is required'),
-  body('role').isIn(['farmer', 'consumer']).withMessage('Invalid role')
+  body('role').isIn(['farmer', 'consumer','admin']).withMessage('Invalid role')
 ];
 
 const loginValidation = [
