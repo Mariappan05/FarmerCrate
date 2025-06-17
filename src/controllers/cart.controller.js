@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Cart = require('../models/cart.model');
 const Product = require('../models/product.model');
+const User = require('../models/user.model');
 
 // Add item to cart
 exports.addToCart = async (req, res) => {
@@ -13,10 +14,24 @@ exports.addToCart = async (req, res) => {
     const { productId, quantity } = req.body;
     const userId = req.user.id;
 
-    // Check if product exists
-    const product = await Product.findByPk(productId);
+    // Check if product exists and is available
+    const product = await Product.findOne({
+      where: { 
+        id: productId,
+        status: 'available'
+      }
+    });
+
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ message: 'Product not found or not available' });
+    }
+
+    // Check if requested quantity is available
+    if (product.quantity < quantity) {
+      return res.status(400).json({ 
+        message: 'Requested quantity not available',
+        availableQuantity: product.quantity
+      });
     }
 
     // Check if product is already in cart
@@ -40,8 +55,18 @@ exports.addToCart = async (req, res) => {
     }
 
     res.status(201).json({
+      success: true,
       message: 'Item added to cart successfully',
-      cartItem
+      data: {
+        id: cartItem.id,
+        quantity: cartItem.quantity,
+        price: cartItem.price,
+        product: {
+          id: product.id,
+          name: product.name,
+          price: product.price
+        }
+      }
     });
   } catch (error) {
     console.error('Add to cart error:', error);
@@ -58,15 +83,30 @@ exports.getCart = async (req, res) => {
       where: { userId },
       include: [{
         model: Product,
-        attributes: ['name', 'description', 'imageUrl']
+        attributes: ['name', 'description', 'images', 'price']
       }]
     });
 
+    // Calculate total
     const total = cartItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
 
     res.json({
-      items: cartItems,
-      total
+      success: true,
+      data: {
+        items: cartItems.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          product: {
+            id: item.Product.id,
+            name: item.Product.name,
+            description: item.Product.description,
+            images: item.Product.images,
+            price: item.Product.price
+          }
+        })),
+        total
+      }
     });
   } catch (error) {
     console.error('Get cart error:', error);
@@ -88,11 +128,27 @@ exports.updateCartItem = async (req, res) => {
 
     const cartItem = await Cart.findOne({
       where: { id: cartItemId, userId },
-      include: [Product]
+      include: [{
+        model: Product,
+        attributes: ['name', 'description', 'images', 'price', 'quantity'],
+        include: [{
+          model: User,
+          as: 'farmer',
+          attributes: ['username', 'mobileNumber']
+        }]
+      }]
     });
 
     if (!cartItem) {
       return res.status(404).json({ message: 'Cart item not found' });
+    }
+
+    // Check if requested quantity is available
+    if (cartItem.Product.quantity < quantity) {
+      return res.status(400).json({ 
+        message: 'Requested quantity not available',
+        availableQuantity: cartItem.Product.quantity
+      });
     }
 
     cartItem.quantity = quantity;
@@ -100,8 +156,9 @@ exports.updateCartItem = async (req, res) => {
     await cartItem.save();
 
     res.json({
+      success: true,
       message: 'Cart item updated successfully',
-      cartItem
+      data: cartItem
     });
   } catch (error) {
     console.error('Update cart error:', error);
@@ -126,6 +183,7 @@ exports.removeFromCart = async (req, res) => {
     await cartItem.destroy();
 
     res.json({
+      success: true,
       message: 'Item removed from cart successfully'
     });
   } catch (error) {
@@ -144,6 +202,7 @@ exports.clearCart = async (req, res) => {
     });
 
     res.json({
+      success: true,
       message: 'Cart cleared successfully'
     });
   } catch (error) {
