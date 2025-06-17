@@ -13,12 +13,24 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email').isEmail().withMessage('Please enter a valid email'),
+  body('username').notEmpty().withMessage('Username is required'),
   body('password').notEmpty().withMessage('Password is required')
+];
+
+const forgotPasswordValidation = [
+  body('email').isEmail().withMessage('Please enter a valid email')
+];
+
+const resetPasswordValidation = [
+  body('email').isEmail().withMessage('Please enter a valid email'),
+  body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+  body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
 ];
 
 // Routes
 router.post('/register', registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
+router.post('/forgot-password', forgotPasswordValidation, authController.forgotPassword);
+router.post('/reset-password', resetPasswordValidation, authController.resetPassword);
 
 module.exports = router; 
