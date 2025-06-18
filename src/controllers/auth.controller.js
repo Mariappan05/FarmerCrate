@@ -195,4 +195,67 @@ exports.verifyOTP = async (req, res) => {
     console.error('Verify OTP error:', error);
     res.status(500).json({ message: 'Error verifying OTP' });
   }
+};
+
+// Reset Password
+exports.resetPassword = async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, otp, newPassword } = req.body;
+
+    // Check if OTP exists and is valid
+    const storedData = otpStore.get(email);
+    if (!storedData) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP expired or not found'
+      });
+    }
+
+    // Verify OTP
+    if (storedData.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // Check if OTP has expired (10 minutes)
+    if (Date.now() - storedData.timestamp > 600000) {
+      otpStore.delete(email);
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired'
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    // Delete OTP after successful password reset
+    otpStore.delete(email);
+
+    res.json({
+      success: true,
+      message: 'Password reset successful'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
 }; 
