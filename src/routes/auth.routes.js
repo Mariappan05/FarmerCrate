@@ -46,4 +46,15 @@ router.post(
   authController.verifyOTP
 );
 
+// Reset Password route
+router.post(
+  '/reset-password',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  ],
+  authController.resetPassword
+);
+
 module.exports = router; 
