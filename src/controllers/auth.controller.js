@@ -7,6 +7,7 @@ const { Sequelize } = require('sequelize');
 const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
+const AdminUser = require('../models/admin_user.model');
 
 // In-memory OTP storage
 const otpStore = new Map();
@@ -21,6 +22,7 @@ const getModelByRole = (role) => {
   if (role === 'farmer') return FarmerUser;
   if (role === 'customer') return CustomerUser;
   if (role === 'transporter') return TransporterUser;
+  if (role === 'admin') return AdminUser;
   return null;
 };
 
@@ -116,6 +118,35 @@ exports.register = async (req, res) => {
         }
       });
     }
+    if (role === 'admin') {
+      const { name, email, password, mobileNumber, adminRole } = req.body;
+      const existing = await Model.findOne({ where: { email } });
+      if (existing) return res.status(400).json({ message: 'Admin already exists' });
+      
+      // Validate admin role
+      const validAdminRoles = ['super_admin', 'admin', 'moderator'];
+      if (adminRole && !validAdminRoles.includes(adminRole)) {
+        return res.status(400).json({ message: 'Invalid admin role specified' });
+      }
+      
+      const admin = await Model.create({
+        name,
+        email,
+        password,
+        mobile_number: mobileNumber,
+        role: adminRole || 'admin',
+        is_active: true
+      });
+      return res.status(201).json({
+        message: 'Admin registered successfully.',
+        admin: {
+          id: admin.admin_id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role
+        }
+      });
+    }
   } catch (error) {
     console.error('Registration error:', error);
     if (error && error.errors) {
@@ -139,19 +170,36 @@ exports.login = async (req, res) => {
     const user = await Model.findOne({ where: { email } });
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     if (user.password !== password) return res.status(401).json({ message: 'Invalid credentials' });
-    const idField = role === 'farmer' ? 'farmer_id' : role === 'customer' ? 'customer_id' : 'transporter_id';
+    
+    // Check if admin is active
+    if (role === 'admin' && !user.is_active) {
+      return res.status(401).json({ message: 'Account is deactivated' });
+    }
+    
+    // Update last login for admin
+    if (role === 'admin') {
+      await user.update({ last_login: new Date() });
+    }
+    
+    const idField = role === 'farmer' ? 'farmer_id' : 
+                   role === 'customer' ? 'customer_id' : 
+                   role === 'transporter' ? 'transporter_id' : 
+                   'admin_id';
+    
     const token = jwt.sign(
       { id: user[idField], role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
+    
     res.json({
       message: 'Login successful',
       token,
       user: {
         id: user[idField],
         email: user.email,
-        role
+        role,
+        name: user.name || user.customer_name
       }
     });
   } catch (error) {
