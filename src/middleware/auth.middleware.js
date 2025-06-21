@@ -1,41 +1,42 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/user.model');
+const FarmerUser = require('../models/farmer_user.model');
+const CustomerUser = require('../models/customer_user.model');
+const TransporterUser = require('../models/transporter_user.model');
 
-exports.protect = async (req, res, next) => {
+// Helper to get model by role
+const getModelByRole = (role) => {
+  if (role === 'farmer') return FarmerUser;
+  if (role === 'customer') return CustomerUser;
+  if (role === 'transporter') return TransporterUser;
+  return null;
+};
+
+// Authentication middleware
+const protect = async (req, res, next) => {
   try {
-    // Get token from header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token, authorization denied' });
-    }
-
-    // Verify token
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Get user from token
-    const user = await User.findByPk(decoded.id);
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
-    }
-
-    // Add user to request
+    const { id, role } = decoded;
+    const Model = getModelByRole(role);
+    if (!Model) return res.status(401).json({ message: 'Invalid role' });
+    const idField = role === 'farmer' ? 'farmer_id' : role === 'customer' ? 'customer_id' : 'transporter_id';
+    const user = await Model.findOne({ where: { [idField]: id } });
+    if (!user) return res.status(401).json({ message: 'User not found' });
     req.user = user;
+    req.role = role;
     next();
-  } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(401).json({ message: 'Token is not valid' });
+  } catch (err) {
+    return res.status(401).json({ message: 'Unauthorized', error: err.message });
   }
 };
 
-// Middleware to check user role
-exports.authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        message: `User role ${req.user.role} is not authorized to access this route`
-      });
-    }
-    next();
-  };
-}; 
+// Role-based authorization middleware
+const authorize = (role) => (req, res, next) => {
+  if (req.role !== role) {
+    return res.status(403).json({ message: 'Forbidden: Insufficient role' });
+  }
+  next();
+};
+
+module.exports = { protect, authorize }; 

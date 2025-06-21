@@ -1,6 +1,8 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database').sequelize;
-const User = require('./user.model');
+const { sequelize } = require('../config/database');
+const FarmerUser = require('./farmer_user.model');
+const CustomerUser = require('./customer_user.model');
+const TransporterUser = require('./transporter_user.model');
 const Product = require('./product.model');
 
 const Cart = sequelize.define('Cart', {
@@ -13,7 +15,7 @@ const Cart = sequelize.define('Cart', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: User,
+      model: FarmerUser,
       key: 'id'
     }
   },
@@ -42,7 +44,7 @@ const Cart = sequelize.define('Cart', {
 });
 
 // Define relationships
-Cart.belongsTo(User, { foreignKey: 'userId' });
+Cart.belongsTo(FarmerUser, { foreignKey: 'userId' });
 Cart.belongsTo(Product, { foreignKey: 'productId' });
 
 module.exports = Cart; 

@@ -1,6 +1,8 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database').sequelize;
-const User = require('./user.model');
+const { sequelize } = require('../config/database');
+const FarmerUser = require('./farmer_user.model');
+const CustomerUser = require('./customer_user.model');
+const TransporterUser = require('./transporter_user.model');
 const Product = require('./product.model');
 
 const Order = sequelize.define('Order', {
@@ -42,8 +44,8 @@ const Order = sequelize.define('Order', {
 });
 
 // Define associations
-Order.belongsTo(User, { as: 'consumer', foreignKey: 'consumerId' });
-Order.belongsTo(User, { as: 'farmer', foreignKey: 'farmerId' });
+Order.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmerId' });
+Order.belongsTo(CustomerUser, { as: 'consumer', foreignKey: 'consumerId' });
 Order.belongsTo(Product, { foreignKey: 'productId' });
 
 // Hook to calculate commission and farmer amount

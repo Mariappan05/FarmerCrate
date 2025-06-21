@@ -8,11 +8,9 @@ const auth = require('../middleware/auth');
 router.post(
   '/register',
   [
-    body('username').notEmpty().withMessage('Username is required'),
     body('email').isEmail().withMessage('Please enter a valid email'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-    body('mobileNumber').notEmpty().withMessage('Mobile number is required'),
-    body('role').isIn(['farmer', 'customer']).withMessage('Invalid role')
+    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
   ],
   authController.register
 );
@@ -21,8 +19,9 @@ router.post(
 router.post(
   '/login',
   [
-    body('username').notEmpty().withMessage('Username is required'),
-    body('password').notEmpty().withMessage('Password is required')
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('password').notEmpty().withMessage('Password is required'),
+    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
   ],
   authController.login
 );
@@ -31,7 +30,8 @@ router.post(
 router.post(
   '/send-otp',
   [
-    body('email').isEmail().withMessage('Please enter a valid email')
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
   ],
   authController.sendOTP
 );
@@ -52,9 +52,13 @@ router.post(
   [
     body('email').isEmail().withMessage('Please enter a valid email'),
     body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
-    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
   ],
   authController.resetPassword
 );
+
+// Verify Farmer Code route
+router.post('/verify-farmer-code', authController.verifyFarmerCode);
 
 module.exports = router; 

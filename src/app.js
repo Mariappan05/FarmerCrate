@@ -21,11 +21,14 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
-const userRoutes = require('./routes/user.routes');
 const productRoutes = require('./routes/product.routes');
 const orderRoutes = require('./routes/order.routes');
 const vaultRoutes = require('./routes/vault.routes');
 const cartRoutes = require('./routes/cart.routes');
+const adminRoutes = require('./routes/admin.routes');
+const farmerRoutes = require('./routes/farmer.routes');
+const customerRoutes = require('./routes/customer.routes');
+const transporterRoutes = require('./routes/transporter.routes');
 
 // Initialize database and start server
 const startServer = async () => {
@@ -38,11 +41,14 @@ const startServer = async () => {
 
     // Routes
     app.use('/api/auth', authRoutes);
-    app.use('/api/users', userRoutes);
     app.use('/api/products', productRoutes);
     app.use('/api/orders', orderRoutes);
     app.use('/api/vault', vaultRoutes);
     app.use('/api/cart', cartRoutes);
+    app.use('/api/admin', adminRoutes);
+    app.use('/api/farmer', farmerRoutes);
+    app.use('/api/customer', customerRoutes);
+    app.use('/api/transporter', transporterRoutes);
 
     // Error handling middleware
     app.use((err, req, res, next) => {

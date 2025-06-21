@@ -1,7 +1,10 @@
 const { validationResult } = require('express-validator');
 const Cart = require('../models/cart.model');
+const FarmerUser = require('../models/farmer_user.model');
+const CustomerUser = require('../models/customer_user.model');
+const TransporterUser = require('../models/transporter_user.model');
 const Product = require('../models/product.model');
-const User = require('../models/user.model');
+const { Op } = require('sequelize');
 
 // Add item to cart
 exports.addToCart = async (req, res) => {
@@ -132,7 +135,7 @@ exports.updateCartItem = async (req, res) => {
         model: Product,
         attributes: ['name', 'description', 'images', 'price', 'quantity'],
         include: [{
-          model: User,
+          model: FarmerUser,
           as: 'farmer',
           attributes: ['username', 'mobileNumber']
         }]
@@ -208,5 +211,22 @@ exports.clearCart = async (req, res) => {
   } catch (error) {
     console.error('Clear cart error:', error);
     res.status(500).json({ message: 'Error clearing cart' });
+  }
+};
+
+// Example: Get all cart items for a farmer
+exports.getFarmerCart = async (req, res) => {
+  try {
+    const cartItems = await Cart.findAll({
+      where: { userId: req.user.id },
+      include: [
+        { model: FarmerUser, attributes: ['name', 'email', 'mobile_number'] },
+        { model: Product }
+      ]
+    });
+    res.json({ success: true, count: cartItems.length, data: cartItems });
+  } catch (error) {
+    console.error('Get farmer cart error:', error);
+    res.status(500).json({ message: 'Error fetching cart items' });
   }
 }; 
