@@ -162,13 +162,30 @@ exports.login = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { email, password, role } = req.body;
+    const { email, password, role, unique_id, username } = req.body;
     if (!role) return res.status(400).json({ message: 'Role is required.' });
     const Model = getModelByRole(role);
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
-    const user = await Model.findOne({ where: { email } });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
-    if (user.password !== password) return res.status(401).json({ message: 'Invalid credentials' });
+
+    let user;
+    if (role === 'farmer') {
+      // For farmer, require unique_id and check unique_id and password only
+      if (!unique_id) {
+        return res.status(400).json({ message: 'Unique code is required for farmer login.' });
+      }
+      user = await Model.findOne({ where: { unique_id } });
+      if (!user) return res.status(401).json({ message: 'Invalid unique code' });
+      if (user.password !== password) return res.status(401).json({ message: 'Invalid password' });
+    } else {
+      // For customer/admin/transporter, use username (email) and password
+      const loginUsername = username || email; // Support both username and email for backward compatibility
+      if (!loginUsername) {
+        return res.status(400).json({ message: 'Username is required for login.' });
+      }
+      user = await Model.findOne({ where: { email: loginUsername } });
+      if (!user) return res.status(401).json({ message: 'Invalid username or password' });
+      if (user.password !== password) return res.status(401).json({ message: 'Invalid username or password' });
+    }
     
     // Check if admin is active
     if (role === 'admin' && !user.is_active) {
@@ -198,7 +215,8 @@ exports.login = async (req, res) => {
         id: user[idField],
         email: user.email,
         role,
-        name: user.name || user.customer_name
+        name: user.name || user.customer_name,
+        ...(role === 'farmer' ? { unique_id: user.unique_id } : {})
       }
     });
   } catch (error) {
