@@ -10,7 +10,7 @@ router.post(
   [
     body('email').isEmail().withMessage('Please enter a valid email'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
+    body('role').isIn(['farmer', 'customer', 'transporter', 'admin']).withMessage('Invalid role')
   ],
   authController.register
 );
@@ -21,7 +21,7 @@ router.post(
   [
     body('email').isEmail().withMessage('Please enter a valid email'),
     body('password').notEmpty().withMessage('Password is required'),
-    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
+    body('role').isIn(['farmer', 'customer', 'transporter', 'admin']).withMessage('Invalid role')
   ],
   authController.login
 );
@@ -30,8 +30,8 @@ router.post(
 router.post(
   '/send-otp',
   [
-    body('email').isEmail().withMessage('Please enter a valid email'),
-    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
+    body('mobile_number').notEmpty().withMessage('Mobile number is required'),
+    body('role').isIn(['farmer', 'customer', 'transporter', 'admin']).withMessage('Invalid role')
   ],
   authController.sendOTP
 );
@@ -40,7 +40,7 @@ router.post(
 router.post(
   '/verify-otp',
   [
-    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('mobile_number').notEmpty().withMessage('Mobile number is required'),
     body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits')
   ],
   authController.verifyOTP
@@ -50,15 +50,22 @@ router.post(
 router.post(
   '/reset-password',
   [
-    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('mobile_number').notEmpty().withMessage('Mobile number is required'),
     body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
     body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-    body('role').isIn(['farmer', 'customer', 'transporter']).withMessage('Invalid role')
+    body('role').isIn(['farmer', 'customer', 'transporter', 'admin']).withMessage('Invalid role')
   ],
   authController.resetPassword
 );
 
-// Verify Farmer Code route
-router.post('/verify-farmer-code', authController.verifyFarmerCode);
+// Farmer code verification route
+router.post(
+  '/verify-farmer-code',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('code').isLength({ min: 6, max: 6 }).withMessage('Code must be 6 digits')
+  ],
+  authController.verifyFarmerCode
+);
 
 module.exports = router; 

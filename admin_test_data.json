@@ -1,0 +1,343 @@
+{
+  "admin_registration_tests": [
+    {
+      "test_name": "Register Regular Admin",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "John Admin",
+        "email": "admin@farmercrate.com",
+        "password": "admin123",
+        "mobileNumber": "+919876543210",
+        "adminRole": "admin",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Admin registered successfully.",
+        "admin": {
+          "id": "number",
+          "name": "John Admin",
+          "email": "admin@farmercrate.com",
+          "role": "admin"
+        }
+      }
+    },
+    {
+      "test_name": "Register Super Admin",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "Super Admin",
+        "email": "superadmin@farmercrate.com",
+        "password": "super123",
+        "mobileNumber": "+919876543211",
+        "adminRole": "super_admin",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Admin registered successfully.",
+        "admin": {
+          "id": "number",
+          "name": "Super Admin",
+          "email": "superadmin@farmercrate.com",
+          "role": "super_admin"
+        }
+      }
+    },
+    {
+      "test_name": "Register Moderator",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "Content Moderator",
+        "email": "moderator@farmercrate.com",
+        "password": "mod123",
+        "mobileNumber": "+919876543212",
+        "adminRole": "moderator",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Admin registered successfully.",
+        "admin": {
+          "id": "number",
+          "name": "Content Moderator",
+          "email": "moderator@farmercrate.com",
+          "role": "moderator"
+        }
+      }
+    },
+    {
+      "test_name": "Register Admin Without Role (Default)",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "Default Admin",
+        "email": "default@farmercrate.com",
+        "password": "default123",
+        "mobileNumber": "+919876543213",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Admin registered successfully.",
+        "admin": {
+          "id": "number",
+          "name": "Default Admin",
+          "email": "default@farmercrate.com",
+          "role": "admin"
+        }
+      }
+    }
+  ],
+  "admin_login_tests": [
+    {
+      "test_name": "Login as Regular Admin",
+      "endpoint": "POST /api/auth/login",
+      "data": {
+        "email": "admin@farmercrate.com",
+        "password": "admin123",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Login successful",
+        "token": "string",
+        "user": {
+          "id": "number",
+          "email": "admin@farmercrate.com",
+          "role": "admin",
+          "name": "John Admin"
+        }
+      }
+    },
+    {
+      "test_name": "Login as Super Admin",
+      "endpoint": "POST /api/auth/login",
+      "data": {
+        "email": "superadmin@farmercrate.com",
+        "password": "super123",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Login successful",
+        "token": "string",
+        "user": {
+          "id": "number",
+          "email": "superadmin@farmercrate.com",
+          "role": "admin",
+          "name": "Super Admin"
+        }
+      }
+    }
+  ],
+  "admin_error_tests": [
+    {
+      "test_name": "Invalid Admin Role",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "Invalid Admin",
+        "email": "invalid@farmercrate.com",
+        "password": "invalid123",
+        "mobileNumber": "+919876543214",
+        "adminRole": "invalid_role",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Invalid admin role specified"
+      },
+      "status_code": 400
+    },
+    {
+      "test_name": "Duplicate Admin Email",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "Duplicate Admin",
+        "email": "admin@farmercrate.com",
+        "password": "duplicate123",
+        "mobileNumber": "+919876543215",
+        "adminRole": "admin",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Admin already exists"
+      },
+      "status_code": 400
+    },
+    {
+      "test_name": "Admin Login Wrong Password",
+      "endpoint": "POST /api/auth/login",
+      "data": {
+        "email": "admin@farmercrate.com",
+        "password": "wrongpassword",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Invalid credentials"
+      },
+      "status_code": 401
+    },
+    {
+      "test_name": "Admin Login Non-existent Email",
+      "endpoint": "POST /api/auth/login",
+      "data": {
+        "email": "nonexistent@farmercrate.com",
+        "password": "anypassword",
+        "role": "admin"
+      },
+      "expected_response": {
+        "message": "Invalid credentials"
+      },
+      "status_code": 401
+    },
+    {
+      "test_name": "Missing Role in Registration",
+      "endpoint": "POST /api/auth/register",
+      "data": {
+        "name": "No Role Admin",
+        "email": "norole@farmercrate.com",
+        "password": "norole123",
+        "mobileNumber": "+919876543216"
+      },
+      "expected_response": {
+        "message": "Role is required."
+      },
+      "status_code": 400
+    },
+    {
+      "test_name": "Missing Role in Login",
+      "endpoint": "POST /api/auth/login",
+      "data": {
+        "email": "admin@farmercrate.com",
+        "password": "admin123"
+      },
+      "expected_response": {
+        "message": "Role is required."
+      },
+      "status_code": 400
+    }
+  ],
+  "admin_otp_tests": [
+    {
+      "test_name": "Send OTP to Admin",
+      "endpoint": "POST /api/auth/send-otp",
+      "data": {
+        "mobile_number": "+919876543210",
+        "role": "admin"
+      },
+      "expected_response": {
+        "success": true,
+        "message": "OTP sent successfully to your mobile number"
+      }
+    },
+    {
+      "test_name": "Verify OTP for Admin",
+      "endpoint": "POST /api/auth/verify-otp",
+      "data": {
+        "mobile_number": "+919876543210",
+        "otp": "123456"
+      },
+      "expected_response": {
+        "success": true,
+        "message": "OTP verified successfully"
+      }
+    },
+    {
+      "test_name": "Reset Admin Password",
+      "endpoint": "POST /api/auth/reset-password",
+      "data": {
+        "mobile_number": "+919876543210",
+        "otp": "123456",
+        "newPassword": "newadmin123",
+        "role": "admin"
+      },
+      "expected_response": {
+        "success": true,
+        "message": "Password reset successful"
+      }
+    }
+  ],
+  "admin_database_schema": {
+    "table_name": "admin_users",
+    "columns": {
+      "admin_id": {
+        "type": "INTEGER",
+        "primary_key": true,
+        "auto_increment": true
+      },
+      "name": {
+        "type": "VARCHAR(100)",
+        "not_null": true
+      },
+      "email": {
+        "type": "VARCHAR(100)",
+        "not_null": true,
+        "unique": true
+      },
+      "password": {
+        "type": "VARCHAR(255)",
+        "not_null": true
+      },
+      "mobile_number": {
+        "type": "VARCHAR(15)",
+        "not_null": true,
+        "unique": true
+      },
+      "role": {
+        "type": "ENUM('super_admin', 'admin', 'moderator')",
+        "not_null": true,
+        "default": "admin"
+      },
+      "is_active": {
+        "type": "BOOLEAN",
+        "not_null": true,
+        "default": true
+      },
+      "last_login": {
+        "type": "DATETIME",
+        "nullable": true
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "not_null": true,
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "not_null": true,
+        "default": "CURRENT_TIMESTAMP"
+      }
+    }
+  },
+  "testing_instructions": {
+    "prerequisites": [
+      "Ensure the server is running on localhost:3000",
+      "Database should be synchronized with alter mode",
+      "Default admin user should be created automatically"
+    ],
+    "test_sequence": [
+      "1. Run admin registration tests",
+      "2. Run admin login tests",
+      "3. Run admin error tests",
+      "4. Run admin OTP tests",
+      "5. Verify database schema"
+    ],
+    "postman_collection": {
+      "description": "Import these requests into Postman for testing",
+      "base_url": "http://localhost:3000/api",
+      "requests": [
+        {
+          "name": "Register Admin",
+          "method": "POST",
+          "url": "{{base_url}}/auth/register",
+          "body": "raw (JSON)",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        {
+          "name": "Login Admin",
+          "method": "POST",
+          "url": "{{base_url}}/auth/login",
+          "body": "raw (JSON)",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      ]
+    }
+  }
+} 

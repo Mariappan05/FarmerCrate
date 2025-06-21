@@ -1,0 +1,282 @@
+{
+  "admin_verification_workflow": {
+    "description": "Complete workflow for admin to verify farmers and manage verification codes",
+    "base_url": "http://localhost:3000/api/admin",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer {{admin_token}}"
+    }
+  },
+  "test_scenarios": {
+    "complete_verification_workflow": [
+      "1. Get dashboard statistics",
+      "2. Get pending farmers",
+      "3. Approve a farmer (generates verification code)",
+      "4. Get verified farmers",
+      "5. Check farmer verification status",
+      "6. Resend verification code if needed",
+      "7. Reject a farmer (if needed)"
+    ]
+  },
+  "endpoints": {
+    "dashboard_stats": {
+      "method": "GET",
+      "url": "{{base_url}}/dashboard-stats",
+      "description": "Get admin dashboard statistics",
+      "expected_response": {
+        "success": true,
+        "data": {
+          "total_farmers": "number",
+          "pending_farmers": "number",
+          "verified_farmers": "number",
+          "total_customers": "number",
+          "total_transporters": "number"
+        }
+      }
+    },
+    "get_pending_farmers": {
+      "method": "GET",
+      "url": "{{base_url}}/farmers/pending",
+      "description": "Get all farmers waiting for admin approval",
+      "expected_response": {
+        "success": true,
+        "count": "number",
+        "data": [
+          {
+            "farmer_id": "number",
+            "name": "string",
+            "email": "string",
+            "mobile_number": "string",
+            "address": "string",
+            "zone": "string",
+            "state": "string",
+            "district": "string",
+            "age": "number",
+            "account_number": "string",
+            "ifsc_code": "string",
+            "image_url": "string",
+            "created_at": "date"
+          }
+        ]
+      }
+    },
+    "get_verified_farmers": {
+      "method": "GET",
+      "url": "{{base_url}}/farmers/verified",
+      "description": "Get all approved farmers",
+      "expected_response": {
+        "success": true,
+        "count": "number",
+        "data": [
+          {
+            "farmer_id": "number",
+            "name": "string",
+            "email": "string",
+            "mobile_number": "string",
+            "address": "string",
+            "zone": "string",
+            "state": "string",
+            "district": "string",
+            "age": "number",
+            "account_number": "string",
+            "ifsc_code": "string",
+            "image_url": "string",
+            "unique_id": "string",
+            "created_at": "date"
+          }
+        ]
+      }
+    },
+    "approve_farmer": {
+      "method": "PUT",
+      "url": "{{base_url}}/farmers/{{farmer_id}}/approve",
+      "description": "Approve a farmer and generate verification code",
+      "body": {
+        "approval_notes": "Farmer documents verified. Account approved for selling products."
+      },
+      "expected_response": {
+        "success": true,
+        "message": "Farmer approved successfully. Verification code sent to email.",
+        "data": {
+          "farmer_id": "number",
+          "name": "string",
+          "email": "string",
+          "unique_id": "string",
+          "email_sent": "boolean"
+        }
+      }
+    },
+    "reject_farmer": {
+      "method": "PUT",
+      "url": "{{base_url}}/farmers/{{farmer_id}}/reject",
+      "description": "Reject a farmer with reason",
+      "body": {
+        "rejection_reason": "Incomplete documentation. Please provide valid ID proof and bank account details."
+      },
+      "expected_response": {
+        "success": true,
+        "message": "Farmer rejected successfully",
+        "data": {
+          "farmer_id": "number",
+          "name": "string",
+          "email": "string",
+          "rejection_reason": "string"
+        }
+      }
+    },
+    "get_verification_status": {
+      "method": "GET",
+      "url": "{{base_url}}/farmers/{{farmer_id}}/verification-status",
+      "description": "Get detailed verification status of a farmer",
+      "expected_response": {
+        "success": true,
+        "data": {
+          "farmer_id": "number",
+          "name": "string",
+          "email": "string",
+          "verified_status": "boolean",
+          "unique_id": "string",
+          "approved_at": "date",
+          "approval_notes": "string",
+          "rejected_at": "date",
+          "rejection_reason": "string",
+          "code_updated_at": "date",
+          "created_at": "date"
+        }
+      }
+    },
+    "resend_verification_code": {
+      "method": "POST",
+      "url": "{{base_url}}/farmers/{{farmer_id}}/resend-code",
+      "description": "Resend verification code to approved farmer",
+      "expected_response": {
+        "success": true,
+        "message": "New verification code sent to farmer email.",
+        "data": {
+          "farmer_id": "number",
+          "name": "string",
+          "email": "string",
+          "unique_id": "string"
+        }
+      }
+    }
+  },
+  "sample_test_data": {
+    "farmer_registration_for_verification": {
+      "url": "POST /api/auth/register",
+      "body": {
+        "role": "farmer",
+        "name": "Rajesh Patel",
+        "email": "rajesh.patel@farmer.com",
+        "password": "farmer123",
+        "mobileNumber": "9876543211",
+        "address": "Farm House, Village Road",
+        "zone": "West",
+        "state": "Gujarat",
+        "district": "Ahmedabad",
+        "age": 40,
+        "account_number": "9876543210",
+        "ifsc_code": "HDFC0001234",
+        "image_url": "https://example.com/rajesh.jpg"
+      }
+    },
+    "admin_login": {
+      "url": "POST /api/auth/login",
+      "body": {
+        "email": "admin@farmercrate.com",
+        "password": "admin123",
+        "role": "admin"
+      }
+    }
+  },
+  "test_flow": {
+    "step_1_register_farmer": {
+      "description": "Register a new farmer account",
+      "endpoint": "POST /api/auth/register",
+      "data": "farmer_registration_for_verification",
+      "expected": "Farmer registered successfully. Await admin approval."
+    },
+    "step_2_admin_login": {
+      "description": "Admin logs in to access verification panel",
+      "endpoint": "POST /api/auth/login",
+      "data": "admin_login",
+      "expected": "Login successful with admin token"
+    },
+    "step_3_check_dashboard": {
+      "description": "Check admin dashboard for pending farmers",
+      "endpoint": "GET /api/admin/dashboard-stats",
+      "expected": "Should show pending_farmers > 0"
+    },
+    "step_4_get_pending_farmers": {
+      "description": "Get list of farmers waiting for approval",
+      "endpoint": "GET /api/admin/farmers/pending",
+      "expected": "List of unverified farmers"
+    },
+    "step_5_approve_farmer": {
+      "description": "Approve the farmer and generate verification code",
+      "endpoint": "PUT /api/admin/farmers/{farmer_id}/approve",
+      "body": {
+        "approval_notes": "Documents verified. Account approved."
+      },
+      "expected": "Farmer approved with verification code sent to email"
+    },
+    "step_6_verify_approval": {
+      "description": "Check that farmer is now in verified list",
+      "endpoint": "GET /api/admin/farmers/verified",
+      "expected": "Farmer should appear in verified list"
+    },
+    "step_7_check_status": {
+      "description": "Get detailed verification status",
+      "endpoint": "GET /api/admin/farmers/{farmer_id}/verification-status",
+      "expected": "verified_status: true, unique_id: present"
+    },
+    "step_8_resend_code": {
+      "description": "Resend verification code if needed",
+      "endpoint": "POST /api/admin/farmers/{farmer_id}/resend-code",
+      "expected": "New verification code sent"
+    }
+  },
+  "error_scenarios": {
+    "approve_already_verified": {
+      "description": "Try to approve an already verified farmer",
+      "endpoint": "PUT /api/admin/farmers/{verified_farmer_id}/approve",
+      "expected_error": "Farmer is already verified"
+    },
+    "reject_without_reason": {
+      "description": "Try to reject a farmer without providing reason",
+      "endpoint": "PUT /api/admin/farmers/{farmer_id}/reject",
+      "body": {},
+      "expected_error": "Rejection reason is required"
+    },
+    "resend_code_unverified": {
+      "description": "Try to resend code to unverified farmer",
+      "endpoint": "POST /api/admin/farmers/{unverified_farmer_id}/resend-code",
+      "expected_error": "Farmer must be approved first"
+    },
+    "invalid_farmer_id": {
+      "description": "Try to access non-existent farmer",
+      "endpoint": "GET /api/admin/farmers/99999/verification-status",
+      "expected_error": "Farmer not found"
+    }
+  },
+  "postman_collection": {
+    "info": {
+      "name": "FarmerCrate Admin Verification Workflow",
+      "description": "Complete workflow for admin to verify farmers and manage verification codes"
+    },
+    "variables": [
+      {
+        "key": "base_url",
+        "value": "http://localhost:3000/api/admin"
+      },
+      {
+        "key": "admin_token",
+        "value": "{{admin_jwt_token}}"
+      },
+      {
+        "key": "farmer_id",
+        "value": "{{created_farmer_id}}"
+      }
+    ]
+  }
+} 

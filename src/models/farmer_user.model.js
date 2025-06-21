@@ -3,7 +3,7 @@ const { sequelize } = require('../config/database');
 
 const FarmerUser = sequelize.define('farmer_users', {
   farmer_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  unique_id: { type: DataTypes.STRING, allowNull: true, unique: true },
+  unique_id: { type: DataTypes.STRING(6), allowNull: true, unique: true, comment: '6-digit verification code' },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -18,7 +18,13 @@ const FarmerUser = sequelize.define('farmer_users', {
   updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   account_number: { type: DataTypes.STRING },
   ifsc_code: { type: DataTypes.STRING },
-  image_url: { type: DataTypes.STRING }
+  image_url: { type: DataTypes.STRING },
+  // Verification workflow fields
+  approved_at: { type: DataTypes.DATE, allowNull: true },
+  approval_notes: { type: DataTypes.TEXT, allowNull: true },
+  rejected_at: { type: DataTypes.DATE, allowNull: true },
+  rejection_reason: { type: DataTypes.TEXT, allowNull: true },
+  code_updated_at: { type: DataTypes.DATE, allowNull: true }
 }, {
   timestamps: false
 });

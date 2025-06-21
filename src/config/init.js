@@ -1,17 +1,21 @@
 const { sequelize } = require('./database');
-const User = require('../models/user.model');
+const FarmerUser = require('../models/farmer_user.model');
+const CustomerUser = require('../models/customer_user.model');
+const TransporterUser = require('../models/transporter_user.model');
+const AdminUser = require('../models/admin_user.model');
 const Product = require('../models/product.model');
 const Order = require('../models/order.model');
 const Transaction = require('../models/transaction.model');
 
 // Define model associations
 const initAssociations = () => {
-  // User associations
-  User.hasMany(Product, { foreignKey: 'farmerId' });
-  User.hasMany(Order, { foreignKey: 'consumerId' });
-  User.hasMany(Order, { foreignKey: 'farmerId' });
-  User.hasMany(Transaction, { foreignKey: 'userId' });
-
+  // Farmer associations
+  FarmerUser.hasMany(Product, { foreignKey: 'farmerId' });
+  FarmerUser.hasMany(Order, { foreignKey: 'farmerId' });
+  
+  // Customer associations
+  CustomerUser.hasMany(Order, { foreignKey: 'customerId' });
+  
   // Product associations
   Product.hasMany(Order, { foreignKey: 'productId' });
 
@@ -34,17 +38,18 @@ const initDatabase = async () => {
     await sequelize.sync({ alter: true });
     console.log('Database synchronized successfully');
 
-    // Create admin user if not exists
-    const adminExists = await User.findOne({ where: { role: 'admin' } });
+    // Create default admin user if not exists
+    const adminExists = await AdminUser.findOne({ where: { email: 'admin@farmercrate.com' } });
     if (!adminExists) {
-      await User.create({
-        username: 'admin',
+      await AdminUser.create({
+        name: 'System Admin',
         email: 'admin@farmercrate.com',
-        password: 'admin123', // This will be hashed by the model hook
-        mobileNumber: '1234567890',
-        role: 'admin'
+        password: 'admin123',
+        mobile_number: '+919876543210',
+        role: 'super_admin',
+        is_active: true
       });
-      console.log('Admin user created successfully');
+      console.log('Default admin user created successfully');
     }
 
     return true;

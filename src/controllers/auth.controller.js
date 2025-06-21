@@ -1,12 +1,13 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { sendOTPEmail } = require('../utils/email.util');
+const { sendOTPSMS } = require('../utils/sms.util');
 const sequelize = require('../config/database').sequelize;
 const { Sequelize } = require('sequelize');
 const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
+const AdminUser = require('../models/admin_user.model');
 
 // In-memory OTP storage
 const otpStore = new Map();
@@ -21,6 +22,7 @@ const getModelByRole = (role) => {
   if (role === 'farmer') return FarmerUser;
   if (role === 'customer') return CustomerUser;
   if (role === 'transporter') return TransporterUser;
+  if (role === 'admin') return AdminUser;
   return null;
 };
 
@@ -53,8 +55,8 @@ exports.register = async (req, res) => {
         age,
         account_number,
         ifsc_code,
-        image_url,
-        unique_id: uuidv4()
+        image_url
+        // unique_id will be generated only when admin approves
       });
       return res.status(201).json({
         message: 'Farmer registered successfully. Await admin approval.',
@@ -116,6 +118,34 @@ exports.register = async (req, res) => {
         }
       });
     }
+    if (role === 'admin') {
+      const { name, email, password, mobileNumber, adminRole } = req.body;
+      const existing = await Model.findOne({ where: { email } });
+      if (existing) return res.status(400).json({ message: 'Admin already exists' });
+      
+      // Validate admin role
+      const validAdminRoles = ['super_admin', 'admin', 'moderator'];
+      if (adminRole && !validAdminRoles.includes(adminRole)) {
+        return res.status(400).json({ message: 'Invalid admin role specified' });
+      }
+      
+      const admin = await Model.create({
+        name,
+        email,
+        password,
+        mobile_number: mobileNumber,
+        role: adminRole || 'admin'
+      });
+      return res.status(201).json({
+        message: 'Admin registered successfully.',
+        admin: {
+          id: admin.admin_id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role
+        }
+      });
+    }
   } catch (error) {
     console.error('Registration error:', error);
     if (error && error.errors) {
@@ -139,19 +169,36 @@ exports.login = async (req, res) => {
     const user = await Model.findOne({ where: { email } });
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     if (user.password !== password) return res.status(401).json({ message: 'Invalid credentials' });
-    const idField = role === 'farmer' ? 'farmer_id' : role === 'customer' ? 'customer_id' : 'transporter_id';
+    
+    // Check if admin is active
+    if (role === 'admin' && !user.is_active) {
+      return res.status(401).json({ message: 'Account is deactivated' });
+    }
+    
+    // Update last login for admin
+    if (role === 'admin') {
+      await user.update({ last_login: new Date() });
+    }
+    
+    const idField = role === 'farmer' ? 'farmer_id' : 
+                   role === 'customer' ? 'customer_id' : 
+                   role === 'transporter' ? 'transporter_id' : 
+                   'admin_id';
+    
     const token = jwt.sign(
       { id: user[idField], role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
+    
     res.json({
       message: 'Login successful',
       token,
       user: {
         id: user[idField],
         email: user.email,
-        role
+        role,
+        name: user.name || user.customer_name
       }
     });
   } catch (error) {
@@ -163,18 +210,18 @@ exports.login = async (req, res) => {
 // Send OTP for password reset
 exports.sendOTP = async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { mobile_number, role } = req.body;
     if (!role) return res.status(400).json({ message: 'Role is required.' });
     const Model = getModelByRole(role);
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
-    const user = await Model.findOne({ where: { email } });
+    const user = await Model.findOne({ where: { mobile_number } });
     if (!user) return res.status(404).json({ message: 'User not found' });
     const otp = generateOTP();
     const timestamp = Date.now();
-    otpStore.set(email, { otp, timestamp, attempts: 0 });
-    const emailSent = await sendOTPEmail(email, otp);
-    if (!emailSent) return res.status(500).json({ message: 'Error sending OTP email' });
-    res.json({ success: true, message: 'OTP sent successfully to your email' });
+    otpStore.set(mobile_number, { otp, timestamp, attempts: 0 });
+    const smsSent = await sendOTPSMS(mobile_number, otp);
+    if (!smsSent) return res.status(500).json({ message: 'Error sending OTP SMS' });
+    res.json({ success: true, message: 'OTP sent successfully to your mobile number' });
   } catch (error) {
     console.error('Send OTP error:', error);
     res.status(500).json({ message: 'Error sending OTP' });
@@ -184,22 +231,22 @@ exports.sendOTP = async (req, res) => {
 // Verify OTP
 exports.verifyOTP = async (req, res) => {
   try {
-    const { email, otp } = req.body;
-    const storedData = otpStore.get(email);
+    const { mobile_number, otp } = req.body;
+    const storedData = otpStore.get(mobile_number);
     if (!storedData) {
       return res.status(400).json({ success: false, message: 'OTP expired or not found' });
     }
     if (Date.now() - storedData.timestamp > 600000) {
-      otpStore.delete(email);
+      otpStore.delete(mobile_number);
       return res.status(400).json({ success: false, message: 'OTP has expired' });
     }
     if (storedData.otp === otp) {
-      otpStore.delete(email);
+      otpStore.delete(mobile_number);
       return res.status(200).json({ success: true, message: 'OTP verified successfully' });
     }
     storedData.attempts += 1;
     if (storedData.attempts >= 3) {
-      otpStore.delete(email);
+      otpStore.delete(mobile_number);
       return res.status(400).json({ success: false, message: 'Too many failed attempts. Please request a new OTP' });
     }
     res.status(400).json({ success: false, message: 'Invalid OTP' });
@@ -216,11 +263,11 @@ exports.resetPassword = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { email, otp, newPassword, role } = req.body;
+    const { mobile_number, otp, newPassword, role } = req.body;
     if (!role) return res.status(400).json({ message: 'Role is required.' });
     const Model = getModelByRole(role);
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
-    const storedData = otpStore.get(email);
+    const storedData = otpStore.get(mobile_number);
     if (!storedData) {
       return res.status(400).json({ success: false, message: 'OTP expired or not found' });
     }
@@ -228,16 +275,16 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
     if (Date.now() - storedData.timestamp > 600000) {
-      otpStore.delete(email);
+      otpStore.delete(mobile_number);
       return res.status(400).json({ success: false, message: 'OTP has expired' });
     }
-    const user = await Model.findOne({ where: { email } });
+    const user = await Model.findOne({ where: { mobile_number } });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     user.password = newPassword;
     await user.save();
-    otpStore.delete(email);
+    otpStore.delete(mobile_number);
     res.json({ success: true, message: 'Password reset successful' });
   } catch (error) {
     console.error('Reset password error:', error);

@@ -28,15 +28,19 @@ const initializeDatabase = async () => {
     require('../models/order.model');
     require('../models/transaction.model');
     require('../models/cart.model');
+    require('../models/farmer_user.model');
+    require('../models/customer_user.model');
+    require('../models/transporter_user.model');
+    require('../models/admin_user.model');
 
     // Test database connection
     await sequelize.authenticate();
     console.log('Database connection has been established successfully.');
 
-    // Sync all models with database
+    // Sync all models with database - using safe mode
     await sequelize.sync({ 
-      alter: false, // Changed to false to prevent automatic schema changes
-      logging: console.log,
+      alter: false, // Disabled to prevent migration issues
+      logging: false,
       force: false
     });
     console.log('Database synchronized successfully.');
