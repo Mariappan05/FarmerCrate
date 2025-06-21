@@ -1,6 +1,8 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database').sequelize;
-const User = require('./user.model');
+const { sequelize } = require('../config/database');
+const FarmerUser = require('./farmer_user.model');
+const CustomerUser = require('./customer_user.model');
+const TransporterUser = require('./transporter_user.model');
 const Order = require('./order.model');
 
 const Transaction = sequelize.define('Transaction', {
@@ -28,7 +30,7 @@ const Transaction = sequelize.define('Transaction', {
 });
 
 // Define associations
-Transaction.belongsTo(User, { foreignKey: 'userId' });
+Transaction.belongsTo(FarmerUser, { foreignKey: 'userId' });
 Transaction.belongsTo(Order, { foreignKey: 'orderId', allowNull: true });
 
 module.exports = Transaction; 

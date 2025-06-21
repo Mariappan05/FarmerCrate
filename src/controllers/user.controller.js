@@ -1,13 +1,24 @@
 const { validationResult } = require('express-validator');
-const User = require('../models/user.model');
+const FarmerUser = require('../models/farmer_user.model');
+const CustomerUser = require('../models/customer_user.model');
+const TransporterUser = require('../models/transporter_user.model');
+
+const getModelByRole = (role) => {
+  if (role === 'farmer') return FarmerUser;
+  if (role === 'customer') return CustomerUser;
+  if (role === 'transporter') return TransporterUser;
+  return null;
+};
 
 // Get user profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id, {
+    const Model = getModelByRole(req.role);
+    if (!Model) return res.status(400).json({ message: 'Invalid role' });
+    const idField = req.role === 'farmer' ? 'farmer_id' : req.role === 'customer' ? 'customer_id' : 'transporter_id';
+    const user = await Model.findByPk(req.user[idField], {
       attributes: { exclude: ['password'] }
     });
-
     res.json({
       success: true,
       data: user
@@ -21,40 +32,37 @@ exports.getProfile = async (req, res) => {
 // Update user profile
 exports.updateProfile = async (req, res) => {
   try {
-    // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
-    const { username, email, mobileNumber } = req.body;
-
+    const Model = getModelByRole(req.role);
+    if (!Model) return res.status(400).json({ message: 'Invalid role' });
+    const idField = req.role === 'farmer' ? 'farmer_id' : req.role === 'customer' ? 'customer_id' : 'transporter_id';
+    const { name, email, mobileNumber } = req.body;
     // Check if email is already taken
     if (email && email !== req.user.email) {
-      const existingUser = await User.findOne({ where: { email } });
+      const existingUser = await Model.findOne({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ message: 'Email already in use' });
       }
     }
-
     // Update user
-    const user = await User.findByPk(req.user.id);
-    await user.update({
-      username: username || user.username,
-      email: email || user.email,
-      mobileNumber: mobileNumber || user.mobileNumber
-    });
-
+    const user = await Model.findByPk(req.user[idField]);
+    // Use correct field for name
+    let updateFields = {};
+    if (req.role === 'farmer' || req.role === 'transporter') {
+      updateFields.name = name || user.name;
+    } else if (req.role === 'customer') {
+      updateFields.customer_name = name || user.customer_name;
+    }
+    updateFields.email = email || user.email;
+    updateFields.mobile_number = mobileNumber || user.mobile_number;
+    await user.update(updateFields);
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      data: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        mobileNumber: user.mobileNumber,
-        role: user.role
-      }
+      data: user
     });
   } catch (error) {
     console.error('Update profile error:', error);
@@ -62,17 +70,19 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// Get wallet balance
+// Get wallet balance (assuming all user models have walletBalance field)
 exports.getWalletBalance = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id, {
+    const Model = getModelByRole(req.role);
+    if (!Model) return res.status(400).json({ message: 'Invalid role' });
+    const idField = req.role === 'farmer' ? 'farmer_id' : req.role === 'customer' ? 'customer_id' : 'transporter_id';
+    const user = await Model.findByPk(req.user[idField], {
       attributes: ['walletBalance']
     });
-
     res.json({
       success: true,
       data: {
-        balance: user.walletBalance
+        balance: user ? user.walletBalance : 0
       }
     });
   } catch (error) {

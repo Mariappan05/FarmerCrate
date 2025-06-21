@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/product.model');
-const User = require('../models/user.model');
+const FarmerUser = require('../models/farmer_user.model');
 const { Op } = require('sequelize');
 
 // Get all products
@@ -26,9 +26,9 @@ exports.getAllProducts = async (req, res) => {
     const products = await Product.findAll({
       where: whereClause,
       include: [{
-        model: User,
+        model: FarmerUser,
         as: 'farmer',
-        attributes: ['username', 'email', 'mobileNumber']
+        attributes: ['name', 'email', 'mobile_number']
       }],
       order: [['createdAt', 'DESC']]
     });
@@ -49,9 +49,9 @@ exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id, {
       include: [{
-        model: User,
+        model: FarmerUser,
         as: 'farmer',
-        attributes: ['username', 'email']
+        attributes: ['name', 'email', 'mobile_number']
       }]
     });
 

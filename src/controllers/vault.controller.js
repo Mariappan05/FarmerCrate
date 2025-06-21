@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
-const Transaction = require('../models/transaction.model');
-const User = require('../models/user.model');
+const FarmerUser = require('../models/farmer_user.model');
+const CustomerUser = require('../models/customer_user.model');
+const TransporterUser = require('../models/transporter_user.model');
 const { sequelize } = require('../models/transaction.model');
 
 // Get transactions
@@ -96,5 +97,21 @@ exports.createWithdrawal = async (req, res) => {
     await transaction.rollback();
     console.error('Create withdrawal error:', error);
     res.status(500).json({ message: 'Error creating withdrawal request' });
+  }
+};
+
+// Example: Get farmer vault info
+exports.getFarmerVault = async (req, res) => {
+  try {
+    const farmer = await FarmerUser.findByPk(req.user.id, {
+      attributes: ['name', 'email', 'mobile_number', 'account_number', 'ifsc_code']
+    });
+    if (!farmer) {
+      return res.status(404).json({ message: 'Farmer not found' });
+    }
+    res.json({ success: true, data: farmer });
+  } catch (error) {
+    console.error('Get farmer vault error:', error);
+    res.status(500).json({ message: 'Error fetching farmer vault info' });
   }
 }; 

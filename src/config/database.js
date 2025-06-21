@@ -24,7 +24,6 @@ const sequelize = new Sequelize(
 const initializeDatabase = async () => {
   try {
     // Require models here to avoid circular dependency
-    const User = require('../models/user.model');
     require('../models/product.model');
     require('../models/order.model');
     require('../models/transaction.model');

@@ -1,9 +1,11 @@
 const { validationResult } = require('express-validator');
 const Order = require('../models/order.model');
+const FarmerUser = require('../models/farmer_user.model');
+const CustomerUser = require('../models/customer_user.model');
+const TransporterUser = require('../models/transporter_user.model');
 const Product = require('../models/product.model');
-const User = require('../models/user.model');
-const Transaction = require('../models/transaction.model');
 const { sequelize } = require('../models/transaction.model');
+const { Op } = require('sequelize');
 
 // Create order
 exports.createOrder = async (req, res) => {
@@ -25,7 +27,7 @@ exports.createOrder = async (req, res) => {
         status: 'available'
       },
       include: [{
-        model: User,
+        model: FarmerUser,
         as: 'farmer',
         attributes: ['id', 'walletBalance']
       }]
@@ -76,7 +78,7 @@ exports.createOrder = async (req, res) => {
     }, { transaction });
 
     // Update farmer's wallet
-    await User.update(
+    await FarmerUser.update(
       { walletBalance: sequelize.literal(`walletBalance + ${order.farmerAmount}`) },
       { 
         where: { id: product.farmer.id },
@@ -85,7 +87,7 @@ exports.createOrder = async (req, res) => {
     );
 
     // Update admin's wallet
-    await User.update(
+    await FarmerUser.update(
       { walletBalance: sequelize.literal(`walletBalance + ${order.commission}`) },
       { 
         where: { id: 1 }, // Admin user ID
@@ -121,7 +123,7 @@ exports.getOrders = async (req, res) => {
             attributes: ['name', 'price']
           },
           {
-            model: User,
+            model: CustomerUser,
             as: 'consumer',
             attributes: ['username', 'email']
           }
@@ -136,7 +138,7 @@ exports.getOrders = async (req, res) => {
             attributes: ['name', 'price']
           },
           {
-            model: User,
+            model: FarmerUser,
             as: 'farmer',
             attributes: ['username', 'email']
           }
@@ -151,12 +153,12 @@ exports.getOrders = async (req, res) => {
             attributes: ['name', 'price']
           },
           {
-            model: User,
+            model: CustomerUser,
             as: 'consumer',
             attributes: ['username', 'email']
           },
           {
-            model: User,
+            model: FarmerUser,
             as: 'farmer',
             attributes: ['username', 'email']
           }
@@ -192,12 +194,12 @@ exports.getOrder = async (req, res) => {
           attributes: ['name', 'price']
         },
         {
-          model: User,
+          model: CustomerUser,
           as: 'consumer',
           attributes: ['username', 'email']
         },
         {
-          model: User,
+          model: FarmerUser,
           as: 'farmer',
           attributes: ['username', 'email']
         }
@@ -248,5 +250,23 @@ exports.updateOrderStatus = async (req, res) => {
   } catch (error) {
     console.error('Update order status error:', error);
     res.status(500).json({ message: 'Error updating order status' });
+  }
+};
+
+// Example: Get all orders (with farmer and customer info)
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.findAll({
+      include: [
+        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number'] },
+        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
+        { model: Product }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+    res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    console.error('Get all orders error:', error);
+    res.status(500).json({ message: 'Error fetching orders' });
   }
 }; 
