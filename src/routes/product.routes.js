@@ -10,7 +10,8 @@ const productValidation = [
   body('description').trim().notEmpty().withMessage('Product description is required'),
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('quantity').isInt({ min: 0 }).withMessage('Quantity must be a positive number'),
-  body('images').optional().isArray().withMessage('Images must be an array')
+  body('images').optional().isArray().withMessage('Images must be an array'),
+  body('category').optional().trim()
 ];
 
 const priceUpdateValidation = [
@@ -20,6 +21,8 @@ const priceUpdateValidation = [
 // Public routes
 router.get('/', productController.getAllProducts);
 router.get('/:id', productController.getProduct);
+// Get related products by product id
+router.get('/:id/related', productController.getRelatedProducts);
 
 // Protected routes (Farmer only)
 router.post('/', 
@@ -42,6 +45,13 @@ router.delete('/:id',
   productController.deleteProduct
 );
 
+// Get all products posted by the logged-in farmer
+router.get('/farmer/me', 
+  protect, 
+  authorize('farmer'), 
+  productController.getProductsByFarmer
+);
+
 // Price update route
 router.put('/:id/price', 
   protect, 
@@ -50,4 +60,4 @@ router.put('/:id/price',
   productController.updatePrice
 );
 
-module.exports = router; 
+module.exports = router;

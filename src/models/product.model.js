@@ -29,6 +29,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     allowNull: true
   },
+  category: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   status: {
     type: DataTypes.ENUM('available', 'sold_out', 'hidden'),
     defaultValue: 'available'
