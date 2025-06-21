@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 const { sendOTPEmail } = require('../utils/email.util');
 const sequelize = require('../config/database').sequelize;
 const { Sequelize } = require('sequelize');
@@ -53,7 +54,7 @@ exports.register = async (req, res) => {
         account_number,
         ifsc_code,
         image_url,
-        unique_id: null
+        unique_id: uuidv4()
       });
       return res.status(201).json({
         message: 'Farmer registered successfully. Await admin approval.',
