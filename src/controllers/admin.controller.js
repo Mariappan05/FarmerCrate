@@ -558,4 +558,155 @@ exports.sendFarmerCode = async (req, res) => {
     console.error('Error sending farmer code:', error);
     res.status(500).json({ message: 'Error sending farmer code' });
   }
+};
+
+// ==================== TRANSPORTER MANAGEMENT FUNCTIONS ====================
+
+// Get all pending transporters for admin review
+exports.getPendingTransporters = async (req, res) => {
+  try {
+    const pendingTransporters = await TransporterUser.findAll({
+      where: { verified_status: false, rejected_at: null },
+      attributes: [
+        'transporter_id', 'name', 'email', 'mobile_number', 'address', 
+        'zone', 'state', 'district', 'age', 'image_url', 'created_at'
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: pendingTransporters.length,
+      data: pendingTransporters
+    });
+  } catch (error) {
+    console.error('Error fetching pending transporters:', error);
+    res.status(500).json({ message: 'Error fetching pending transporters' });
+  }
+};
+
+// Get all verified transporters
+exports.getVerifiedTransporters = async (req, res) => {
+  try {
+    const verifiedTransporters = await TransporterUser.findAll({
+      where: { verified_status: true },
+      attributes: [
+        'transporter_id', 'name', 'email', 'mobile_number', 'address', 
+        'zone', 'state', 'district', 'age', 'image_url', 'unique_id', 'created_at'
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: verifiedTransporters.length,
+      data: verifiedTransporters
+    });
+  } catch (error) {
+    console.error('Error fetching verified transporters:', error);
+    res.status(500).json({ message: 'Error fetching verified transporters' });
+  }
+};
+
+// Approve a transporter and generate verification code
+exports.approveTransporter = async (req, res) => {
+  try {
+    const { transporter_id } = req.params;
+    const { approval_notes } = req.body;
+
+    const transporter = await TransporterUser.findByPk(transporter_id);
+    if (!transporter) {
+      return res.status(404).json({ message: 'Transporter not found' });
+    }
+
+    if (transporter.verified_status) {
+      return res.status(400).json({ message: 'Transporter is already verified' });
+    }
+
+    // Generate a 6-digit verification code
+    const unique_id = generateVerificationCode();
+    
+    // Update transporter's record
+    await transporter.update({
+      verified_status: true,
+      unique_id: unique_id,
+      approved_at: new Date(),
+      approval_notes: approval_notes || null
+    });
+
+    // Send verification code via SMS
+    const { sendVerificationCodeSMS, sendApprovalNotificationSMS } = require('../utils/sms.util');
+    const smsSent = await sendVerificationCodeSMS(transporter.mobile_number, unique_id);
+    const notificationSent = await sendApprovalNotificationSMS(transporter.mobile_number, transporter.name);
+    
+    if (!smsSent) {
+      // Even if SMS fails, transporter is still approved
+      console.warn(`Transporter approved but SMS failed to send: ${transporter.mobile_number}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Transporter approved successfully. Verification code sent to mobile number.',
+      data: {
+        transporter_id: transporter.transporter_id,
+        name: transporter.name,
+        email: transporter.email,
+        mobile_number: transporter.mobile_number,
+        unique_id: unique_id,
+        sms_sent: smsSent,
+        notification_sent: notificationSent
+      }
+    });
+  } catch (error) {
+    console.error('Error approving transporter:', error);
+    res.status(500).json({ message: 'Error approving transporter' });
+  }
+};
+
+// Reject a transporter
+exports.rejectTransporter = async (req, res) => {
+  try {
+    const { transporter_id } = req.params;
+    const { rejection_reason } = req.body;
+
+    if (!rejection_reason) {
+      return res.status(400).json({ message: 'Rejection reason is required' });
+    }
+
+    const transporter = await TransporterUser.findByPk(transporter_id);
+    if (!transporter) {
+      return res.status(404).json({ message: 'Transporter not found' });
+    }
+
+    if (transporter.verified_status) {
+      return res.status(400).json({ message: 'Cannot reject an already verified transporter' });
+    }
+
+    // Update transporter's record with rejection details
+    await transporter.update({
+      verified_status: false, // It's already false, but for clarity
+      rejected_at: new Date(),
+      rejection_reason: rejection_reason
+    });
+
+    // Send rejection notification via SMS
+    const { sendRejectionNotificationSMS } = require('../utils/sms.util');
+    const smsSent = await sendRejectionNotificationSMS(transporter.mobile_number, transporter.name, rejection_reason);
+
+    res.json({
+      success: true,
+      message: 'Transporter rejected successfully',
+      data: {
+        transporter_id: transporter.transporter_id,
+        name: transporter.name,
+        email: transporter.email,
+        mobile_number: transporter.mobile_number,
+        rejection_reason: rejection_reason,
+        sms_sent: smsSent
+      }
+    });
+  } catch (error) {
+    console.error('Error rejecting transporter:', error);
+    res.status(500).json({ message: 'Error rejecting transporter' });
+  }
 }; 

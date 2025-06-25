@@ -48,7 +48,7 @@ router.get('/dashboard-stats', adminController.getDashboardStats);
 
 // ==================== FARMER VERIFICATION MANAGEMENT ====================
 
-// Get all pending farmers for admin review
+// Get all pending farmers for admin reviewt
 router.get('/farmers/pending', adminController.getPendingFarmers);
 
 // Get all verified farmers
@@ -69,7 +69,24 @@ router.put('/farmers/:farmer_id/reject', [
 // Verification code management
 router.post('/farmers/:farmer_id/resend-code', adminController.resendVerificationCode);
 
+// ==================== TRANSPORTER VERIFICATION MANAGEMENT ====================
+
+// Get all pending transporters for admin review
+router.get('/transporters/pending', adminController.getPendingTransporters);
+
+// Get all verified transporters
+router.get('/transporters/verified', adminController.getVerifiedTransporters);
+
+// Approve/Reject transporters
+router.put('/transporters/:transporter_id/approve', [
+  body('approval_notes').optional().isLength({ max: 500 }).withMessage('Approval notes must be less than 500 characters')
+], adminController.approveTransporter);
+
+router.put('/transporters/:transporter_id/reject', [
+  body('rejection_reason').isLength({ min: 10, max: 500 }).withMessage('Rejection reason must be between 10 and 500 characters')
+], adminController.rejectTransporter);
+
 // Legacy endpoint - kept for backward compatibility
 router.post('/send-farmer-code', adminController.sendFarmerCode);
 
-module.exports = router; 
+module.exports = router;

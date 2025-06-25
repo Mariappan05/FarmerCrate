@@ -94,7 +94,9 @@ exports.register = async (req, res) => {
       });
     }
     if (role === 'transporter') {
-      const { name, email, password, mobileNumber, address, zone, state, district, age, image_url } = req.body;
+      const { name, email, password, mobileNumber, address, zone, state, district, age, image_url,
+        aadhar_url, pan_url, voter_id_url, license_url,
+        aadhar_number, pan_number, voter_id_number, license_number } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Transporter already exists' });
       const transporter = await Model.create({
@@ -107,14 +109,23 @@ exports.register = async (req, res) => {
         district,
         state,
         password,
-        image_url
+        image_url,
+        aadhar_url,
+        pan_url,
+        voter_id_url,
+        license_url,
+        aadhar_number,
+        pan_number,
+        voter_id_number,
+        license_number
       });
       return res.status(201).json({
-        message: 'Transporter registered successfully.',
+        message: 'Transporter registered successfully. Await admin approval.',
         transporter: {
           id: transporter.transporter_id,
           name: transporter.name,
-          email: transporter.email
+          email: transporter.email,
+          verified_status: transporter.verified_status
         }
       });
     }
@@ -170,6 +181,14 @@ exports.login = async (req, res) => {
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     if (user.password !== password) return res.status(401).json({ message: 'Invalid credentials' });
     
+    if (role === 'farmer' && !user.verified_status) {
+      return res.status(403).json({ message: 'Your account is pending verification. Please contact an administrator or use your verification code.' });
+    }
+
+    if (role === 'transporter' && !user.verified_status) {
+      return res.status(403).json({ message: 'Your account is pending administrator approval.' });
+    }
+
     // Check if admin is active
     if (role === 'admin' && !user.is_active) {
       return res.status(401).json({ message: 'Account is deactivated' });
@@ -181,9 +200,9 @@ exports.login = async (req, res) => {
     }
     
     const idField = role === 'farmer' ? 'farmer_id' : 
-                   role === 'customer' ? 'customer_id' : 
-                   role === 'transporter' ? 'transporter_id' : 
-                   'admin_id';
+                  role === 'customer' ? 'customer_id' : 
+                  role === 'transporter' ? 'transporter_id' : 
+                  'admin_id';
     
     const token = jwt.sign(
       { id: user[idField], role },
@@ -310,4 +329,4 @@ exports.verifyFarmerCode = async (req, res) => {
     console.error('Error verifying farmer code:', error);
     res.status(500).json({ message: 'Error verifying farmer code' });
   }
-}; 
+};
