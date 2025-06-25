@@ -30,7 +30,8 @@ const getModelByRole = (role) => {
 exports.register = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    if (!errors.isEmpty()) 
+      {
       return res.status(400).json({ errors: errors.array() });
     }
     const { role } = req.body;
@@ -162,61 +163,92 @@ exports.login = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { email, password, role, unique_id, username } = req.body;
-    if (!role) return res.status(400).json({ message: 'Role is required.' });
-    const Model = getModelByRole(role);
-    if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Both username and password are required.' });
+    }
 
-    let user;
-    if (role === 'farmer') {
-      // For farmer, require unique_id and check unique_id and password only
-      if (!unique_id) {
-        return res.status(400).json({ message: 'Unique code is required for farmer login.' });
+    // Models and their search fields (order: farmer, customer, transporter, admin)
+    const userTypes = [
+      {
+        role: 'farmer',
+        Model: FarmerUser,
+        where: { unique_id: username },
+        idField: 'farmer_id',
+        nameField: 'name',
+        extra: (user) => ({ unique_id: user.unique_id })
+      },
+      {
+        role: 'customer',
+        Model: CustomerUser,
+        where: { customer_name: username },
+        idField: 'customer_id',
+        nameField: 'customer_name',
+        extra: () => ({})
+      },
+      {
+        role: 'transporter',
+        Model: TransporterUser,
+        where: { name: username },
+        idField: 'transporter_id',
+        nameField: 'name',
+        extra: () => ({})
+      },
+      {
+        role: 'admin',
+        Model: AdminUser,
+        where: { name: username },
+        idField: 'admin_id',
+        nameField: 'name',
+        extra: () => ({})
       }
-      user = await Model.findOne({ where: { unique_id } });
-      if (!user) return res.status(401).json({ message: 'Invalid unique code' });
-      if (user.password !== password) return res.status(401).json({ message: 'Invalid password' });
-    } else {
-      // For customer/admin/transporter, use username (email) and password
-      const loginUsername = username || email; // Support both username and email for backward compatibility
-      if (!loginUsername) {
-        return res.status(400).json({ message: 'Username is required for login.' });
+    ];
+
+    let foundUser = null;
+    let foundRole = null;
+    let idField = null;
+    let nameField = null;
+    let extraFields = null;
+
+    for (const userType of userTypes) {
+      const user = await userType.Model.findOne({ where: userType.where });
+      if (user && user.password === password) {
+        // For admin, check if active
+        if (userType.role === 'admin' && !user.is_active) {
+          return res.status(401).json({ message: 'Account is deactivated' });
+        }
+        // For admin, update last_login
+        if (userType.role === 'admin') {
+          await user.update({ last_login: new Date() });
+        }
+        foundUser = user;
+        foundRole = userType.role;
+        idField = userType.idField;
+        nameField = userType.nameField;
+        extraFields = userType.extra(user);
+        break;
       }
-      user = await Model.findOne({ where: { email: loginUsername } });
-      if (!user) return res.status(401).json({ message: 'Invalid username or password' });
-      if (user.password !== password) return res.status(401).json({ message: 'Invalid username or password' });
     }
-    
-    // Check if admin is active
-    if (role === 'admin' && !user.is_active) {
-      return res.status(401).json({ message: 'Account is deactivated' });
+
+    if (!foundUser) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
-    // Update last login for admin
-    if (role === 'admin') {
-      await user.update({ last_login: new Date() });
-    }
-    
-    const idField = role === 'farmer' ? 'farmer_id' : 
-                   role === 'customer' ? 'customer_id' : 
-                   role === 'transporter' ? 'transporter_id' : 
-                   'admin_id';
-    
+
     const token = jwt.sign(
-      { id: user[idField], role },
+      { id: foundUser[idField], role: foundRole },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-    
+
     res.json({
       message: 'Login successful',
       token,
       user: {
-        id: user[idField],
-        email: user.email,
-        role,
-        name: user.name || user.customer_name,
-        ...(role === 'farmer' ? { unique_id: user.unique_id } : {})
+        id: foundUser[idField],
+        email: foundUser.email,
+        role: foundRole,
+        name: foundUser[nameField],
+        ...extraFields
       }
     });
   } catch (error) {
