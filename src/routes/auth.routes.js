@@ -19,9 +19,20 @@ router.post(
 router.post(
   '/login',
   [
-    body('email').isEmail().withMessage('Please enter a valid email'),
-    body('password').notEmpty().withMessage('Password is required'),
-    body('role').isIn(['farmer', 'customer', 'transporter', 'admin']).withMessage('Invalid role')
+    (req, res, next) => {
+      if (req.body.role === 'farmer') {
+        // Farmer: require unique_id and password
+        body('unique_id').isLength({ min: 6, max: 6 }).withMessage('Unique code must be 6 digits')(req, res, () => {});
+        body('password').notEmpty().withMessage('Password is required')(req, res, () => {});
+        body('role').equals('farmer').withMessage('Role must be farmer')(req, res, () => {});
+      } else {
+        // Other roles: require username (or email) and password
+        body('username').notEmpty().withMessage('Username (email) is required')(req, res, () => {});
+        body('password').notEmpty().withMessage('Password is required')(req, res, () => {});
+        body('role').isIn(['customer', 'transporter', 'admin']).withMessage('Invalid role')(req, res, () => {});
+      }
+      next();
+    }
   ],
   authController.login
 );

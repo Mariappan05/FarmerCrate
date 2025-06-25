@@ -30,7 +30,8 @@ const getModelByRole = (role) => {
 exports.register = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    if (!errors.isEmpty()) 
+      {
       return res.status(400).json({ errors: errors.array() });
     }
     const { role } = req.body;
@@ -181,14 +182,6 @@ exports.login = async (req, res) => {
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     if (user.password !== password) return res.status(401).json({ message: 'Invalid credentials' });
     
-    if (role === 'farmer' && !user.verified_status) {
-      return res.status(403).json({ message: 'Your account is pending verification. Please contact an administrator or use your verification code.' });
-    }
-
-    if (role === 'transporter' && !user.verified_status) {
-      return res.status(403).json({ message: 'Your account is pending administrator approval.' });
-    }
-
     // Check if admin is active
     if (role === 'admin' && !user.is_active) {
       return res.status(401).json({ message: 'Account is deactivated' });
@@ -200,24 +193,25 @@ exports.login = async (req, res) => {
     }
     
     const idField = role === 'farmer' ? 'farmer_id' : 
-                  role === 'customer' ? 'customer_id' : 
-                  role === 'transporter' ? 'transporter_id' : 
-                  'admin_id';
+                   role === 'customer' ? 'customer_id' : 
+                   role === 'transporter' ? 'transporter_id' : 
+                   'admin_id';
     
     const token = jwt.sign(
-      { id: user[idField], role },
+      { id: foundUser[idField], role: foundRole },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-    
+
     res.json({
       message: 'Login successful',
       token,
       user: {
-        id: user[idField],
-        email: user.email,
-        role,
-        name: user.name || user.customer_name
+        id: foundUser[idField],
+        email: foundUser.email,
+        role: foundRole,
+        name: foundUser[nameField],
+        ...extraFields
       }
     });
   } catch (error) {
