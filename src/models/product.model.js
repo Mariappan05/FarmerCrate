@@ -8,7 +8,7 @@ const Product = sequelize.define('products', {
   description: { type: DataTypes.TEXT, allowNull: false },
   price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-  images: { type: DataTypes.JSON, allowNull: true },
+  images: { type: DataTypes.STRING, allowNull: true },
   category: { type: DataTypes.STRING, allowNull: true },
   status: { type: DataTypes.ENUM('available', 'sold_out', 'hidden'), defaultValue: 'available' },
   last_price_update: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
