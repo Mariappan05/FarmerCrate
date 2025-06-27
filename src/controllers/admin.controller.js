@@ -324,7 +324,16 @@ exports.approveFarmer = async (req, res) => {
     const { id } = req.params;
     const { approval_notes } = req.body;
 
-    const farmer = await FarmerUser.findByPk(id);
+    // Debug log for id
+    console.log('Approving farmer with id:', id, 'type:', typeof id);
+
+    // Check if id is a valid number
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ message: 'Invalid farmer id' });
+    }
+
+    // Use findOne with explicit where clause to avoid type issues
+    const farmer = await FarmerUser.findOne({ where: { id: Number(id) } });
     if (!farmer) {
       return res.status(404).json({ message: 'Farmer not found' });
     }

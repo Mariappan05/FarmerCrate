@@ -55,19 +55,19 @@ router.get('/farmers/pending', adminController.getPendingFarmers);
 router.get('/farmers/verified', adminController.getVerifiedFarmers);
 
 // Get farmer verification status
-router.get('/farmers/:farmer_id/verification-status', adminController.getFarmerVerificationStatus);
+router.get('/farmers/:id/verification-status', adminController.getFarmerVerificationStatus);
 
 // Approve/Reject farmers
-router.put('/farmers/:farmer_id/approve', [
+router.put('/farmers/:id/approve', [
   body('approval_notes').optional().isLength({ max: 500 }).withMessage('Approval notes must be less than 500 characters')
 ], adminController.approveFarmer);
 
-router.put('/farmers/:farmer_id/reject', [
+router.put('/farmers/:id/reject', [
   body('rejection_reason').isLength({ min: 10, max: 500 }).withMessage('Rejection reason must be between 10 and 500 characters')
 ], adminController.rejectFarmer);
 
 // Verification code management
-router.post('/farmers/:farmer_id/resend-code', adminController.resendVerificationCode);
+router.post('/farmers/:id/resend-code', adminController.resendVerificationCode);
 
 // ==================== TRANSPORTER VERIFICATION MANAGEMENT ====================
 
