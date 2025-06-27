@@ -10,7 +10,7 @@ const productValidation = [
   body('description').trim().notEmpty().withMessage('Product description is required'),
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('quantity').isInt({ min: 0 }).withMessage('Quantity must be a positive number'),
-  body('images').notEmpty().withMessage('Images is required'),
+  body('images').trim().notEmpty().withMessage('Images is required'),
   body('category').optional().trim()
 ];
 
