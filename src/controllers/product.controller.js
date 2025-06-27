@@ -26,9 +26,9 @@ exports.getAllProducts = async (req, res) => {
     const products = await Product.findAll({
       where: whereClause,
       include: [{
-        model: FarmerFarmerUser,
+        model: FarmerUser,
         as: 'farmer',
-        attributes: ['name', 'email', 'mobile_number']
+        // No attributes limit: return all farmer details
       }],
       order: [['createdAt', 'DESC']]
     });
@@ -53,9 +53,9 @@ exports.getProductsByFarmer = async (req, res) => {
     const products = await Product.findAll({
       where: { farmerId: req.FarmerUser.id },
       include: [{
-        model: FarmerFarmerUser,
+        model: FarmerUser,
         as: 'farmer',
-        attributes: ['name', 'email', 'mobile_number']
+        // No attributes limit
       }],
       order: [['createdAt', 'DESC']]
     });
@@ -111,9 +111,9 @@ exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id, {
       include: [{
-        model: FarmerFarmerUser,
+        model: FarmerUser,
         as: 'farmer',
-        attributes: ['name', 'email']
+        // No attributes limit
       }]
     });
 
