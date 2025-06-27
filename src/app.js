@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const { initializeDatabase } = require('./config/database');
+const { initializeDatabase, sequelize } = require('./config/database');
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +29,8 @@ const adminRoutes = require('./routes/admin.routes');
 const farmerRoutes = require('./routes/farmer.routes');
 const customerRoutes = require('./routes/customer.routes');
 const transporterRoutes = require('./routes/transporter.routes');
+
+// No need to import models here; they are imported in initializeDatabase
 
 // Initialize database and start server
 const startServer = async () => {
@@ -76,6 +78,7 @@ const startServer = async () => {
         console.error('Failed to start server:', err);
       }
     });
+
 
   } catch (error) {
     console.error('Failed to start server:', error);

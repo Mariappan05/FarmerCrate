@@ -62,7 +62,7 @@ exports.register = async (req, res) => {
       return res.status(201).json({
         message: 'Farmer registered successfully. Await admin approval.',
         farmer: {
-          id: farmer.farmer_id,
+          id: farmer.id,
           name: farmer.name,
           email: farmer.email,
           verified_status: farmer.verified_status
@@ -88,7 +88,7 @@ exports.register = async (req, res) => {
       return res.status(201).json({
         message: 'Customer registered successfully.',
         customer: {
-          id: customer.customer_id,
+          id: customer.id,
           name: customer.customer_name,
           email: customer.email
         }
@@ -174,51 +174,84 @@ exports.login = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { email, password, role } = req.body;
-    if (!role) return res.status(400).json({ message: 'Role is required.' });
-    const Model = getModelByRole(role);
-    if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
-    const user = await Model.findOne({ where: { email } });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
-    if (user.password !== password) return res.status(401).json({ message: 'Invalid credentials' });
-    
-    // Check if admin is active
-    if (role === 'admin' && !user.is_active) {
-      return res.status(401).json({ message: 'Account is deactivated' });
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Both username and password are required.' });
     }
-    
-    // Update last login for admin
-    if (role === 'admin') {
-      await user.update({ last_login: new Date() });
-    }
-    
-    const idField = role === 'farmer' ? 'farmer_id' : 
-                   role === 'customer' ? 'customer_id' : 
-                   role === 'transporter' ? 'transporter_id' : 
-                   'admin_id';
-    
-    const token = jwt.sign(
-      { id: foundUser[idField], role: foundRole },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
 
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: foundUser[idField],
-        email: foundUser.email,
-        role: foundRole,
-        name: foundUser[nameField],
-        ...extraFields
+    // Farmer: username == unique_id
+    let user = await FarmerUser.findOne({ where: { unique_id: username } });
+    if (user && user.password === password) {
+      return res.json({
+        message: 'Login successful',
+        token: jwt.sign({ id: user.id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        user: {
+          id: user.id,
+          email: user.email,
+          role: 'farmer',
+          name: user.name,
+          unique_id: user.unique_id
+        }
+      });
+    }
+
+    // Customer: username == customer_name
+    user = await CustomerUser.findOne({ where: { customer_name: username } });
+    if (user && user.password === password) {
+      return res.json({
+        message: 'Login successful',
+        token: jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        user: {
+          id: user.id,
+          email: user.email,
+          role: 'customer',
+          name: user.customer_name
+        }
+      });
+    }
+
+    // Transporter: username == unique_id
+    user = await TransporterUser.findOne({ where: { unique_id: username } });
+    if (user && user.password === password) {
+      return res.json({
+        message: 'Login successful',
+        token: jwt.sign({ id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        user: {
+          id: user.transporter_id,
+          email: user.email,
+          role: 'transporter',
+          name: user.name,
+          unique_id: user.unique_id
+        }
+      });
+    }
+
+    // Admin: username == name
+    user = await AdminUser.findOne({ where: { name: username } });
+    if (user && user.password === password) {
+      if (!user.is_active) {
+        return res.status(401).json({ message: 'Account is deactivated' });
       }
-    });
+      await user.update({ last_login: new Date() });
+      return res.json({
+        message: 'Login successful',
+        token: jwt.sign({ id: user.admin_id, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        user: {
+          id: user.admin_id,
+          email: user.email,
+          role: 'admin',
+          name: user.name
+        }
+      });
+    }
+
+    return res.status(401).json({ message: 'Invalid credentials' });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Error logging in' });
   }
 };
+
 
 // Send OTP for password reset
 exports.sendOTP = async (req, res) => {

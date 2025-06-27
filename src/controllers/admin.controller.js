@@ -146,8 +146,8 @@ exports.getUserDetails = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role specified' });
     }
 
-    const idField = role === 'farmer' ? 'farmer_id' : 
-                   role === 'customer' ? 'customer_id' : 
+    const idField = role === 'farmer' ? 'id' : 
+                   role === 'customer' ? 'id' : 
                    role === 'transporter' ? 'transporter_id' : 
                    'admin_id';
 
@@ -180,8 +180,8 @@ exports.updateUserStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role specified' });
     }
 
-    const idField = role === 'farmer' ? 'farmer_id' : 
-                   role === 'customer' ? 'customer_id' : 
+    const idField = role === 'farmer' ? 'id' : 
+                   role === 'customer' ? 'id' : 
                    role === 'transporter' ? 'transporter_id' : 
                    'admin_id';
 
@@ -276,7 +276,7 @@ exports.getPendingFarmers = async (req, res) => {
     const pendingFarmers = await FarmerUser.findAll({
       where: { verified_status: false },
       attributes: [
-        'farmer_id', 'name', 'email', 'mobile_number', 'address', 
+        'id', 'name', 'email', 'mobile_number', 'address', 
         'zone', 'state', 'district', 'age', 'account_number', 
         'ifsc_code', 'image_url', 'created_at'
       ],
@@ -300,7 +300,7 @@ exports.getVerifiedFarmers = async (req, res) => {
     const verifiedFarmers = await FarmerUser.findAll({
       where: { verified_status: true },
       attributes: [
-        'farmer_id', 'name', 'email', 'mobile_number', 'address', 
+        'id', 'name', 'email', 'mobile_number', 'address', 
         'zone', 'state', 'district', 'age', 'account_number', 
         'ifsc_code', 'image_url', 'unique_id', 'created_at'
       ],
@@ -321,10 +321,10 @@ exports.getVerifiedFarmers = async (req, res) => {
 // Approve a farmer and generate verification code
 exports.approveFarmer = async (req, res) => {
   try {
-    const { farmer_id } = req.params;
+    const { id } = req.params;
     const { approval_notes } = req.body;
 
-    const farmer = await FarmerUser.findByPk(farmer_id);
+    const farmer = await FarmerUser.findByPk(id);
     if (!farmer) {
       return res.status(404).json({ message: 'Farmer not found' });
     }
@@ -358,7 +358,7 @@ exports.approveFarmer = async (req, res) => {
       success: true,
       message: 'Farmer approved successfully. Verification code sent to mobile number.',
       data: {
-        farmer_id: farmer.farmer_id,
+        id: farmer.id,
         name: farmer.name,
         email: farmer.email,
         mobile_number: farmer.mobile_number,
@@ -376,14 +376,14 @@ exports.approveFarmer = async (req, res) => {
 // Reject a farmer
 exports.rejectFarmer = async (req, res) => {
   try {
-    const { farmer_id } = req.params;
+    const { id } = req.params;
     const { rejection_reason } = req.body;
 
     if (!rejection_reason) {
       return res.status(400).json({ message: 'Rejection reason is required' });
     }
 
-    const farmer = await FarmerUser.findByPk(farmer_id);
+    const farmer = await FarmerUser.findByPk(id);
     if (!farmer) {
       return res.status(404).json({ message: 'Farmer not found' });
     }
@@ -407,7 +407,7 @@ exports.rejectFarmer = async (req, res) => {
       success: true,
       message: 'Farmer rejected successfully',
       data: {
-        farmer_id: farmer.farmer_id,
+        id: farmer.id,
         name: farmer.name,
         email: farmer.email,
         mobile_number: farmer.mobile_number,
@@ -424,9 +424,9 @@ exports.rejectFarmer = async (req, res) => {
 // Resend verification code to approved farmer
 exports.resendVerificationCode = async (req, res) => {
   try {
-    const { farmer_id } = req.params;
+    const { id } = req.params;
 
-    const farmer = await FarmerUser.findByPk(farmer_id);
+    const farmer = await FarmerUser.findByPk(id);
     if (!farmer) {
       return res.status(404).json({ message: 'Farmer not found' });
     }
@@ -456,7 +456,7 @@ exports.resendVerificationCode = async (req, res) => {
       success: true,
       message: 'New verification code sent to farmer mobile number.',
       data: {
-        farmer_id: farmer.farmer_id,
+        id: farmer.id,
         name: farmer.name,
         email: farmer.email,
         mobile_number: farmer.mobile_number,
@@ -472,11 +472,11 @@ exports.resendVerificationCode = async (req, res) => {
 // Get farmer verification status
 exports.getFarmerVerificationStatus = async (req, res) => {
   try {
-    const { farmer_id } = req.params;
+    const { id } = req.params;
 
-    const farmer = await FarmerUser.findByPk(farmer_id, {
+    const farmer = await FarmerUser.findByPk(id, {
       attributes: [
-        'farmer_id', 'name', 'email', 'mobile_number', 'verified_status', 'unique_id',
+        'id', 'name', 'email', 'mobile_number', 'verified_status', 'unique_id',
         'approved_at', 'approval_notes', 'rejected_at', 'rejection_reason',
         'code_updated_at', 'created_at'
       ]

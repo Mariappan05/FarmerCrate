@@ -9,7 +9,7 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: 'mysql',
+    dialect: 'postgres',
     logging: false, // Set to console.log to see SQL queries
     dialectOptions: {
       ssl: {
@@ -23,13 +23,13 @@ const sequelize = new Sequelize(
 // Initialize database and create tables
 const initializeDatabase = async () => {
   try {
-    // Require models here to avoid circular dependency
+    // Import all models
+    require('../models/farmer_user.model');
+    require('../models/customer_user.model');
     require('../models/product.model');
     require('../models/order.model');
     require('../models/transaction.model');
     require('../models/cart.model');
-    require('../models/farmer_user.model');
-    require('../models/customer_user.model');
     require('../models/transporter_user.model');
     require('../models/admin_user.model');
 
@@ -39,9 +39,8 @@ const initializeDatabase = async () => {
 
     // Sync all models with database - using safe mode
     await sequelize.sync({ 
-      alter: false, // Disabled to prevent migration issues
-      logging: false,
-      force: false
+      alter: true, // Enable to auto-create/update tables and columns
+      logging: false
     });
     console.log('Database synchronized successfully.');
 

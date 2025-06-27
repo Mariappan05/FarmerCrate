@@ -14,13 +14,13 @@ exports.addToCart = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { productId, quantity } = req.body;
+    const { id, quantity } = req.body;
     const userId = req.user.id;
 
     // Check if product exists and is available
     const product = await Product.findOne({
       where: { 
-        id: productId,
+        id: id,
         status: 'available'
       }
     });
@@ -39,7 +39,7 @@ exports.addToCart = async (req, res) => {
 
     // Check if product is already in cart
     let cartItem = await Cart.findOne({
-      where: { userId, productId }
+      where: { userId, id }
     });
 
     if (cartItem) {
@@ -51,7 +51,7 @@ exports.addToCart = async (req, res) => {
       // Add new item to cart
       cartItem = await Cart.create({
         userId,
-        productId,
+        id,
         quantity,
         price: product.price * quantity
       });

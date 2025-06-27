@@ -18,12 +18,12 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { productId, quantity, deliveryAddress } = req.body;
+    const { id, quantity, deliveryAddress } = req.body;
 
     // Get product
     const product = await Product.findOne({
       where: { 
-        id: productId,
+        id: id,
         status: 'available'
       },
       include: [{
@@ -43,7 +43,7 @@ exports.createOrder = async (req, res) => {
 
     // Create order
     const order = await Order.create({
-      productId,
+      id,
       consumerId: req.user.id,
       farmerId: product.farmer.id,
       quantity,
