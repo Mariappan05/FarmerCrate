@@ -8,17 +8,17 @@ exports.getAllProducts = async (req, res) => {
   try {
     let whereClause = {};
     
-    // If FarmerUser is not admin or farmer, only show available products
-    if (!req.FarmerUser || (req.FarmerUser.role !== 'admin' && req.FarmerUser.role !== 'farmer')) {
+    // If user is not admin or farmer, only show available products
+    if (!req.user || (req.role !== 'admin' && req.role !== 'farmer')) {
       whereClause.status = 'available';
     }
     
-    // If FarmerUser is a farmer, show their own products regardless of status
-    if (req.FarmerUser && req.FarmerUser.role === 'farmer') {
+    // If user is a farmer, show their own products regardless of status
+    if (req.user && req.role === 'farmer') {
       whereClause = {
         [Op.or]: [
           { status: 'available' },
-          { farmerId: req.FarmerUser.id }
+          { farmer_id: req.user.id }
         ]
       };
     }
@@ -27,10 +27,9 @@ exports.getAllProducts = async (req, res) => {
       where: whereClause,
       include: [{
         model: FarmerUser,
-        as: 'farmer',
-        // No attributes limit: return all farmer details
+        as: 'farmer'
       }],
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
 
     res.json({
@@ -47,17 +46,16 @@ exports.getAllProducts = async (req, res) => {
 // Get all products posted by a specific farmer (for farmer dashboard)
 exports.getProductsByFarmer = async (req, res) => {
   try {
-    if (!req.FarmerUser || req.FarmerUser.role !== 'farmer') {
+    if (!req.user || req.role !== 'farmer') {
       return res.status(403).json({ message: 'Only farmers can view their products' });
     }
     const products = await Product.findAll({
-      where: { farmerId: req.FarmerUser.id },
+      where: { farmer_id: req.user.id },
       include: [{
         model: FarmerUser,
-        as: 'farmer',
-        // No attributes limit
+        as: 'farmer'
       }],
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
     res.json({
       success: true,
@@ -93,7 +91,7 @@ exports.getRelatedProducts = async (req, res) => {
         ]
       },
       limit: 10,
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
     res.json({
       success: true,
@@ -112,8 +110,7 @@ exports.getProduct = async (req, res) => {
     const product = await Product.findByPk(req.params.id, {
       include: [{
         model: FarmerUser,
-        as: 'farmer',
-        // No attributes limit
+        as: 'farmer'
       }]
     });
 
@@ -137,7 +134,7 @@ exports.getProduct = async (req, res) => {
 // Create product (only for farmers)
 exports.createProduct = async (req, res) => {
   try {
-    if (!req.FarmerUser || req.FarmerUser.role !== 'farmer') {
+    if (!req.user || req.role !== 'farmer') {
       return res.status(403).json({ message: 'Only farmers can post products' });
     }
     const errors = validationResult(req);
@@ -152,7 +149,7 @@ exports.createProduct = async (req, res) => {
       quantity,
       images,
       category,
-      farmerId: req.FarmerUser.id,
+      farmer_id: req.user.id,
       lastPriceUpdate: new Date(),
       status: 'available',
       views: 0
@@ -171,7 +168,7 @@ exports.createProduct = async (req, res) => {
 // Update product (only by the farmer who posted it)
 exports.updateProduct = async (req, res) => {
   try {
-    if (!req.FarmerUser || req.FarmerUser.role !== 'farmer') {
+    if (!req.user || req.role !== 'farmer') {
       return res.status(403).json({ message: 'Only farmers can update products' });
     }
     const errors = validationResult(req);
@@ -181,7 +178,7 @@ exports.updateProduct = async (req, res) => {
     const product = await Product.findOne({
       where: {
         id: req.params.id,
-        farmerId: req.FarmerUser.id
+        farmer_id: req.user.id
       }
     });
     if (!product) {
@@ -210,13 +207,13 @@ exports.updateProduct = async (req, res) => {
 // Delete product (only by the farmer who posted it)
 exports.deleteProduct = async (req, res) => {
   try {
-    if (!req.FarmerUser || req.FarmerUser.role !== 'farmer') {
+    if (!req.user || req.role !== 'farmer') {
       return res.status(403).json({ message: 'Only farmers can delete products' });
     }
     const product = await Product.findOne({
       where: {
         id: req.params.id,
-        farmerId: req.FarmerUser.id
+        farmer_id: req.user.id
       }
     });
     if (!product) {
@@ -245,7 +242,7 @@ exports.updatePrice = async (req, res) => {
     const product = await Product.findOne({
       where: {
         id: req.params.id,
-        farmerId: req.FarmerUser.id
+        farmer_id: req.user.id
       }
     });
 

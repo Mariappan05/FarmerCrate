@@ -262,7 +262,7 @@ exports.getAllOrders = async (req, res) => {
         { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
         { model: Product }
       ],
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {

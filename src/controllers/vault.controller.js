@@ -9,7 +9,7 @@ exports.getTransactions = async (req, res) => {
   try {
     const transactions = await Transaction.findAll({
       where: { userId: req.user.id },
-      order: [['createdAt', 'DESC']],
+      order: [['created_at', 'DESC']],
       include: [{
         model: User,
         attributes: ['username', 'email']

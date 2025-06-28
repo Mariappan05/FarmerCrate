@@ -23,12 +23,7 @@ const protect = async (req, res, next) => {
     const Model = getModelByRole(role);
     if (!Model) return res.status(401).json({ message: 'Invalid role' });
     
-    const idField = role === 'farmer' ? 'farmer_id' : 
-                   role === 'customer' ? 'customer_id' : 
-                   role === 'transporter' ? 'transporter_id' : 
-                   'admin_id';
-    
-    const user = await Model.findOne({ where: { [idField]: id } });
+    const user = await Model.findOne({ where: { id } });
     if (!user) return res.status(401).json({ message: 'User not found' });
     
     // Check if admin is active

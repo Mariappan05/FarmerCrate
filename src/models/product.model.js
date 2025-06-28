@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const FarmerUser = require('./farmer_user.model');
 
 const Product = sequelize.define('products', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -13,7 +12,7 @@ const Product = sequelize.define('products', {
   status: { type: DataTypes.ENUM('available', 'sold_out', 'hidden'), defaultValue: 'available' },
   last_price_update: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   views: { type: DataTypes.INTEGER, defaultValue: 0 },
-  farmer_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: FarmerUser, key: 'id' } }
+  farmer_id: { type: DataTypes.INTEGER, allowNull: false }
 }, {
   tableName: 'products',
   timestamps: true,
@@ -22,7 +21,5 @@ const Product = sequelize.define('products', {
   underscored: true
 });
 
-// Define associations
-Product.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id' });
 
 module.exports = Product; 
