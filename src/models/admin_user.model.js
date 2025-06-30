@@ -51,6 +51,18 @@ const AdminUser = sequelize.define('admin_users', {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW
+  },
+  deactivated_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  deactivation_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  reactivated_at: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'admin_users',

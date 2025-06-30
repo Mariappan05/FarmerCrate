@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const TransporterUser = sequelize.define('transporter_users', {
-  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  transporter_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   unique_id: { type: DataTypes.STRING(6), allowNull: true, unique: true, comment: '6-digit verification code' },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING, allowNull: false },

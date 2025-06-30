@@ -170,6 +170,12 @@ exports.register = async (req, res) => {
 // Login user
 exports.login = async (req, res) => {
   try {
+    // Check for required JWT environment variables
+    if (!process.env.JWT_SECRET || !process.env.JWT_EXPIRES_IN) {
+      console.error('JWT_SECRET or JWT_EXPIRES_IN environment variable is missing');
+      return res.status(500).json({ message: 'Server configuration error: JWT settings missing' });
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -248,6 +254,10 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: 'Invalid credentials' });
   } catch (error) {
     console.error('Login error:', error);
+    // Provide more detailed error message in development
+    if (process.env.NODE_ENV === 'development') {
+      return res.status(500).json({ message: 'Error logging in', error: error.message, stack: error.stack });
+    }
     res.status(500).json({ message: 'Error logging in' });
   }
 };
