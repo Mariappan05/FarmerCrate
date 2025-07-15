@@ -13,14 +13,14 @@ const addToCartValidation = [
 // Protected routes (Consumer only)
 router.post('/', 
   protect, 
-  authorize('consumer'), 
+  authorize('customer'), 
   addToCartValidation, 
   cartController.addToCart
 );
 
 router.get('/', 
   protect, 
-  authorize('consumer'), 
+  authorize('customer'), 
   cartController.getCart
 );
 

@@ -14,13 +14,13 @@ exports.addToCart = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { id, quantity } = req.body;
-    const userId = req.user.id;
+    const { productId, quantity } = req.body;
+    const customerId = req.user.id;
 
     // Check if product exists and is available
     const product = await Product.findOne({
       where: { 
-        id: id,
+        id: productId,
         status: 'available'
       }
     });
@@ -39,7 +39,7 @@ exports.addToCart = async (req, res) => {
 
     // Check if product is already in cart
     let cartItem = await Cart.findOne({
-      where: { userId, id }
+      where: { customerId, productId }
     });
 
     if (cartItem) {
@@ -50,8 +50,8 @@ exports.addToCart = async (req, res) => {
     } else {
       // Add new item to cart
       cartItem = await Cart.create({
-        userId,
-        id,
+        customerId,
+        productId,
         quantity,
         price: product.price * quantity
       });
@@ -62,6 +62,7 @@ exports.addToCart = async (req, res) => {
       message: 'Item added to cart successfully',
       data: {
         id: cartItem.id,
+        productId: cartItem.productId,
         quantity: cartItem.quantity,
         price: cartItem.price,
         product: {
@@ -80,32 +81,39 @@ exports.addToCart = async (req, res) => {
 // Get user's cart
 exports.getCart = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const customerId = req.user.id;
 
     const cartItems = await Cart.findAll({
-      where: { userId },
+      where: { customerId },
       include: [{
         model: Product,
         attributes: ['name', 'description', 'images', 'price']
       }]
     });
 
-    // Calculate total
-    const total = cartItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
+    // Debug logging
+    console.log('customerId:', customerId);
+    console.log('cartItems:', cartItems);
+
+    // Only include items with a valid product
+    const validItems = cartItems.filter(item => item.product);
+    // Calculate total from valid items only
+    const total = validItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
 
     res.json({
       success: true,
       data: {
-        items: cartItems.map(item => ({
+        items: validItems.map(item => ({
           id: item.id,
+          productId: item.productId,
           quantity: item.quantity,
           price: item.price,
           product: {
-            id: item.Product.id,
-            name: item.Product.name,
-            description: item.Product.description,
-            images: item.Product.images,
-            price: item.Product.price
+            id: item.product.id,
+            name: item.product.name,
+            description: item.product.description,
+            images: item.product.images,
+            price: item.product.price
           }
         })),
         total
@@ -127,10 +135,10 @@ exports.updateCartItem = async (req, res) => {
 
     const { cartItemId } = req.params;
     const { quantity } = req.body;
-    const userId = req.user.id;
+    const customerId = req.user.id;
 
     const cartItem = await Cart.findOne({
-      where: { id: cartItemId, userId },
+      where: { id: cartItemId, customerId },
       include: [{
         model: Product,
         attributes: ['name', 'description', 'images', 'price', 'quantity'],
@@ -173,10 +181,10 @@ exports.updateCartItem = async (req, res) => {
 exports.removeFromCart = async (req, res) => {
   try {
     const { cartItemId } = req.params;
-    const userId = req.user.id;
+    const customerId = req.user.id;
 
     const cartItem = await Cart.findOne({
-      where: { id: cartItemId, userId }
+      where: { id: cartItemId, customerId }
     });
 
     if (!cartItem) {
@@ -198,10 +206,10 @@ exports.removeFromCart = async (req, res) => {
 // Clear cart
 exports.clearCart = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const customerId = req.user.id;
 
     await Cart.destroy({
-      where: { userId }
+      where: { customerId }
     });
 
     res.json({
