@@ -145,7 +145,7 @@ exports.updateCartItem = async (req, res) => {
         include: [{
           model: FarmerUser,
           as: 'farmer',
-          attributes: ['username', 'mobileNumber']
+          attributes: ['name', 'mobile_number'] // changed 'mobileNumber' to 'mobile_number'
         }]
       }]
     });
@@ -155,21 +155,37 @@ exports.updateCartItem = async (req, res) => {
     }
 
     // Check if requested quantity is available
-    if (cartItem.Product.quantity < quantity) {
+    if (cartItem.product.quantity < quantity) {
       return res.status(400).json({ 
         message: 'Requested quantity not available',
-        availableQuantity: cartItem.Product.quantity
+        availableQuantity: cartItem.product.quantity
       });
     }
 
     cartItem.quantity = quantity;
-    cartItem.price = cartItem.Product.price * quantity;
+    cartItem.price = cartItem.product.price * quantity;
     await cartItem.save();
 
     res.json({
       success: true,
       message: 'Cart item updated successfully',
-      data: cartItem
+      data: {
+        id: cartItem.id,
+        productId: cartItem.productId,
+        quantity: cartItem.quantity,
+        price: cartItem.price,
+        product: {
+          id: cartItem.product.id,
+          name: cartItem.product.name,
+          description: cartItem.product.description,
+          images: cartItem.product.images,
+          price: cartItem.product.price,
+          farmer: cartItem.product.farmer ? {
+            name: cartItem.product.farmer.name,
+            mobileNumber: cartItem.product.farmer.mobile_number // changed to match DB column
+          } : null
+        }
+      }
     });
   } catch (error) {
     console.error('Update cart error:', error);

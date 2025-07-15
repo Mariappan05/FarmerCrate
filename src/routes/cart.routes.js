@@ -24,4 +24,19 @@ router.get('/',
   cartController.getCart
 );
 
+// Update cart item quantity
+router.put('/item/:cartItemId',
+  protect,
+  authorize('customer'),
+  body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+  cartController.updateCartItem
+);
+
+// Remove item from cart
+router.delete('/item/:cartItemId',
+  protect,
+  authorize('customer'),
+  cartController.removeFromCart
+);
+
 module.exports = router; 
