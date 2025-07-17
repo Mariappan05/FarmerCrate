@@ -42,4 +42,15 @@ exports.updateMe = async (req, res) => {
     console.error('Update farmer details error:', error);
     res.status(500).json({ message: 'Error updating farmer details' });
   }
+};
+
+exports.getAllFarmerNames = async (req, res) => {
+  try {
+    const farmers = await FarmerUser.findAll({ attributes: ['name'] });
+    const names = farmers.map(farmer => farmer.name);
+    res.json({ success: true, data: names });
+  } catch (error) {
+    console.error('Get all farmer names error:', error);
+    res.status(500).json({ message: 'Error retrieving farmer names' });
+  }
 }; 

@@ -19,4 +19,7 @@ router.put('/me',
   farmerController.updateMe
 );
 
+// Route to get all farmer names
+router.get('/names', farmerController.getAllFarmerNames);
+
 module.exports = router; 
