@@ -29,7 +29,6 @@ const adminRoutes = require('./routes/admin.routes');
 const farmerRoutes = require('./routes/farmer.routes');
 const customerRoutes = require('./routes/customer.routes');
 const transporterRoutes = require('./routes/transporter.routes');
-const wishlistRoutes = require('./routes/wishlist.routes'); // Add this with other route imports
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -50,9 +49,29 @@ const startServer = async () => {
   try {
     const dbInitialized = await initializeDatabase();
     if (!dbInitialized) {
-      console.log('Database initialization failed, exiting...');
-      process.exit(1);
+      console.log('Warning: Database initialization had issues, but server will continue to start');
     }
+
+    // Routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/products', productRoutes);
+    app.use('/api/orders', orderRoutes);
+    app.use('/api/vault', vaultRoutes);
+    app.use('/api/cart', cartRoutes);
+    app.use('/api/admin', adminRoutes);
+    app.use('/api/farmer', farmerRoutes);
+    app.use('/api/customer', customerRoutes);
+    app.use('/api/transporter', transporterRoutes);
+
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+      console.error(err.stack);
+      res.status(500).json({
+        success: false,
+        message: 'Something went wrong!',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    });
 
     const PORT = process.env.PORT || 3000;
     

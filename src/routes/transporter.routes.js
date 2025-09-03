@@ -1,8 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
+const transporterController = require('../controllers/transporter.controller');
+const { protect } = require('../middleware/auth.middleware');
 
-// Transporter registration
 router.post('/register', authController.register);
+router.get('/profile', protect, transporterController.getProfile);
+router.put('/profile', protect, transporterController.updateProfile);
+router.post('/delivery-person', protect, transporterController.addDeliveryPerson);
+router.delete('/delivery-person/:id', protect, transporterController.deleteDeliveryPerson);
 
 module.exports = router; 

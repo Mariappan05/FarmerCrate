@@ -69,11 +69,19 @@ const sendRejectionNotificationSMS = async (mobileNumber, farmerName, reason) =>
   return await sendSMS(mobileNumber, message);
 };
 
+// Function to send delivery person credentials via SMS
+const sendCredentialsSMS = async (mobileNumber, username, password) => {
+  const message = `Welcome to FarmerCrate Delivery! Your login credentials: Username: ${username}, Password: ${password}. Please keep this information secure.`;
+  
+  return await sendSMS(mobileNumber, message);
+};
+
 module.exports = {
   sendSMS,
   generateVerificationCode,
   sendVerificationCodeSMS,
   sendOTPSMS,
   sendApprovalNotificationSMS,
-  sendRejectionNotificationSMS
+  sendRejectionNotificationSMS,
+  sendCredentialsSMS
 }; 
