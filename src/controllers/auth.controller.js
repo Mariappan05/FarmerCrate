@@ -8,6 +8,7 @@ const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const AdminUser = require('../models/admin_user.model');
+const DeliveryPerson = require('../models/deliveryPerson.model');
 
 // In-memory OTP storage
 const otpStore = new Map();
@@ -247,6 +248,36 @@ exports.login = async (req, res) => {
           email: user.email,
           role: 'admin',
           name: user.name
+        }
+      });
+    }
+
+    // Delivery Person: username == name, check both customer and delivery_person tables
+    user = await DeliveryPerson.findOne({ where: { name: username } });
+    if (user && user.password === password) {
+      return res.json({
+        message: 'Login successful',
+        token: jwt.sign({ id: user.id, role: 'delivery_person' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        user: {
+          id: user.id,
+          role: 'delivery_person',
+          name: user.name,
+          mobile_number: user.mobile_number
+        }
+      });
+    }
+
+    // Check customer table for delivery person login
+    user = await CustomerUser.findOne({ where: { customer_name: username } });
+    if (user && user.password === password) {
+      return res.json({
+        message: 'Login successful',
+        token: jwt.sign({ id: user.id, role: 'delivery_person' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        user: {
+          id: user.id,
+          role: 'delivery_person',
+          name: user.customer_name,
+          mobile_number: user.mobile_number
         }
       });
     }

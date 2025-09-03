@@ -4,12 +4,15 @@ const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const AdminUser = require('../models/admin_user.model');
 
+const DeliveryPerson = require('../models/deliveryPerson.model');
+
 // Helper to get model by role
 const getModelByRole = (role) => {
   if (role === 'farmer') return FarmerUser;
   if (role === 'customer') return CustomerUser;
   if (role === 'transporter') return TransporterUser;
   if (role === 'admin') return AdminUser;
+  if (role === 'delivery_person') return DeliveryPerson;
   return null;
 };
 
@@ -23,7 +26,14 @@ const protect = async (req, res, next) => {
     const Model = getModelByRole(role);
     if (!Model) return res.status(401).json({ message: 'Invalid role' });
     
-    const user = await Model.findOne({ where: { id } });
+    let user;
+    if (role === 'transporter') {
+      user = await Model.findOne({ where: { transporter_id: id } });
+    } else if (role === 'admin') {
+      user = await Model.findOne({ where: { admin_id: id } });
+    } else {
+      user = await Model.findOne({ where: { id } });
+    }
     if (!user) return res.status(401).json({ message: 'User not found' });
     
     // Check if admin is active

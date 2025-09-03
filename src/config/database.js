@@ -32,6 +32,7 @@ const initializeDatabase = async () => {
     require('../models/cart.model');
     require('../models/transporter_user.model');
     require('../models/admin_user.model');
+    require('../models/deliveryPerson.model');
 
     // Test database connection
     await sequelize.authenticate();
@@ -39,7 +40,7 @@ const initializeDatabase = async () => {
 
     // Sync all models with database - using safe mode
     await sequelize.sync({ 
-      alter: true, // Enable to auto-create/update tables and columns
+      force: false, // Don't drop existing tables
       logging: false
     });
     console.log('Database synchronized successfully.');
