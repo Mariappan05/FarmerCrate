@@ -29,64 +29,57 @@ const adminRoutes = require('./routes/admin.routes');
 const farmerRoutes = require('./routes/farmer.routes');
 const customerRoutes = require('./routes/customer.routes');
 const transporterRoutes = require('./routes/transporter.routes');
+const wishlistRoutes = require('./routes/wishlist.routes'); // Add this with other route imports
 
 // No need to import models here; they are imported in initializeDatabase
+
+// Mount routes
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/vault', vaultRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/farmers', farmerRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/transporters', transporterRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Initialize database and start server
 const startServer = async () => {
   try {
-    // Initialize database
     const dbInitialized = await initializeDatabase();
     if (!dbInitialized) {
-      console.log('Warning: Database initialization had issues, but server will continue to start');
+      console.log('Database initialization failed, exiting...');
+      process.exit(1);
     }
-
-    // Routes
-    app.use('/api/auth', authRoutes);
-    app.use('/api/products', productRoutes);
-    app.use('/api/orders', orderRoutes);
-    app.use('/api/vault', vaultRoutes);
-    app.use('/api/cart', cartRoutes);
-    app.use('/api/admin', adminRoutes);
-    app.use('/api/farmer', farmerRoutes);
-    app.use('/api/customer', customerRoutes);
-    app.use('/api/transporter', transporterRoutes);
-
-    // Error handling middleware
-    app.use((err, req, res, next) => {
-      console.error(err.stack);
-      res.status(500).json({
-        success: false,
-        message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
-      });
-    });
 
     const PORT = process.env.PORT || 3000;
     
-    // Try to start server on specified port, if fails try next port
+    // Kill any existing process on the port
     const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
-    }).on('error', (err) => {
+    });
+
+    server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        console.log(`Port ${PORT} is busy, trying ${PORT + 1}`);
-        server.close();
-        app.listen(PORT + 1, () => {
-          console.log(`Server is running on port ${PORT + 1}`);
+        console.log('Port is busy, trying to close existing connection...');
+        require('child_process').exec(`npx kill-port ${PORT}`, (error) => {
+          if (!error) {
+            server.listen(PORT);
+          } else {
+            console.error('Could not free up port:', error);
+          }
         });
-      } else {
-        console.error('Failed to start server:', err);
       }
     });
 
-    // After sequelize is initialized, require associations
-    require('./models/associations');
-
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('Server startup failed:', error);
+    process.exit(1);
   }
 };
 
 startServer();
 
-module.exports = app; 
+module.exports = app;

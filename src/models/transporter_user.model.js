@@ -3,7 +3,7 @@ const { sequelize } = require('../config/database');
 
 const TransporterUser = sequelize.define('transporter_users', {
   transporter_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  unique_id: { type: DataTypes.STRING(6), allowNull: true, unique: true, comment: '6-digit verification code' },
+  unique_id: { type: DataTypes.STRING(6), allowNull: true, comment: '6-digit verification code' },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -33,7 +33,10 @@ const TransporterUser = sequelize.define('transporter_users', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  underscored: true
+  underscored: true,
+  indexes: [
+    { unique: true, fields: ['unique_id'] }
+  ]
 });
 
 module.exports = TransporterUser;

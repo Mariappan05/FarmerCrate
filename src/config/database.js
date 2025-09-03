@@ -8,14 +8,17 @@ const sequelize = new Sequelize(
   process.env.DB_PASSWORD,
   {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
     dialect: 'postgres',
-    logging: false, // Set to console.log to see SQL queries
+    logging: false,
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: false // Use this only if you're connecting to a trusted database
       }
+    },
+    define: {
+      underscored: true, // This makes Sequelize use snake_case in the database
+      timestamps: true   // This enables timestamps for all models
     }
   }
 );
@@ -32,11 +35,14 @@ const initializeDatabase = async () => {
     require('../models/cart.model');
     require('../models/transporter_user.model');
     require('../models/admin_user.model');
+    require('../models/wishlist.model');
+    // Set up associations
+    require('../models/associations');
 
     // Test database connection
     await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
-
+    console.log('Database connection established successfully.');
+    
     // Sync all models with database - using safe mode
     await sequelize.sync({ 
       alter: true, // Enable to auto-create/update tables and columns
@@ -44,9 +50,9 @@ const initializeDatabase = async () => {
     });
     console.log('Database synchronized successfully.');
 
+    return true;
   } catch (error) {
-    console.error('Unable to initialize database:', error);
-    console.log('Continuing with server startup despite database sync issues...');
+    console.error('Database initialization error:', error);
     return false;
   }
 };
@@ -54,4 +60,4 @@ const initializeDatabase = async () => {
 module.exports = {
   sequelize,
   initializeDatabase
-}; 
+};

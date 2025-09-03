@@ -1,9 +1,17 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const FarmerUser = sequelize.define('farmer_users', {
-  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  unique_id: { type: DataTypes.STRING(6), allowNull: true, unique: true, comment: '6-digit verification code' },
+const FarmerUser = sequelize.define('FarmerUser', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  unique_id: {
+    type: DataTypes.STRING(6),
+    allowNull: true,
+    comment: '6-digit verification code'
+  },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -24,10 +32,7 @@ const FarmerUser = sequelize.define('farmer_users', {
   code_updated_at: { type: DataTypes.DATE, allowNull: true }
 }, {
   tableName: 'farmer_users',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
-  underscored: true
+  underscored: true  // This ensures snake_case in database
 });
 
 module.exports = FarmerUser;
