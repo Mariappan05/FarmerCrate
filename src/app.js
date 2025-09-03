@@ -29,6 +29,7 @@ const adminRoutes = require('./routes/admin.routes');
 const farmerRoutes = require('./routes/farmer.routes');
 const customerRoutes = require('./routes/customer.routes');
 const transporterRoutes = require('./routes/transporter.routes');
+const wishlistRoutes = require('./routes/wishlist.routes');
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -62,6 +63,7 @@ const startServer = async () => {
     app.use('/api/farmer', farmerRoutes);
     app.use('/api/customer', customerRoutes);
     app.use('/api/transporter', transporterRoutes);
+    app.use('/api/wishlist', wishlistRoutes);
 
     // Error handling middleware
     app.use((err, req, res, next) => {
