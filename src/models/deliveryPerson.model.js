@@ -6,9 +6,7 @@ const DeliveryPerson = sequelize.define('delivery_persons', {
   user_id: { 
     type: DataTypes.INTEGER, 
     unique: true, 
-    allowNull: false,
-    references: { model: 'transporter_users', key: 'transporter_id' },
-    onDelete: 'CASCADE'
+    allowNull: false
   },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING(20), allowNull: false, unique: true },

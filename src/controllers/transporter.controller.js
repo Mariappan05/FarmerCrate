@@ -37,13 +37,12 @@ const addDeliveryPerson = async (req, res) => {
   
   try {
     const password = Math.random().toString(36).slice(-8);
-    const user_id = Math.floor(Math.random() * 2147483647);
     
     // Clean mobile number
     const cleanMobileNumber = mobile_number.replace(/\s+/g, '');
     
     const deliveryPerson = await DeliveryPerson.create({
-      user_id,
+      user_id: req.user.transporter_id,
       name,
       mobile_number: cleanMobileNumber,
       password,
@@ -53,18 +52,13 @@ const addDeliveryPerson = async (req, res) => {
       license_url
     });
     
-    // Send credentials via SMS
-    const { sendCredentialsSMS } = require('../utils/sms.util');
-    const smsSent = await sendCredentialsSMS(cleanMobileNumber, name, password);
-    
     res.status(201).json({
-      message: 'Delivery person added successfully. Credentials sent via SMS.',
+      message: 'Delivery person added successfully.',
       credentials: {
-        username: name,
+        mobile_number: cleanMobileNumber,
         password: password
       },
-      delivery_person_id: deliveryPerson.id,
-      sms_sent: smsSent
+      delivery_person_id: deliveryPerson.id
     });
   } catch (error) {
     console.error('Delivery person creation error:', error);

@@ -34,6 +34,7 @@ const initializeDatabase = async () => {
     require('../models/transaction.model');
     require('../models/cart.model');
     require('../models/transporter_user.model');
+    require('../models/deliveryPerson.model');
     require('../models/admin_user.model');
     require('../models/wishlist.model');
     // Set up associations

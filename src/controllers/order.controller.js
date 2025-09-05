@@ -19,7 +19,7 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { id, quantity, deliveryAddress, totalAmount, commission, farmerAmount, transport_charge } = req.body;
+    const { id, quantity, delivery_address, total_amount, commission, farmer_amount, transport_charge } = req.body;
     const productId = id;
 
     console.log('Debug - productId:', productId);
@@ -54,10 +54,10 @@ exports.createOrder = async (req, res) => {
       farmer_id: product.farmer_id,
       product_id: productId,
       quantity,
-      deliveryAddress,
-      totalAmount,
+      delivery_address,
+      total_amount,
       commission,
-      farmerAmount,
+      farmer_amount,
       transport_charge
     }, { transaction });
 
@@ -70,7 +70,7 @@ exports.createOrder = async (req, res) => {
     await Transaction.create({
       farmer_id: product.farmer_id,
       order_id: order.id,
-      amount: farmerAmount,
+      amount: farmer_amount,
       type: 'sale',
       status: 'completed',
       description: `Payment for order #${order.id}`
@@ -242,6 +242,51 @@ exports.updateOrderStatus = async (req, res) => {
   } catch (error) {
     console.error('Update order status error:', error);
     res.status(500).json({ message: 'Error updating order status' });
+  }
+};
+
+// Assign transport to order
+exports.assignTransport = async (req, res) => {
+  try {
+    const { delivery_person_id } = req.body;
+    const order = await Order.findByPk(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    await order.update({ 
+      delivery_person_id,
+      status: 'processing'
+    });
+    
+    res.json({ success: true, message: 'Transport assigned successfully', data: order });
+  } catch (error) {
+    console.error('Assign transport error:', error);
+    res.status(500).json({ message: 'Error assigning transport' });
+  }
+};
+
+// Complete delivery
+exports.completeDelivery = async (req, res) => {
+  try {
+    const order = await Order.findOne({
+      where: {
+        id: req.params.id,
+        delivery_person_id: req.user.id
+      }
+    });
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found or not assigned to you' });
+    }
+    
+    await order.update({ status: 'completed' });
+    
+    res.json({ success: true, message: 'Delivery completed successfully', data: order });
+  } catch (error) {
+    console.error('Complete delivery error:', error);
+    res.status(500).json({ message: 'Error completing delivery' });
   }
 };
 

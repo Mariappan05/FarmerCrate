@@ -12,7 +12,7 @@ const getModelByRole = (role) => {
   if (role === 'customer') return CustomerUser;
   if (role === 'transporter') return TransporterUser;
   if (role === 'admin') return AdminUser;
-  if (role === 'delivery_person') return DeliveryPerson;
+  if (role === 'delivery_person' || role === 'delivery') return DeliveryPerson;
   return null;
 };
 

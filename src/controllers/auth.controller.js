@@ -252,31 +252,16 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Delivery Person: username == name, check both customer and delivery_person tables
-    user = await DeliveryPerson.findOne({ where: { name: username } });
+    // Delivery Person: username == mobile_number
+    user = await DeliveryPerson.findOne({ where: { mobile_number: username } });
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
-        token: jwt.sign({ id: user.id, role: 'delivery_person' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        token: jwt.sign({ id: user.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
         user: {
           id: user.id,
-          role: 'delivery_person',
+          role: 'delivery',
           name: user.name,
-          mobile_number: user.mobile_number
-        }
-      });
-    }
-
-    // Check customer table for delivery person login
-    user = await CustomerUser.findOne({ where: { customer_name: username } });
-    if (user && user.password === password) {
-      return res.json({
-        message: 'Login successful',
-        token: jwt.sign({ id: user.id, role: 'delivery_person' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
-        user: {
-          id: user.id,
-          role: 'delivery_person',
-          name: user.customer_name,
           mobile_number: user.mobile_number
         }
       });

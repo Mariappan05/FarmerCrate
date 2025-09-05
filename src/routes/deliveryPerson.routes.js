@@ -8,5 +8,6 @@ router.put('/location', protect, deliveryPersonController.updateLocation);
 router.put('/availability', protect, deliveryPersonController.updateAvailability);
 router.put('/password', protect, deliveryPersonController.updatePassword);
 router.get('/orders', protect, deliveryPersonController.getAssignedOrders);
+router.put('/complete-order', protect, deliveryPersonController.completeOrder);
 
 module.exports = router;

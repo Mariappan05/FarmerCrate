@@ -4,12 +4,12 @@ const { sequelize } = require('../config/database');
 const Order = sequelize.define('orders', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   quantity: { type: DataTypes.INTEGER, allowNull: false },
-  totalAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+  total_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   commission: { type: DataTypes.DECIMAL(10, 2), allowNull: false, comment: '10% commission for admin' },
-  farmerAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, comment: '90% of total amount for farmer' },
+  farmer_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, comment: '90% of total amount for farmer' },
   status: { type: DataTypes.ENUM('pending', 'processing', 'completed', 'cancelled'), defaultValue: 'pending' },
-  deliveryAddress: { type: DataTypes.TEXT, allowNull: false },
-  paymentStatus: { type: DataTypes.ENUM('pending', 'completed', 'failed'), defaultValue: 'pending' },
+  delivery_address: { type: DataTypes.TEXT, allowNull: false },
+  payment_status: { type: DataTypes.ENUM('pending', 'completed', 'failed'), defaultValue: 'pending' },
   farmer_id: { 
     type: DataTypes.INTEGER, 
     allowNull: false,

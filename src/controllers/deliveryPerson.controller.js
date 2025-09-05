@@ -50,10 +50,14 @@ const updatePassword = async (req, res) => {
   const { password } = req.body;
   
   try {
-    await DeliveryPerson.update(
+    const updated = await DeliveryPerson.update(
       { password },
       { where: { id: req.user.id } }
     );
+    
+    if (!updated[0]) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
     
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
@@ -75,4 +79,28 @@ const getAssignedOrders = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateLocation, updateAvailability, updatePassword, getAssignedOrders };
+const completeOrder = async (req, res) => {
+  const Order = require('../models/order.model');
+  const { order_id } = req.body;
+  
+  try {
+    const order = await Order.findOne({
+      where: { 
+        id: order_id,
+        delivery_person_id: req.user.id 
+      }
+    });
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found or not assigned to you' });
+    }
+    
+    await order.update({ status: 'completed' });
+    
+    res.json({ message: 'Order completed successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { getProfile, updateLocation, updateAvailability, updatePassword, getAssignedOrders, completeOrder };

@@ -8,10 +8,10 @@ const { protect, authorize } = require('../middleware/auth.middleware');
 const orderValidation = [
   body('id').isInt().withMessage('Valid product ID is required'),
   body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-  body('deliveryAddress').trim().notEmpty().withMessage('Delivery address is required'),
-  body('totalAmount').isDecimal().withMessage('Valid total amount is required'),
+  body('delivery_address').trim().notEmpty().withMessage('Delivery address is required'),
+  body('total_amount').isDecimal().withMessage('Valid total amount is required'),
   body('commission').isDecimal().withMessage('Valid commission is required'),
-  body('farmerAmount').isDecimal().withMessage('Valid farmer amount is required'),
+  body('farmer_amount').isDecimal().withMessage('Valid farmer amount is required'),
   body('transport_charge').isDecimal().withMessage('Valid transport charge is required')
 ];
 
@@ -44,6 +44,19 @@ router.patch('/:id/status',
   protect, 
   authorize('farmer'), 
   orderController.updateOrderStatus
+);
+
+// Transport assignment route
+router.patch('/:id/assign-transport', 
+  protect, 
+  orderController.assignTransport
+);
+
+// Delivery completion route
+router.patch('/:id/complete', 
+  protect, 
+  authorize('delivery'), 
+  orderController.completeDelivery
 );
 
 module.exports = router; 
