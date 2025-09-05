@@ -6,6 +6,7 @@ const Order = require('./order.model');
 const Cart = require('./cart.model');
 const Transaction = require('./transaction.model');
 const DeliveryPerson = require('./deliveryPerson.model');
+const Wishlist = require('./wishlist.model');
 
 // Farmer - Product relationship
 Product.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id', onDelete: 'CASCADE' });
@@ -30,5 +31,11 @@ FarmerUser.hasMany(Transaction, { as: 'transactions', foreignKey: 'farmer_id', o
 // Transporter - DeliveryPerson relationship
 DeliveryPerson.belongsTo(TransporterUser, { as: 'transporter', foreignKey: 'user_id', targetKey: 'transporter_id', onDelete: 'CASCADE' });
 TransporterUser.hasMany(DeliveryPerson, { as: 'delivery_persons', foreignKey: 'user_id', sourceKey: 'transporter_id', onDelete: 'CASCADE' });
+
+// Wishlist Associations
+CustomerUser.hasMany(Wishlist, { foreignKey: 'customer_id' });
+Wishlist.belongsTo(CustomerUser, { foreignKey: 'customer_id' });
+Product.hasMany(Wishlist, { foreignKey: 'product_id' });
+Wishlist.belongsTo(Product, { foreignKey: 'product_id' });
 
 module.exports = {};
