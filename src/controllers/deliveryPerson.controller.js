@@ -61,4 +61,18 @@ const updatePassword = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateLocation, updateAvailability, updatePassword };
+const getAssignedOrders = async (req, res) => {
+  const Order = require('../models/order.model');
+  
+  try {
+    const orders = await Order.findAll({
+      where: { delivery_person_id: req.user.id }
+    });
+    
+    res.json({ orders });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { getProfile, updateLocation, updateAvailability, updatePassword, getAssignedOrders };

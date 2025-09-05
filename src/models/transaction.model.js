@@ -11,8 +11,18 @@ const Transaction = sequelize.define('transactions', {
   type: { type: DataTypes.ENUM('commission', 'sale', 'withdrawal', 'deposit'), allowNull: false },
   status: { type: DataTypes.ENUM('pending', 'completed', 'failed'), defaultValue: 'pending' },
   description: { type: DataTypes.TEXT, allowNull: true },
-  farmer_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: FarmerUser, key: 'id' } },
-  order_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: Order, key: 'id' } }
+  farmer_id: { 
+    type: DataTypes.INTEGER, 
+    allowNull: false, 
+    references: { model: 'farmer_users', key: 'id' },
+    onDelete: 'CASCADE'
+  },
+  order_id: { 
+    type: DataTypes.INTEGER, 
+    allowNull: true, 
+    references: { model: 'orders', key: 'id' },
+    onDelete: 'CASCADE'
+  }
 }, {
   tableName: 'transactions',
   timestamps: true,

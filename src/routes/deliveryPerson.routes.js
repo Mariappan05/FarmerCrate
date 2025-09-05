@@ -7,5 +7,6 @@ router.get('/profile', protect, deliveryPersonController.getProfile);
 router.put('/location', protect, deliveryPersonController.updateLocation);
 router.put('/availability', protect, deliveryPersonController.updateAvailability);
 router.put('/password', protect, deliveryPersonController.updatePassword);
+router.get('/orders', protect, deliveryPersonController.getAssignedOrders);
 
 module.exports = router;

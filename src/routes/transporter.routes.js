@@ -9,5 +9,6 @@ router.get('/profile', protect, transporterController.getProfile);
 router.put('/profile', protect, transporterController.updateProfile);
 router.post('/delivery-person', protect, transporterController.addDeliveryPerson);
 router.delete('/delivery-person/:id', protect, transporterController.deleteDeliveryPerson);
+router.post('/assign-order', protect, transporterController.assignOrderToDeliveryPerson);
 
 module.exports = router; 

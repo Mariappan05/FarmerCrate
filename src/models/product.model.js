@@ -12,7 +12,12 @@ const Product = sequelize.define('products', {
   status: { type: DataTypes.ENUM('available', 'sold_out', 'hidden'), defaultValue: 'available' },
   last_price_update: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   views: { type: DataTypes.INTEGER, defaultValue: 0 },
-  farmer_id: { type: DataTypes.INTEGER, allowNull: false }
+  farmer_id: { 
+    type: DataTypes.INTEGER, 
+    allowNull: false,
+    references: { model: 'farmer_users', key: 'id' },
+    onDelete: 'CASCADE'
+  }
 }, {
   tableName: 'products',
   timestamps: true,

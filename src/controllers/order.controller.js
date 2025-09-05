@@ -4,7 +4,8 @@ const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const Product = require('../models/product.model');
-const { sequelize } = require('../models/transaction.model');
+const Transaction = require('../models/transaction.model');
+const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 
 // Create order
@@ -18,20 +19,22 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { id, quantity, deliveryAddress } = req.body;
+    const { id, quantity, deliveryAddress, totalAmount, commission, farmerAmount, transport_charge } = req.body;
+    const productId = id;
+
+    console.log('Debug - productId:', productId);
+    console.log('Debug - req.user.id:', req.user.id);
+    console.log('Debug - req.user:', req.user);
 
     // Get product
     const product = await Product.findOne({
       where: { 
-        id: id,
+        id: productId,
         status: 'available'
-      },
-      include: [{
-        model: FarmerUser,
-        as: 'farmer',
-        attributes: ['id', 'walletBalance']
-      }]
+      }
     });
+
+    console.log('Debug - product:', product);
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found or not available' });
@@ -41,16 +44,21 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Insufficient product quantity' });
     }
 
-    // Create order
+    console.log('Debug - farmer_id:', product.farmer_id);
+    console.log('Debug - consumer_id:', req.user.id);
+    console.log('Debug - product_id:', productId);
+
+    // Create order with values from frontend
     const order = await Order.create({
-      id,
-      consumerId: req.user.id,
-      farmerId: product.farmer.id,
+      consumer_id: req.user.id,
+      farmer_id: product.farmer_id,
+      product_id: productId,
       quantity,
       deliveryAddress,
-      totalAmount: product.price * quantity,
-      commission: (product.price * quantity) * 0.10,
-      farmerAmount: (product.price * quantity) * 0.90
+      totalAmount,
+      commission,
+      farmerAmount,
+      transport_charge
     }, { transaction });
 
     // Update product quantity
@@ -60,40 +68,24 @@ exports.createOrder = async (req, res) => {
 
     // Create transactions
     await Transaction.create({
-      userId: product.farmer.id,
-      orderId: order.id,
-      amount: order.farmerAmount,
+      farmer_id: product.farmer_id,
+      order_id: order.id,
+      amount: farmerAmount,
       type: 'sale',
       status: 'completed',
       description: `Payment for order #${order.id}`
     }, { transaction });
 
     await Transaction.create({
-      userId: 1, // Admin user ID
-      orderId: order.id,
-      amount: order.commission,
+      farmer_id: 1, // Admin user ID
+      order_id: order.id,
+      amount: commission,
       type: 'commission',
       status: 'completed',
       description: `Commission for order #${order.id}`
     }, { transaction });
 
-    // Update farmer's wallet
-    await FarmerUser.update(
-      { walletBalance: sequelize.literal(`walletBalance + ${order.farmerAmount}`) },
-      { 
-        where: { id: product.farmer.id },
-        transaction
-      }
-    );
-
-    // Update admin's wallet
-    await FarmerUser.update(
-      { walletBalance: sequelize.literal(`walletBalance + ${order.commission}`) },
-      { 
-        where: { id: 1 }, // Admin user ID
-        transaction
-      }
-    );
+    // Note: Wallet balance updates removed as walletBalance field doesn't exist
 
     await transaction.commit();
 
@@ -105,7 +97,7 @@ exports.createOrder = async (req, res) => {
   } catch (error) {
     await transaction.rollback();
     console.error('Create order error:', error);
-    res.status(500).json({ message: 'Error creating order' });
+    res.status(500).json({ message: 'Error creating order', error: error.message });
   }
 };
 
@@ -116,7 +108,7 @@ exports.getOrders = async (req, res) => {
     
     if (req.user.role === 'farmer') {
       orders = await Order.findAll({
-        where: { farmerId: req.user.id },
+        where: { farmer_id: req.user.id },
         include: [
           {
             model: Product,
@@ -131,7 +123,7 @@ exports.getOrders = async (req, res) => {
       });
     } else if (req.user.role === 'consumer') {
       orders = await Order.findAll({
-        where: { consumerId: req.user.id },
+        where: { consumer_id: req.user.id },
         include: [
           {
             model: Product,
@@ -184,8 +176,8 @@ exports.getOrder = async (req, res) => {
       where: {
         id: req.params.id,
         [Op.or]: [
-          { consumerId: req.user.id },
-          { farmerId: req.user.id }
+          { consumer_id: req.user.id },
+          { farmer_id: req.user.id }
         ]
       },
       include: [
@@ -232,7 +224,7 @@ exports.updateOrderStatus = async (req, res) => {
     const order = await Order.findOne({
       where: {
         id: req.params.id,
-        farmerId: req.user.id
+        farmer_id: req.user.id
       }
     });
 

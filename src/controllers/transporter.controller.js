@@ -86,4 +86,22 @@ const deleteDeliveryPerson = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, addDeliveryPerson, deleteDeliveryPerson };
+const assignOrderToDeliveryPerson = async (req, res) => {
+  const Order = require('../models/order.model');
+  const { order_id, delivery_person_id } = req.body;
+  
+  try {
+    const updated = await Order.update(
+      { delivery_person_id },
+      { where: { id: order_id } }
+    );
+    
+    if (!updated[0]) return res.status(404).json({ message: 'Order not found' });
+    
+    res.json({ message: 'Order assigned to delivery person successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { getProfile, updateProfile, addDeliveryPerson, deleteDeliveryPerson, assignOrderToDeliveryPerson };

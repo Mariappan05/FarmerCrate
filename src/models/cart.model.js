@@ -13,17 +13,19 @@ const Cart = sequelize.define('Cart', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: CustomerUser,
+      model: 'customer_users',
       key: 'id'
-    }
+    },
+    onDelete: 'CASCADE'
   },
   productId: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: Product,
+      model: 'products',
       key: 'id'
-    }
+    },
+    onDelete: 'CASCADE'
   },
   quantity: {
     type: DataTypes.INTEGER,

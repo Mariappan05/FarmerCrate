@@ -3,7 +3,13 @@ const { sequelize } = require('../config/database');
 
 const DeliveryPerson = sequelize.define('delivery_persons', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  user_id: { type: DataTypes.INTEGER, unique: true, allowNull: false },
+  user_id: { 
+    type: DataTypes.INTEGER, 
+    unique: true, 
+    allowNull: false,
+    references: { model: 'transporter_users', key: 'transporter_id' },
+    onDelete: 'CASCADE'
+  },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING(20), allowNull: false, unique: true },
   password: { type: DataTypes.STRING, allowNull: false },
