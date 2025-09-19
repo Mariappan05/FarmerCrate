@@ -1,11 +1,14 @@
 const nodemailer = require('nodemailer');
 
-// Create transporter
-const transporter = nodemailer.createTransporter({
+// Create transporter with better error handling
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER || 'farmercreate@gmail.com',
+    user: process.env.EMAIL_USER || 'farmercrate@gmail.com',
     pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
@@ -13,7 +16,7 @@ const transporter = nodemailer.createTransporter({
 exports.sendOTPEmail = async (email, otp) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'farmercreate@gmail.com',
+      from: process.env.EMAIL_USER || 'farmercrate@gmail.com',
       to: email,
       subject: 'FarmerCrate - First Login Verification',
       html: `

@@ -213,11 +213,22 @@ exports.login = async (req, res) => {
         otpStore.set(user.email, { otp, timestamp, attempts: 0, userId: user.id });
         
         // Send OTP to email
-        const { sendOTPEmail } = require('../utils/email.util');
-        const emailSent = await sendOTPEmail(user.email, otp);
-        
-        if (!emailSent) {
-          return res.status(500).json({ message: 'Error sending OTP email' });
+        try {
+          const { sendOTPEmail } = require('../utils/email.util');
+          const emailSent = await sendOTPEmail(user.email, otp);
+          
+          if (!emailSent) {
+            console.error('Email sending failed, but continuing with OTP process');
+            console.log(`\n=== DEVELOPMENT OTP FOR ${user.email} ===`);
+            console.log(`OTP: ${otp}`);
+            console.log('=== USE THIS OTP FOR TESTING ===\n');
+          }
+        } catch (emailError) {
+          console.error('Email utility error:', emailError);
+          // Log OTP to console for development testing
+          console.log(`\n=== DEVELOPMENT OTP FOR ${user.email} ===`);
+          console.log(`OTP: ${otp}`);
+          console.log('=== USE THIS OTP FOR TESTING ===\n');
         }
         
         return res.json({
