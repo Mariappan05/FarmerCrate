@@ -16,8 +16,8 @@ const productValidation = [
 
 const productCreateValidation = [
   ...productValidation,
-  body('harvest_date').isISO8601().withMessage('Valid harvest date is required'),
-  body('expiry_date').isISO8601().withMessage('Valid expiry date is required')
+  body('harvest_date').trim().notEmpty().withMessage('Harvest date is required'),
+  body('expiry_date').trim().notEmpty().withMessage('Expiry date is required')
 ];
 
 const priceUpdateValidation = [
