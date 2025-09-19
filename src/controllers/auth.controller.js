@@ -205,6 +205,29 @@ exports.login = async (req, res) => {
     // Customer: username == customer_name
     user = await CustomerUser.findOne({ where: { customer_name: username } });
     if (user && user.password === password) {
+      // Check if this is first login
+      if (!user.first_login_completed) {
+        // Generate and send OTP to email
+        const otp = generateOTP();
+        const timestamp = Date.now();
+        otpStore.set(user.email, { otp, timestamp, attempts: 0, userId: user.id });
+        
+        // Send OTP to email
+        const { sendOTPEmail } = require('../utils/email.util');
+        const emailSent = await sendOTPEmail(user.email, otp);
+        
+        if (!emailSent) {
+          return res.status(500).json({ message: 'Error sending OTP email' });
+        }
+        
+        return res.json({
+          message: 'First login detected. OTP sent to your email.',
+          requiresOTP: true,
+          email: user.email,
+          tempToken: jwt.sign({ id: user.id, role: 'customer', temp: true }, process.env.JWT_SECRET, { expiresIn: '10m' })
+        });
+      }
+      
       return res.json({
         message: 'Login successful',
         token: jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
@@ -361,6 +384,73 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ message: 'Error resetting password' });
+  }
+};
+
+// Verify customer first login OTP
+exports.verifyCustomerFirstLoginOTP = async (req, res) => {
+  try {
+    const { email, otp, tempToken } = req.body;
+    
+    if (!tempToken) {
+      return res.status(400).json({ message: 'Temporary token is required' });
+    }
+    
+    // Verify temp token
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (!decoded.temp) {
+        return res.status(400).json({ message: 'Invalid token type' });
+      }
+    } catch (error) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    
+    const storedData = otpStore.get(email);
+    if (!storedData) {
+      return res.status(400).json({ message: 'OTP expired or not found' });
+    }
+    
+    if (Date.now() - storedData.timestamp > 600000) {
+      otpStore.delete(email);
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+    
+    if (storedData.otp !== otp) {
+      storedData.attempts += 1;
+      if (storedData.attempts >= 3) {
+        otpStore.delete(email);
+        return res.status(400).json({ message: 'Too many failed attempts. Please login again' });
+      }
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    
+    // OTP verified, update customer record
+    const customer = await CustomerUser.findByPk(decoded.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+    
+    await customer.update({ first_login_completed: true });
+    otpStore.delete(email);
+    
+    // Generate final token
+    const token = jwt.sign({ id: customer.id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    
+    res.json({
+      message: 'First login verification successful',
+      token,
+      user: {
+        id: customer.id,
+        email: customer.email,
+        role: 'customer',
+        name: customer.customer_name
+      }
+    });
+  } catch (error) {
+    console.error('Verify customer first login OTP error:', error);
+    res.status(500).json({ message: 'Error verifying OTP' });
   }
 };
 

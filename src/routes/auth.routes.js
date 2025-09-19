@@ -69,6 +69,17 @@ router.post(
   authController.resetPassword
 );
 
+// Customer first login OTP verification route
+router.post(
+  '/verify-customer-first-login',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+    body('tempToken').notEmpty().withMessage('Temporary token is required')
+  ],
+  authController.verifyCustomerFirstLoginOTP
+);
+
 // Farmer code verification route
 router.post(
   '/verify-farmer-code',

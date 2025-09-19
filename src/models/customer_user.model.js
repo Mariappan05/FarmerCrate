@@ -12,7 +12,8 @@ const CustomerUser = sequelize.define('customer_users', {
   district: { type: DataTypes.STRING },
   password: { type: DataTypes.STRING, allowNull: false },
   age: { type: DataTypes.INTEGER },
-  image_url: { type: DataTypes.STRING }
+  image_url: { type: DataTypes.STRING },
+  first_login_completed: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, {
   tableName: 'customer_users',
   timestamps: true,
