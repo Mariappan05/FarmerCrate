@@ -152,7 +152,7 @@ exports.createProduct = async (req, res) => {
       harvest_date,
       expiry_date,
       farmer_id: req.user.id,
-      lastPriceUpdate: new Date(),
+      last_price_update: new Date(),
       status: 'available',
       views: 0
     });
@@ -257,7 +257,7 @@ exports.updatePrice = async (req, res) => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    if (product.lastPriceUpdate > oneWeekAgo) {
+    if (product.last_price_update > oneWeekAgo) {
       return res.status(400).json({
         message: 'Product price can only be updated after one week of being unsold'
       });
@@ -267,7 +267,7 @@ exports.updatePrice = async (req, res) => {
 
     await product.update({
       price,
-      lastPriceUpdate: new Date()
+      last_price_update: new Date()
     });
 
     res.json({
