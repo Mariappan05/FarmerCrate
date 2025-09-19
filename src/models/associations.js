@@ -13,8 +13,20 @@ Product.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id', onDelete:
 FarmerUser.hasMany(Product, { as: 'products', foreignKey: 'farmer_id', onDelete: 'CASCADE' });
 
 // Customer - Order relationship
-Order.belongsTo(CustomerUser, { as: 'customer', foreignKey: 'consumer_id', onDelete: 'CASCADE' });
+Order.belongsTo(CustomerUser, { as: 'consumer', foreignKey: 'consumer_id', onDelete: 'CASCADE' });
 CustomerUser.hasMany(Order, { as: 'orders', foreignKey: 'consumer_id', onDelete: 'CASCADE' });
+
+// Farmer - Order relationship
+Order.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id', onDelete: 'CASCADE' });
+FarmerUser.hasMany(Order, { as: 'orders', foreignKey: 'farmer_id', onDelete: 'CASCADE' });
+
+// Product - Order relationship
+Order.belongsTo(Product, { foreignKey: 'product_id', onDelete: 'CASCADE' });
+Product.hasMany(Order, { foreignKey: 'product_id', onDelete: 'CASCADE' });
+
+// DeliveryPerson - Order relationship
+Order.belongsTo(DeliveryPerson, { as: 'delivery_person', foreignKey: 'delivery_person_id', onDelete: 'SET NULL' });
+DeliveryPerson.hasMany(Order, { as: 'orders', foreignKey: 'delivery_person_id', onDelete: 'SET NULL' });
 
 // Customer - Cart relationship
 Cart.belongsTo(CustomerUser, { as: 'customer', foreignKey: 'customerId', onDelete: 'CASCADE' });

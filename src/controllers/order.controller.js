@@ -2,7 +2,7 @@ const { validationResult } = require('express-validator');
 const Order = require('../models/order.model');
 const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
-const TransporterUser = require('../models/transporter_user.model');
+const DeliveryPerson = require('../models/deliveryPerson.model');
 const Product = require('../models/product.model');
 const Transaction = require('../models/transaction.model');
 const { sequelize } = require('../config/database');
@@ -13,28 +13,20 @@ exports.createOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    // Check for validation errors
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { id, quantity, delivery_address, total_amount, commission, farmer_amount, transport_charge } = req.body;
-    const productId = id;
 
-    console.log('Debug - productId:', productId);
-    console.log('Debug - req.user.id:', req.user.id);
-    console.log('Debug - req.user:', req.user);
-
-    // Get product
     const product = await Product.findOne({
-      where: { 
-        id: productId,
-        status: 'available'
-      }
+      where: { id, status: 'available' }
     });
-
-    console.log('Debug - product:', product);
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found or not available' });
@@ -44,15 +36,10 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Insufficient product quantity' });
     }
 
-    console.log('Debug - farmer_id:', product.farmer_id);
-    console.log('Debug - consumer_id:', req.user.id);
-    console.log('Debug - product_id:', productId);
-
-    // Create order with values from frontend
     const order = await Order.create({
       consumer_id: req.user.id,
       farmer_id: product.farmer_id,
-      product_id: productId,
+      product_id: id,
       quantity,
       delivery_address,
       total_amount,
@@ -61,12 +48,10 @@ exports.createOrder = async (req, res) => {
       transport_charge
     }, { transaction });
 
-    // Update product quantity
     await product.update({
       quantity: product.quantity - quantity
     }, { transaction });
 
-    // Create transactions
     await Transaction.create({
       farmer_id: product.farmer_id,
       order_id: order.id,
@@ -77,15 +62,13 @@ exports.createOrder = async (req, res) => {
     }, { transaction });
 
     await Transaction.create({
-      farmer_id: 1, // Admin user ID
+      farmer_id: 1,
       order_id: order.id,
       amount: commission,
       type: 'commission',
       status: 'completed',
       description: `Commission for order #${order.id}`
     }, { transaction });
-
-    // Note: Wallet balance updates removed as walletBalance field doesn't exist
 
     await transaction.commit();
 
@@ -101,62 +84,39 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// Get orders
+// Get orders for customer and farmer
 exports.getOrders = async (req, res) => {
   try {
-    let orders;
-    
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    let whereClause = {};
+    let includeModels = [
+      { model: Product, attributes: ['name', 'price', 'images'] }
+    ];
+
     if (req.user.role === 'farmer') {
-      orders = await Order.findAll({
-        where: { farmer_id: req.user.id },
-        include: [
-          {
-            model: Product,
-            attributes: ['name', 'price']
-          },
-          {
-            model: CustomerUser,
-            as: 'consumer',
-            attributes: ['username', 'email']
-          }
-        ]
+      whereClause.farmer_id = req.user.id;
+      includeModels.push({
+        model: CustomerUser,
+        as: 'consumer',
+        attributes: ['customer_name', 'email', 'mobile_number']
       });
     } else if (req.user.role === 'consumer') {
-      orders = await Order.findAll({
-        where: { consumer_id: req.user.id },
-        include: [
-          {
-            model: Product,
-            attributes: ['name', 'price']
-          },
-          {
-            model: FarmerUser,
-            as: 'farmer',
-            attributes: ['username', 'email']
-          }
-        ]
-      });
-    } else {
-      // Admin can see all orders
-      orders = await Order.findAll({
-        include: [
-          {
-            model: Product,
-            attributes: ['name', 'price']
-          },
-          {
-            model: CustomerUser,
-            as: 'consumer',
-            attributes: ['username', 'email']
-          },
-          {
-            model: FarmerUser,
-            as: 'farmer',
-            attributes: ['username', 'email']
-          }
-        ]
+      whereClause.consumer_id = req.user.id;
+      includeModels.push({
+        model: FarmerUser,
+        as: 'farmer',
+        attributes: ['name', 'email', 'mobile_number']
       });
     }
+
+    const orders = await Order.findAll({
+      where: whereClause,
+      include: includeModels,
+      order: [['created_at', 'DESC']]
+    });
 
     res.json({
       success: true,
@@ -172,29 +132,22 @@ exports.getOrders = async (req, res) => {
 // Get single order
 exports.getOrder = async (req, res) => {
   try {
+    let whereClause = { id: req.params.id };
+    
+    if (req.user && req.user.role !== 'admin') {
+      whereClause[Op.or] = [
+        { consumer_id: req.user.id },
+        { farmer_id: req.user.id }
+      ];
+    }
+
     const order = await Order.findOne({
-      where: {
-        id: req.params.id,
-        [Op.or]: [
-          { consumer_id: req.user.id },
-          { farmer_id: req.user.id }
-        ]
-      },
+      where: whereClause,
       include: [
-        {
-          model: Product,
-          attributes: ['name', 'price']
-        },
-        {
-          model: CustomerUser,
-          as: 'consumer',
-          attributes: ['username', 'email']
-        },
-        {
-          model: FarmerUser,
-          as: 'farmer',
-          attributes: ['username', 'email']
-        }
+        { model: Product, attributes: ['name', 'price', 'images'] },
+        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
+        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number'] },
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
       ]
     });
 
@@ -202,17 +155,34 @@ exports.getOrder = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    res.json({
-      success: true,
-      data: order
-    });
+    res.json({ success: true, data: order });
   } catch (error) {
     console.error('Get order error:', error);
     res.status(500).json({ message: 'Error fetching order' });
   }
 };
 
-// Update order status
+// Get all orders for admin
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.findAll({
+      include: [
+        { model: Product, attributes: ['name', 'price', 'images'] },
+        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number'] },
+        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    
+    res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    console.error('Get all orders error:', error);
+    res.status(500).json({ message: 'Error fetching orders' });
+  }
+};
+
+// Update order status (farmer only)
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -222,10 +192,7 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     const order = await Order.findOne({
-      where: {
-        id: req.params.id,
-        farmer_id: req.user.id
-      }
+      where: { id: req.params.id, farmer_id: req.user.id }
     });
 
     if (!order) {
@@ -249,8 +216,8 @@ exports.updateOrderStatus = async (req, res) => {
 exports.assignTransport = async (req, res) => {
   try {
     const { delivery_person_id } = req.body;
-    const order = await Order.findByPk(req.params.id);
     
+    const order = await Order.findByPk(req.params.id);
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
@@ -271,10 +238,7 @@ exports.assignTransport = async (req, res) => {
 exports.completeDelivery = async (req, res) => {
   try {
     const order = await Order.findOne({
-      where: {
-        id: req.params.id,
-        delivery_person_id: req.user.id
-      }
+      where: { id: req.params.id, delivery_person_id: req.user.id }
     });
     
     if (!order) {
@@ -287,23 +251,5 @@ exports.completeDelivery = async (req, res) => {
   } catch (error) {
     console.error('Complete delivery error:', error);
     res.status(500).json({ message: 'Error completing delivery' });
-  }
-};
-
-// Example: Get all orders (with farmer and customer info)
-exports.getAllOrders = async (req, res) => {
-  try {
-    const orders = await Order.findAll({
-      include: [
-        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number'] },
-        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
-        { model: Product }
-      ],
-      order: [['created_at', 'DESC']]
-    });
-    res.json({ success: true, count: orders.length, data: orders });
-  } catch (error) {
-    console.error('Get all orders error:', error);
-    res.status(500).json({ message: 'Error fetching orders' });
   }
 }; 

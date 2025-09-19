@@ -28,15 +28,16 @@ router.get('/',
   orderController.getOrders
 );
 
+// Get all orders (admin only) - must be before /:id
+router.get('/all', 
+  protect, 
+  authorize('admin'), 
+  orderController.getAllOrders
+);
+
 router.get('/:id', 
   protect, 
   orderController.getOrder
-);
-
-// Get all orders (for testing)
-router.get('/admin/all', 
-  protect, 
-  orderController.getAllOrders
 );
 
 // Farmer specific routes
