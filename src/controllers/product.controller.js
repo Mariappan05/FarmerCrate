@@ -141,7 +141,7 @@ exports.createProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { name, description, price, quantity, images, category } = req.body;
+    const { name, description, price, quantity, images, category, harvest_date, expiry_date } = req.body;
     const product = await Product.create({
       name,
       description,
@@ -149,6 +149,8 @@ exports.createProduct = async (req, res) => {
       quantity,
       images,
       category,
+      harvest_date,
+      expiry_date,
       farmer_id: req.user.id,
       lastPriceUpdate: new Date(),
       status: 'available',
@@ -192,6 +194,7 @@ exports.updateProduct = async (req, res) => {
       quantity: quantity || product.quantity,
       images: images || product.images,
       category: category || product.category
+      // harvest_date and expiry_date are not updatable
     });
     res.json({
       success: true,
