@@ -66,4 +66,11 @@ router.put('/:id/price',
   productController.updatePrice
 );
 
+// Status update route
+router.put('/:id/status', 
+  protect, 
+  authorize('farmer'), 
+  productController.updateProductStatus
+);
+
 module.exports = router;

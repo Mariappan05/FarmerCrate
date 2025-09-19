@@ -8,8 +8,13 @@ exports.getAllProducts = async (req, res) => {
   try {
     let whereClause = {};
     
-    // If user is not admin or farmer, only show available products
+    // If user is not admin or farmer, only show available products (hide sold_out and hidden)
     if (!req.user || (req.role !== 'admin' && req.role !== 'farmer')) {
+      whereClause.status = 'available';
+    }
+    
+    // If user is customer, only show available products
+    if (req.user && req.role === 'consumer') {
       whereClause.status = 'available';
     }
     
@@ -230,6 +235,42 @@ exports.deleteProduct = async (req, res) => {
   } catch (error) {
     console.error('Delete product error:', error);
     res.status(500).json({ message: 'Error deleting product' });
+  }
+};
+
+// Update product status (only by the farmer who posted it)
+exports.updateProductStatus = async (req, res) => {
+  try {
+    if (!req.user || req.role !== 'farmer') {
+      return res.status(403).json({ message: 'Only farmers can update product status' });
+    }
+
+    const { status } = req.body;
+    if (!['available', 'sold_out', 'hidden'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Use: available, sold_out, or hidden' });
+    }
+
+    const product = await Product.findOne({
+      where: {
+        id: req.params.id,
+        farmer_id: req.user.id
+      }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found or not owned by you' });
+    }
+
+    await product.update({ status });
+
+    res.json({
+      success: true,
+      message: 'Product status updated successfully',
+      data: product
+    });
+  } catch (error) {
+    console.error('Update product status error:', error);
+    res.status(500).json({ message: 'Error updating product status' });
   }
 };
 
