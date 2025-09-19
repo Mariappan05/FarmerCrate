@@ -103,4 +103,49 @@ const completeOrder = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateLocation, updateAvailability, updatePassword, getAssignedOrders, completeOrder };
+const getAllUsers = async (req, res) => {
+  const DeliveryPerson = require('../models/deliveryPerson.model');
+  
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Optional filters
+    const whereClause = {};
+    if (req.query.is_available !== undefined) {
+      whereClause.is_available = req.query.is_available === 'true';
+    }
+    if (req.query.vehicle_type) {
+      whereClause.vehicle_type = req.query.vehicle_type;
+    }
+
+    const deliveryPersons = await DeliveryPerson.findAndCountAll({
+      where: whereClause,
+      attributes: { 
+        exclude: ['password'] // Exclude sensitive information
+      },
+      limit: limit,
+      offset: offset,
+      order: [['created_at', 'DESC']]
+    });
+
+    const totalPages = Math.ceil(deliveryPersons.count / limit);
+
+    res.json({ 
+      success: true, 
+      data: deliveryPersons.rows,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalCount: deliveryPersons.count,
+        limit: limit
+      }
+    });
+  } catch (error) {
+    console.error('Get all delivery persons error:', error);
+    res.status(500).json({ message: 'Error retrieving delivery persons', error: error.message });
+  }
+};
+
+module.exports = { getProfile, updateLocation, updateAvailability, updatePassword, getAssignedOrders, completeOrder, getAllUsers };

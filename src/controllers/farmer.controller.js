@@ -53,4 +53,53 @@ exports.getAllFarmerNames = async (req, res) => {
     console.error('Get all farmer names error:', error);
     res.status(500).json({ message: 'Error retrieving farmer names' });
   }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Optional filters
+    const whereClause = {};
+    if (req.query.verified_status) {
+      whereClause.verified_status = req.query.verified_status;
+    }
+    if (req.query.zone) {
+      whereClause.zone = req.query.zone;
+    }
+    if (req.query.state) {
+      whereClause.state = req.query.state;
+    }
+    if (req.query.district) {
+      whereClause.district = req.query.district;
+    }
+
+    const farmers = await FarmerUser.findAndCountAll({
+      where: whereClause,
+      attributes: { 
+        exclude: ['password'] // Exclude sensitive information
+      },
+      limit: limit,
+      offset: offset,
+      order: [['created_at', 'DESC']]
+    });
+
+    const totalPages = Math.ceil(farmers.count / limit);
+
+    res.json({ 
+      success: true, 
+      data: farmers.rows,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalCount: farmers.count,
+        limit: limit
+      }
+    });
+  } catch (error) {
+    console.error('Get all farmers error:', error);
+    res.status(500).json({ message: 'Error retrieving farmers' });
+  }
 }; 

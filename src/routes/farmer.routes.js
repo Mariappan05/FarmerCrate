@@ -22,4 +22,7 @@ router.put('/me',
 // Route to get all farmer names
 router.get('/names', farmerController.getAllFarmerNames);
 
+// Route to get all farmers with pagination and filtering
+router.get('/all', farmerController.getAllUsers);
+
 module.exports = router; 

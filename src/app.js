@@ -44,7 +44,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/farmers', farmerRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/transporters', transporterRoutes);
-app.use('/api/delivery-person', deliveryPersonRoutes);
+app.use('/api/delivery-persons', deliveryPersonRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 
 // Error handling middleware
@@ -74,9 +74,11 @@ const startServer = async () => {
     const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log('Available routes:');
-      console.log('- PUT /api/delivery-person/complete-order');
-      console.log('- GET /api/delivery-person/orders');
-      console.log('- GET /api/delivery-person/profile');
+      console.log('- GET /api/farmers/all');
+      console.log('- GET /api/customers/all');
+      console.log('- GET /api/transporters/all');
+      console.log('- GET /api/delivery-persons/all');
+      console.log('- GET /api/delivery-persons/profile');
     });
 
     server.on('error', (err) => {

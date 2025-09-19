@@ -98,4 +98,52 @@ const assignOrderToDeliveryPerson = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, addDeliveryPerson, deleteDeliveryPerson, assignOrderToDeliveryPerson };
+const getAllUsers = async (req, res) => {
+  const TransporterUser = require('../models/transporter_user.model');
+  
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Optional filters
+    const whereClause = {};
+    if (req.query.zone) {
+      whereClause.zone = req.query.zone;
+    }
+    if (req.query.state) {
+      whereClause.state = req.query.state;
+    }
+    if (req.query.district) {
+      whereClause.district = req.query.district;
+    }
+
+    const transporters = await TransporterUser.findAndCountAll({
+      where: whereClause,
+      attributes: { 
+        exclude: ['password'] // Exclude sensitive information
+      },
+      limit: limit,
+      offset: offset,
+      order: [['created_at', 'DESC']]
+    });
+
+    const totalPages = Math.ceil(transporters.count / limit);
+
+    res.json({ 
+      success: true, 
+      data: transporters.rows,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalCount: transporters.count,
+        limit: limit
+      }
+    });
+  } catch (error) {
+    console.error('Get all transporters error:', error);
+    res.status(500).json({ message: 'Error retrieving transporters', error: error.message });
+  }
+};
+
+module.exports = { getProfile, updateProfile, addDeliveryPerson, deleteDeliveryPerson, assignOrderToDeliveryPerson, getAllUsers };

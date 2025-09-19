@@ -10,4 +10,7 @@ router.put('/password', protect, deliveryPersonController.updatePassword);
 router.get('/orders', protect, deliveryPersonController.getAssignedOrders);
 router.put('/complete-order', protect, deliveryPersonController.completeOrder);
 
+// Route to get all delivery persons with pagination and filtering
+router.get('/all', deliveryPersonController.getAllUsers);
+
 module.exports = router;

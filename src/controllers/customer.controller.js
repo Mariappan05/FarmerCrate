@@ -43,4 +43,50 @@ exports.updateMe = async (req, res) => {
     console.error('Update customer details error:', error);
     res.status(500).json({ message: 'Error updating customer details' });
   }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Optional filters
+    const whereClause = {};
+    if (req.query.zone) {
+      whereClause.zone = req.query.zone;
+    }
+    if (req.query.state) {
+      whereClause.state = req.query.state;
+    }
+    if (req.query.district) {
+      whereClause.district = req.query.district;
+    }
+
+    const customers = await CustomerUser.findAndCountAll({
+      where: whereClause,
+      attributes: { 
+        exclude: ['password'] // Exclude sensitive information
+      },
+      limit: limit,
+      offset: offset,
+      order: [['created_at', 'DESC']]
+    });
+
+    const totalPages = Math.ceil(customers.count / limit);
+
+    res.json({ 
+      success: true, 
+      data: customers.rows,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalCount: customers.count,
+        limit: limit
+      }
+    });
+  } catch (error) {
+    console.error('Get all customers error:', error);
+    res.status(500).json({ message: 'Error retrieving customers' });
+  }
 }; 

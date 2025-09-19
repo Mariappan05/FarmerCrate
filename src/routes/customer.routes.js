@@ -19,4 +19,7 @@ router.put('/me',
   customerController.updateMe
 );
 
+// Route to get all customers with pagination and filtering
+router.get('/all', customerController.getAllUsers);
+
 module.exports = router; 

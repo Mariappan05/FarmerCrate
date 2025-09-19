@@ -11,4 +11,7 @@ router.post('/delivery-person', protect, transporterController.addDeliveryPerson
 router.delete('/delivery-person/:id', protect, transporterController.deleteDeliveryPerson);
 router.post('/assign-order', protect, transporterController.assignOrderToDeliveryPerson);
 
+// Route to get all transporters with pagination and filtering
+router.get('/all', transporterController.getAllUsers);
+
 module.exports = router; 
