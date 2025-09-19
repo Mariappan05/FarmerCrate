@@ -11,7 +11,11 @@ const productValidation = [
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('quantity').isInt({ min: 0 }).withMessage('Quantity must be a positive number'),
   body('images').trim().notEmpty().withMessage('Images is required'),
-  body('category').optional().trim(),
+  body('category').optional().trim()
+];
+
+const productCreateValidation = [
+  ...productValidation,
   body('harvest_date').isISO8601().withMessage('Valid harvest date is required'),
   body('expiry_date').isISO8601().withMessage('Valid expiry date is required')
 ];
@@ -30,7 +34,7 @@ router.get('/:id/related', productController.getRelatedProducts);
 router.post('/', 
   protect, 
   authorize('farmer'), 
-  productValidation, 
+  productCreateValidation, 
   productController.createProduct
 );
 

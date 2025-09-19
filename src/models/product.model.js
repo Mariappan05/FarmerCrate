@@ -12,8 +12,8 @@ const Product = sequelize.define('products', {
   status: { type: DataTypes.ENUM('available', 'sold_out', 'hidden'), defaultValue: 'available' },
   last_price_update: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   views: { type: DataTypes.INTEGER, defaultValue: 0 },
-  harvest_date: { type: DataTypes.DATE, allowNull: false },
-  expiry_date: { type: DataTypes.DATE, allowNull: false },
+  harvest_date: { type: DataTypes.DATE, allowNull: true },
+  expiry_date: { type: DataTypes.DATE, allowNull: true },
   farmer_id: { 
     type: DataTypes.INTEGER, 
     allowNull: false,
