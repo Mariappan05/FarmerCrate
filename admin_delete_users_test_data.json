@@ -1,0 +1,360 @@
+{
+  "info": {
+    "name": "Admin User Delete API Test Collection",
+    "description": "Test cases for admin user deletion functionality with soft delete implementation",
+    "version": "1.0.0",
+    "base_url": "http://localhost:3000/api/admin"
+  },
+  "auth": {
+    "admin_login": {
+      "url": "http://localhost:3000/api/auth/login",
+      "method": "POST",
+      "body": {
+        "email": "admin@farmercrate.com",
+        "password": "AdminPass123!"
+      },
+      "description": "Login to get admin token for authentication"
+    }
+  },
+  "test_cases": {
+    "delete_operations": {
+      "delete_farmer": {
+        "name": "Delete Farmer User",
+        "url": "{{base_url}}/farmers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Soft delete a farmer user by ID",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Farmer deleted successfully",
+          "data": {
+            "farmer_id": 1,
+            "name": "Ravi Kumar",
+            "original_email": "ravi.farmer@example.com",
+            "deleted_at": "2024-09-20T12:30:00.000Z",
+            "deleted_by": 1
+          }
+        }
+      },
+      "delete_customer": {
+        "name": "Delete Customer User",
+        "url": "{{base_url}}/customers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Soft delete a customer user by ID",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Customer deleted successfully",
+          "data": {
+            "customer_id": 1,
+            "name": "Priya Sharma",
+            "original_email": "priya.customer@example.com",
+            "deleted_at": "2024-09-20T12:35:00.000Z",
+            "deleted_by": 1
+          }
+        }
+      },
+      "delete_transporter": {
+        "name": "Delete Transporter User",
+        "url": "{{base_url}}/transporters/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Soft delete a transporter user by ID",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Transporter deleted successfully",
+          "data": {
+            "transporter_id": 1,
+            "name": "Raj Transport Solutions",
+            "original_email": "raj.transport@example.com",
+            "deleted_at": "2024-09-20T12:40:00.000Z",
+            "deleted_by": 1
+          }
+        }
+      },
+      "delete_delivery_person": {
+        "name": "Delete Delivery Person User",
+        "url": "{{base_url}}/delivery-persons/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Soft delete a delivery person by ID",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Delivery person deleted successfully",
+          "data": {
+            "delivery_person_id": 1,
+            "name": "Suresh Kumar",
+            "original_mobile": "9876543210",
+            "original_license": "KA1234567890",
+            "deleted_at": "2024-09-20T12:45:00.000Z",
+            "deleted_by": 1
+          }
+        }
+      },
+      "delete_user_by_role_farmer": {
+        "name": "Delete User by Role - Farmer",
+        "url": "{{base_url}}/users/farmer/2",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Delete farmer using generic role-based endpoint",
+        "expected_status": 200
+      },
+      "delete_user_by_role_customer": {
+        "name": "Delete User by Role - Customer",
+        "url": "{{base_url}}/users/customer/3",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Delete customer using generic role-based endpoint",
+        "expected_status": 200
+      }
+    },
+    "error_cases": {
+      "farmer_not_found": {
+        "name": "Error - Farmer Not Found",
+        "url": "{{base_url}}/farmers/99999",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Try to delete non-existent farmer",
+        "expected_status": 404,
+        "expected_response": {
+          "success": false,
+          "message": "Farmer not found"
+        }
+      },
+      "customer_not_found": {
+        "name": "Error - Customer Not Found",
+        "url": "{{base_url}}/customers/99999",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Try to delete non-existent customer",
+        "expected_status": 404,
+        "expected_response": {
+          "success": false,
+          "message": "Customer not found"
+        }
+      },
+      "already_deleted_farmer": {
+        "name": "Error - Farmer Already Deleted",
+        "url": "{{base_url}}/farmers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Try to delete already deleted farmer",
+        "expected_status": 400,
+        "expected_response": {
+          "success": false,
+          "message": "Farmer is already deleted"
+        },
+        "note": "Run this after successfully deleting farmer with ID 1"
+      },
+      "invalid_farmer_id": {
+        "name": "Error - Invalid Farmer ID",
+        "url": "{{base_url}}/farmers/abc",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Try to delete with invalid farmer ID",
+        "expected_status": 400,
+        "expected_response": {
+          "success": false,
+          "message": "Valid farmer ID is required"
+        }
+      },
+      "invalid_role": {
+        "name": "Error - Invalid Role",
+        "url": "{{base_url}}/users/invalid_role/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Try to delete with invalid role",
+        "expected_status": 400,
+        "expected_response": {
+          "success": false,
+          "message": "Invalid role. Supported roles: farmer, customer, transporter, delivery_person"
+        }
+      },
+      "unauthorized_access": {
+        "name": "Error - Unauthorized Access",
+        "url": "{{base_url}}/farmers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer invalid_token_here"
+        },
+        "description": "Try to delete without valid admin token",
+        "expected_status": 401,
+        "expected_response": {
+          "success": false,
+          "message": "Access denied. Invalid or expired token."
+        }
+      }
+    },
+    "verification_tests": {
+      "get_all_farmers_after_delete": {
+        "name": "Verify - Get All Farmers After Delete",
+        "url": "{{base_url}}/users/farmer",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Verify deleted farmers appear with modified emails",
+        "expected_behavior": "Should show farmers with emails containing '_deleted_'"
+      },
+      "get_deleted_farmer_details": {
+        "name": "Verify - Get Deleted Farmer Details",
+        "url": "{{base_url}}/users/farmer/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Check details of deleted farmer",
+        "expected_behavior": "Should return farmer with modified email and mobile"
+      }
+    }
+  },
+  "setup_data": {
+    "create_test_users": {
+      "farmer_1": {
+        "url": "http://localhost:3000/api/auth/register/farmer",
+        "method": "POST",
+        "body": {
+          "name": "Ravi Kumar",
+          "email": "ravi.farmer@example.com",
+          "mobile_number": "9876543210",
+          "password": "FarmerPass123!",
+          "address": "Village Kumta, Karnataka",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Uttara Kannada",
+          "age": 35,
+          "account_number": "1234567890",
+          "ifsc_code": "SBIN0001234"
+        }
+      },
+      "farmer_2": {
+        "url": "http://localhost:3000/api/auth/register/farmer",
+        "method": "POST",
+        "body": {
+          "name": "Lakshmi Devi",
+          "email": "lakshmi.farmer@example.com",
+          "mobile_number": "9876543211",
+          "password": "FarmerPass123!",
+          "address": "Village Sirsi, Karnataka",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Uttara Kannada",
+          "age": 42
+        }
+      },
+      "customer_1": {
+        "url": "http://localhost:3000/api/auth/register/customer",
+        "method": "POST",
+        "body": {
+          "customer_name": "Priya Sharma",
+          "email": "priya.customer@example.com",
+          "mobile_number": "9876543212",
+          "password": "CustomerPass123!",
+          "address": "Koramangala, Bangalore",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Bangalore Urban",
+          "age": 28
+        }
+      },
+      "customer_2": {
+        "url": "http://localhost:3000/api/auth/register/customer",
+        "method": "POST",
+        "body": {
+          "customer_name": "Arjun Patel",
+          "email": "arjun.customer@example.com",
+          "mobile_number": "9876543213",
+          "password": "CustomerPass123!",
+          "address": "Whitefield, Bangalore",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Bangalore Urban",
+          "age": 32
+        }
+      },
+      "transporter_1": {
+        "url": "http://localhost:3000/api/auth/register/transporter",
+        "method": "POST",
+        "body": {
+          "name": "Raj Transport Solutions",
+          "email": "raj.transport@example.com",
+          "mobile_number": "9876543214",
+          "password": "TransportPass123!",
+          "address": "Transport Nagar, Bangalore",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Bangalore Urban",
+          "age": 45,
+          "aadhar_number": "123456789012",
+          "pan_number": "ABCDE1234F",
+          "license_number": "KA1234567890"
+        }
+      }
+    }
+  },
+  "curl_examples": {
+    "delete_farmer": "curl -X DELETE \"http://localhost:3000/api/admin/farmers/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_customer": "curl -X DELETE \"http://localhost:3000/api/admin/customers/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_transporter": "curl -X DELETE \"http://localhost:3000/api/admin/transporters/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_delivery_person": "curl -X DELETE \"http://localhost:3000/api/admin/delivery-persons/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_by_role": "curl -X DELETE \"http://localhost:3000/api/admin/users/farmer/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "get_farmers_after_delete": "curl -X GET \"http://localhost:3000/api/admin/users/farmer\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\""
+  },
+  "testing_workflow": [
+    "1. Setup: Register admin and get authentication token",
+    "2. Create test users for each user type (farmer, customer, transporter, delivery person)",
+    "3. Test successful deletions for each user type",
+    "4. Test error cases (not found, already deleted, invalid IDs, unauthorized)",
+    "5. Verify soft delete implementation (check modified emails/mobile numbers)",
+    "6. Test generic delete endpoint with different roles",
+    "7. Verify users can no longer login with original credentials",
+    "8. Check that referential integrity is maintained"
+  ],
+  "soft_delete_implementation": {
+    "description": "Users are not physically removed from database. Instead:",
+    "farmers_customers_transporters": {
+      "email_modified": "original_email_deleted_timestamp",
+      "mobile_modified": "original_mobile_deleted_timestamp",
+      "verification_reset": "verified_status = false",
+      "approval_cleared": "approved_at = null"
+    },
+    "delivery_persons": {
+      "mobile_modified": "original_mobile_deleted_timestamp",
+      "license_modified": "original_license_deleted_timestamp",
+      "availability_set": "is_available = false"
+    },
+    "benefits": [
+      "Data preservation for audit purposes",
+      "Prevents re-registration with same email/mobile",
+      "Maintains referential integrity",
+      "Easy identification of deleted users",
+      "Restoration capability if needed"
+    ]
+  }
+}

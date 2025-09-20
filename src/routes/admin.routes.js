@@ -86,6 +86,29 @@ router.put('/transporters/:transporter_id/reject', [
   body('rejection_reason').isLength({ min: 10, max: 500 }).withMessage('Rejection reason must be between 10 and 500 characters')
 ], adminController.rejectTransporter);
 
+// ==================== USER DELETE MANAGEMENT ====================
+
+// Delete specific user by type and ID (Traditional way)
+router.delete('/farmers/:farmerId', adminController.deleteFarmer);
+router.delete('/customers/:customerId', adminController.deleteCustomer);
+router.delete('/transporters/:transporterId', adminController.deleteTransporter);
+router.delete('/delivery-persons/:deliveryPersonId', adminController.deleteDeliveryPerson);
+
+// Generic delete route by role and user ID
+router.delete('/users/:role/:userId', adminController.deleteUserByRole);
+
+// ==================== TABLE-WISE DELETE MANAGEMENT ====================
+
+// Delete from specific tables with CASCADE
+router.delete('/tables/farmer_users/:farmerId', adminController.deleteFromFarmerTable);
+router.delete('/tables/customer_users/:customerId', adminController.deleteFromCustomerTable);
+router.delete('/tables/transporter_users/:transporterId', adminController.deleteFromTransporterTable);
+router.delete('/tables/delivery_persons/:deliveryPersonId', adminController.deleteFromDeliveryPersonTable);
+router.delete('/tables/admin_users/:adminId', adminController.deleteFromAdminTable);
+
+// Generic table delete route
+router.delete('/tables/:tableName/:userId', adminController.deleteFromTable);
+
 // Legacy endpoint - kept for backward compatibility
 router.post('/send-farmer-code', adminController.sendFarmerCode);
 

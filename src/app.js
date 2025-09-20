@@ -31,6 +31,7 @@ const customerRoutes = require('./routes/customer.routes');
 const transporterRoutes = require('./routes/transporter.routes');
 const deliveryPersonRoutes = require('./routes/deliveryPerson.routes');
 const wishlistRoutes = require('./routes/wishlist.routes');
+const vehicleRoutes = require('./routes/vehicle.routes');
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -46,6 +47,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/transporters', transporterRoutes);
 app.use('/api/delivery-persons', deliveryPersonRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -79,6 +81,9 @@ const startServer = async () => {
       console.log('- GET /api/transporters/all');
       console.log('- GET /api/delivery-persons/all');
       console.log('- GET /api/delivery-persons/profile');
+      console.log('- GET /api/vehicles (Vehicle Management - Authentication Required)');
+      console.log('- POST /api/vehicles/permanent (Add Permanent Vehicle)');
+      console.log('- POST /api/vehicles/temporary (Add Temporary Vehicle)');
     });
 
     server.on('error', (err) => {

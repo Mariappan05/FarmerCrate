@@ -2,6 +2,14 @@ const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const AdminUser = require('../models/admin_user.model');
+const DeliveryPerson = require('../models/deliveryPerson.model');
+const Product = require('../models/product.model');
+const Order = require('../models/order.model');
+const Cart = require('../models/cart.model');
+const Transaction = require('../models/transaction.model');
+const Wishlist = require('../models/wishlist.model');
+const PermanentVehicle = require('../models/permanentVehicle.model');
+const TemporaryVehicle = require('../models/temporaryVehicle.model');
 const { generateVerificationCode } = require('../utils/sms.util');
 const { validationResult } = require('express-validator');
 
@@ -717,5 +725,698 @@ exports.rejectTransporter = async (req, res) => {
   } catch (error) {
     console.error('Error rejecting transporter:', error);
     res.status(500).json({ message: 'Error rejecting transporter' });
+  }
+};
+
+// ==================== USER DELETE FUNCTIONS ====================
+
+// Delete Farmer User (CASCADE Delete - removes all related data)
+exports.deleteFarmer = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    
+    if (!farmerId || isNaN(farmerId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid farmer ID is required' 
+      });
+    }
+
+    // Get farmer with related data count for confirmation
+    const farmer = await FarmerUser.findByPk(farmerId, {
+      include: [
+        { model: Product, as: 'products' },
+        { model: Order, as: 'orders' },
+        { model: Transaction, as: 'transactions' }
+      ]
+    });
+    
+    if (!farmer) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Farmer not found' 
+      });
+    }
+
+    // Store farmer info before deletion
+    const farmerInfo = {
+      farmer_id: farmer.id,
+      name: farmer.name,
+      email: farmer.email,
+      products_count: farmer.products ? farmer.products.length : 0,
+      orders_count: farmer.orders ? farmer.orders.length : 0,
+      transactions_count: farmer.transactions ? farmer.transactions.length : 0
+    };
+
+    // CASCADE DELETE: This will automatically delete all related records due to associations:
+    // - Products (and their cart items, orders, wishlists)
+    // - Orders 
+    // - Transactions
+    await farmer.destroy({ force: true }); // Force hard delete from database
+
+    res.json({
+      success: true,
+      message: 'Farmer and all related data deleted successfully (CASCADE)',
+      data: {
+        ...farmerInfo,
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_info: {
+          products_deleted: farmerInfo.products_count,
+          orders_deleted: farmerInfo.orders_count,
+          transactions_deleted: farmerInfo.transactions_count,
+          note: 'All related cart items, wishlists, and product orders were also deleted'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting farmer:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting farmer and related data' 
+    });
+  }
+};
+
+// Delete Customer User (CASCADE Delete - removes all related data)
+exports.deleteCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    
+    if (!customerId || isNaN(customerId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid customer ID is required' 
+      });
+    }
+
+    // Get customer with related data count for confirmation
+    const customer = await CustomerUser.findByPk(customerId, {
+      include: [
+        { model: Order, as: 'orders' },
+        { model: Cart, as: 'cart_items' },
+        { model: Wishlist }
+      ]
+    });
+    
+    if (!customer) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Customer not found' 
+      });
+    }
+
+    // Store customer info before deletion
+    const customerInfo = {
+      customer_id: customer.id,
+      name: customer.customer_name,
+      email: customer.email,
+      orders_count: customer.orders ? customer.orders.length : 0,
+      cart_items_count: customer.cart_items ? customer.cart_items.length : 0,
+      wishlist_count: customer.Wishlists ? customer.Wishlists.length : 0
+    };
+
+    // CASCADE DELETE: This will automatically delete all related records due to associations:
+    // - Orders
+    // - Cart items
+    // - Wishlist items
+    await customer.destroy({ force: true }); // Force hard delete from database
+
+    res.json({
+      success: true,
+      message: 'Customer and all related data deleted successfully (CASCADE)',
+      data: {
+        ...customerInfo,
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_info: {
+          orders_deleted: customerInfo.orders_count,
+          cart_items_deleted: customerInfo.cart_items_count,
+          wishlist_items_deleted: customerInfo.wishlist_count,
+          note: 'All customer orders, cart items, and wishlist items were automatically deleted'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting customer:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting customer and related data' 
+    });
+  }
+};
+
+// Delete Transporter User (CASCADE Delete - removes all related data)
+exports.deleteTransporter = async (req, res) => {
+  try {
+    const { transporterId } = req.params;
+    
+    if (!transporterId || isNaN(transporterId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid transporter ID is required' 
+      });
+    }
+
+    // Get transporter with related data count for confirmation
+    const transporter = await TransporterUser.findByPk(transporterId, {
+      include: [
+        { model: DeliveryPerson, as: 'delivery_persons' },
+        { model: PermanentVehicle, as: 'permanent_vehicles' },
+        { model: TemporaryVehicle, as: 'temporary_vehicles' }
+      ]
+    });
+    
+    if (!transporter) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Transporter not found' 
+      });
+    }
+
+    // Store transporter info before deletion
+    const transporterInfo = {
+      transporter_id: transporter.transporter_id,
+      name: transporter.name,
+      email: transporter.email,
+      delivery_persons_count: transporter.delivery_persons ? transporter.delivery_persons.length : 0,
+      permanent_vehicles_count: transporter.permanent_vehicles ? transporter.permanent_vehicles.length : 0,
+      temporary_vehicles_count: transporter.temporary_vehicles ? transporter.temporary_vehicles.length : 0
+    };
+
+    // CASCADE DELETE: This will automatically delete all related records due to associations:
+    // - Delivery persons
+    // - Permanent vehicles (and their documents)
+    // - Temporary vehicles (and their documents)
+    await transporter.destroy({ force: true }); // Force hard delete from database
+
+    res.json({
+      success: true,
+      message: 'Transporter and all related data deleted successfully (CASCADE)',
+      data: {
+        ...transporterInfo,
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_info: {
+          delivery_persons_deleted: transporterInfo.delivery_persons_count,
+          permanent_vehicles_deleted: transporterInfo.permanent_vehicles_count,
+          temporary_vehicles_deleted: transporterInfo.temporary_vehicles_count,
+          note: 'All delivery persons, vehicles, and vehicle documents were automatically deleted'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting transporter:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting transporter and related data' 
+    });
+  }
+};
+
+// Delete Delivery Person User (CASCADE Delete - removes all related data)
+exports.deleteDeliveryPerson = async (req, res) => {
+  try {
+    const { deliveryPersonId } = req.params;
+    
+    if (!deliveryPersonId || isNaN(deliveryPersonId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid delivery person ID is required' 
+      });
+    }
+
+    // Get delivery person with related data count for confirmation
+    const deliveryPerson = await DeliveryPerson.findByPk(deliveryPersonId, {
+      include: [
+        { model: Order, as: 'orders' }
+      ]
+    });
+    
+    if (!deliveryPerson) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Delivery person not found' 
+      });
+    }
+
+    // Store delivery person info before deletion
+    const deliveryPersonInfo = {
+      delivery_person_id: deliveryPerson.id,
+      name: deliveryPerson.name,
+      mobile_number: deliveryPerson.mobile_number,
+      license_number: deliveryPerson.license_number,
+      vehicle_type: deliveryPerson.vehicle_type,
+      orders_count: deliveryPerson.orders ? deliveryPerson.orders.length : 0,
+      rating: deliveryPerson.rating,
+      total_deliveries: deliveryPerson.total_deliveries
+    };
+
+    // Note: Orders are SET NULL (not deleted) because delivery person deletion shouldn't delete orders
+    // CASCADE DELETE will automatically handle this via associations
+    await deliveryPerson.destroy({ force: true }); // Force hard delete from database
+
+    res.json({
+      success: true,
+      message: 'Delivery person deleted successfully (CASCADE)',
+      data: {
+        ...deliveryPersonInfo,
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_info: {
+          orders_affected: deliveryPersonInfo.orders_count,
+          note: 'Orders delivery_person_id field was set to NULL (orders preserved)'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting delivery person:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting delivery person' 
+    });
+  }
+};
+
+// Delete User by Role (Generic function)
+exports.deleteUserByRole = async (req, res) => {
+  try {
+    const { role, userId } = req.params;
+    
+    // Validate inputs
+    if (!role || !userId || isNaN(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid role and user ID are required' 
+      });
+    }
+
+    // Route to specific delete function based on role
+    switch (role) {
+      case 'farmer':
+        req.params.farmerId = userId;
+        return exports.deleteFarmer(req, res);
+      
+      case 'customer':
+        req.params.customerId = userId;
+        return exports.deleteCustomer(req, res);
+      
+      case 'transporter':
+        req.params.transporterId = userId;
+        return exports.deleteTransporter(req, res);
+      
+      case 'delivery_person':
+        req.params.deliveryPersonId = userId;
+        return exports.deleteDeliveryPerson(req, res);
+      
+      default:
+        return res.status(400).json({ 
+          success: false,
+          message: 'Invalid role. Supported roles: farmer, customer, transporter, delivery_person' 
+        });
+    }
+
+  } catch (error) {
+    console.error('Error in deleteUserByRole:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting user' 
+    });
+  }
+};
+
+// ==================== TABLE-WISE DELETE FUNCTIONS ====================
+
+// Delete from farmer_users table with CASCADE
+exports.deleteFromFarmerTable = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    
+    if (!farmerId || isNaN(farmerId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid farmer ID is required' 
+      });
+    }
+
+    // Get farmer with all related data for impact analysis
+    const farmer = await FarmerUser.findByPk(farmerId, {
+      include: [
+        { model: Product, as: 'products' },
+        { model: Order, as: 'orders' },
+        { model: Transaction, as: 'transactions' }
+      ]
+    });
+    
+    if (!farmer) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Farmer not found in farmer_users table' 
+      });
+    }
+
+    // Collect cascade impact data
+    const cascadeImpact = {
+      table: 'farmer_users',
+      farmer_id: farmer.id,
+      farmer_name: farmer.name,
+      farmer_email: farmer.email,
+      related_data_deleted: {
+        products: farmer.products ? farmer.products.length : 0,
+        orders: farmer.orders ? farmer.orders.length : 0,
+        transactions: farmer.transactions ? farmer.transactions.length : 0
+      }
+    };
+
+    // CASCADE DELETE from farmer_users table (force hard delete)
+    await farmer.destroy({ force: true });
+
+    res.json({
+      success: true,
+      message: 'Record deleted from farmer_users table with CASCADE',
+      data: {
+        deleted_from_table: 'farmer_users',
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_impact: cascadeImpact,
+        note: 'All related products, orders, transactions, cart items, and wishlists were CASCADE deleted'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting from farmer_users table:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting from farmer_users table' 
+    });
+  }
+};
+
+// Delete from customer_users table with CASCADE
+exports.deleteFromCustomerTable = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    
+    if (!customerId || isNaN(customerId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid customer ID is required' 
+      });
+    }
+
+    // Get customer with all related data for impact analysis
+    const customer = await CustomerUser.findByPk(customerId, {
+      include: [
+        { model: Order, as: 'orders' },
+        { model: Cart, as: 'cart_items' },
+        { model: Wishlist }
+      ]
+    });
+    
+    if (!customer) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Customer not found in customer_users table' 
+      });
+    }
+
+    // Collect cascade impact data
+    const cascadeImpact = {
+      table: 'customer_users',
+      customer_id: customer.id,
+      customer_name: customer.customer_name,
+      customer_email: customer.email,
+      related_data_deleted: {
+        orders: customer.orders ? customer.orders.length : 0,
+        cart_items: customer.cart_items ? customer.cart_items.length : 0,
+        wishlist_items: customer.Wishlists ? customer.Wishlists.length : 0
+      }
+    };
+
+    // CASCADE DELETE from customer_users table (force hard delete)
+    await customer.destroy({ force: true });
+
+    res.json({
+      success: true,
+      message: 'Record deleted from customer_users table with CASCADE',
+      data: {
+        deleted_from_table: 'customer_users',
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_impact: cascadeImpact,
+        note: 'All related orders, cart items, and wishlist items were CASCADE deleted'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting from customer_users table:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting from customer_users table' 
+    });
+  }
+};
+
+// Delete from transporter_users table with CASCADE
+exports.deleteFromTransporterTable = async (req, res) => {
+  try {
+    const { transporterId } = req.params;
+    
+    if (!transporterId || isNaN(transporterId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid transporter ID is required' 
+      });
+    }
+
+    // Get transporter with all related data for impact analysis
+    const transporter = await TransporterUser.findByPk(transporterId, {
+      include: [
+        { model: DeliveryPerson, as: 'delivery_persons' },
+        { model: PermanentVehicle, as: 'permanent_vehicles' },
+        { model: TemporaryVehicle, as: 'temporary_vehicles' }
+      ]
+    });
+    
+    if (!transporter) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Transporter not found in transporter_users table' 
+      });
+    }
+
+    // Collect cascade impact data
+    const cascadeImpact = {
+      table: 'transporter_users',
+      transporter_id: transporter.transporter_id,
+      transporter_name: transporter.name,
+      transporter_email: transporter.email,
+      related_data_deleted: {
+        delivery_persons: transporter.delivery_persons ? transporter.delivery_persons.length : 0,
+        permanent_vehicles: transporter.permanent_vehicles ? transporter.permanent_vehicles.length : 0,
+        temporary_vehicles: transporter.temporary_vehicles ? transporter.temporary_vehicles.length : 0
+      }
+    };
+
+    // CASCADE DELETE from transporter_users table (force hard delete)
+    await transporter.destroy({ force: true });
+
+    res.json({
+      success: true,
+      message: 'Record deleted from transporter_users table with CASCADE',
+      data: {
+        deleted_from_table: 'transporter_users',
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_impact: cascadeImpact,
+        note: 'All delivery persons, vehicles, and vehicle documents were CASCADE deleted'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting from transporter_users table:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting from transporter_users table' 
+    });
+  }
+};
+
+// Delete from delivery_persons table with CASCADE
+exports.deleteFromDeliveryPersonTable = async (req, res) => {
+  try {
+    const { deliveryPersonId } = req.params;
+    
+    if (!deliveryPersonId || isNaN(deliveryPersonId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid delivery person ID is required' 
+      });
+    }
+
+    // Get delivery person with all related data for impact analysis
+    const deliveryPerson = await DeliveryPerson.findByPk(deliveryPersonId, {
+      include: [
+        { model: Order, as: 'orders' }
+      ]
+    });
+    
+    if (!deliveryPerson) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Delivery person not found in delivery_persons table' 
+      });
+    }
+
+    // Collect cascade impact data
+    const cascadeImpact = {
+      table: 'delivery_persons',
+      delivery_person_id: deliveryPerson.id,
+      delivery_person_name: deliveryPerson.name,
+      mobile_number: deliveryPerson.mobile_number,
+      related_data_affected: {
+        orders_set_null: deliveryPerson.orders ? deliveryPerson.orders.length : 0
+      }
+    };
+
+    // CASCADE DELETE from delivery_persons table (force hard delete)
+    // Note: Orders are SET NULL, not deleted
+    await deliveryPerson.destroy({ force: true });
+
+    res.json({
+      success: true,
+      message: 'Record deleted from delivery_persons table with CASCADE',
+      data: {
+        deleted_from_table: 'delivery_persons',
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_impact: cascadeImpact,
+        note: 'Delivery person deleted. Related orders had delivery_person_id set to NULL'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting from delivery_persons table:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting from delivery_persons table' 
+    });
+  }
+};
+
+// Delete from admin_users table with CASCADE
+exports.deleteFromAdminTable = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    
+    if (!adminId || isNaN(adminId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid admin ID is required' 
+      });
+    }
+
+    // Prevent self-deletion
+    if (parseInt(adminId) === req.user.admin_id) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Cannot delete your own admin account' 
+      });
+    }
+
+    // Get admin for impact analysis
+    const admin = await AdminUser.findByPk(adminId);
+    
+    if (!admin) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Admin not found in admin_users table' 
+      });
+    }
+
+    // Collect cascade impact data
+    const cascadeImpact = {
+      table: 'admin_users',
+      admin_id: admin.admin_id,
+      admin_username: admin.username,
+      admin_email: admin.email,
+      admin_role: admin.role
+    };
+
+    // CASCADE DELETE from admin_users table (force hard delete)
+    await admin.destroy({ force: true });
+
+    res.json({
+      success: true,
+      message: 'Record deleted from admin_users table with CASCADE',
+      data: {
+        deleted_from_table: 'admin_users',
+        deleted_at: new Date(),
+        deleted_by: req.user.admin_id,
+        cascade_impact: cascadeImpact,
+        note: 'Admin user permanently deleted from admin_users table'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting from admin_users table:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting from admin_users table' 
+    });
+  }
+};
+
+// Generic table-wise delete function
+exports.deleteFromTable = async (req, res) => {
+  try {
+    const { tableName, userId } = req.params;
+    
+    if (!tableName || !userId || isNaN(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid table name and user ID are required' 
+      });
+    }
+
+    // Route to specific table delete function
+    switch (tableName) {
+      case 'farmer_users':
+        req.params.farmerId = userId;
+        return exports.deleteFromFarmerTable(req, res);
+      
+      case 'customer_users':
+        req.params.customerId = userId;
+        return exports.deleteFromCustomerTable(req, res);
+      
+      case 'transporter_users':
+        req.params.transporterId = userId;
+        return exports.deleteFromTransporterTable(req, res);
+      
+      case 'delivery_persons':
+        req.params.deliveryPersonId = userId;
+        return exports.deleteFromDeliveryPersonTable(req, res);
+      
+      case 'admin_users':
+        req.params.adminId = userId;
+        return exports.deleteFromAdminTable(req, res);
+      
+      default:
+        return res.status(400).json({ 
+          success: false,
+          message: 'Invalid table name. Supported tables: farmer_users, customer_users, transporter_users, delivery_persons, admin_users' 
+        });
+    }
+
+  } catch (error) {
+    console.error('Error in deleteFromTable:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting from table' 
+    });
   }
 }; 

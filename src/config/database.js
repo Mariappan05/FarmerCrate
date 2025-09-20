@@ -37,6 +37,13 @@ const initializeDatabase = async () => {
     require('../models/deliveryPerson.model');
     require('../models/admin_user.model');
     require('../models/wishlist.model');
+    
+    // Vehicle Management Models
+    require('../models/permanentVehicle.model');
+    require('../models/temporaryVehicle.model');
+    require('../models/permanentVehicleDocument.model');
+    require('../models/temporaryVehicleDocument.model');
+    
     // Set up associations
     require('../models/associations');
 

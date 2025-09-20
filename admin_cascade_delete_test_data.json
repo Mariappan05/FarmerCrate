@@ -1,0 +1,460 @@
+{
+  "info": {
+    "name": "Admin CASCADE Delete API Test Collection",
+    "description": "Test cases for admin user CASCADE deletion functionality - PERMANENTLY removes users and ALL related data",
+    "version": "2.0.0",
+    "base_url": "http://localhost:3000/api/admin",
+    "warning": "CASCADE DELETE OPERATIONS ARE PERMANENT AND IRREVERSIBLE - ALWAYS BACKUP DATABASE FIRST"
+  },
+  "auth": {
+    "admin_login": {
+      "url": "http://localhost:3000/api/auth/login",
+      "method": "POST",
+      "body": {
+        "email": "admin@farmercrate.com",
+        "password": "AdminPass123!"
+      },
+      "description": "Login to get admin token for authentication"
+    }
+  },
+  "cascade_behavior": {
+    "farmer_deletion_cascades_to": [
+      "All farmer's products",
+      "All orders related to farmer's products",
+      "All cart items containing farmer's products",
+      "All wishlist items for farmer's products", 
+      "All farmer's transactions"
+    ],
+    "customer_deletion_cascades_to": [
+      "All customer's orders",
+      "All customer's cart items",
+      "All customer's wishlist items"
+    ],
+    "transporter_deletion_cascades_to": [
+      "All transporter's delivery persons",
+      "All transporter's permanent vehicles and their documents",
+      "All transporter's temporary vehicles and their documents",
+      "Orders assigned to delivery persons get delivery_person_id = NULL"
+    ],
+    "delivery_person_deletion_cascades_to": [
+      "Orders get delivery_person_id = NULL (orders preserved)"
+    ]
+  },
+  "test_cases": {
+    "cascade_delete_operations": {
+      "delete_farmer_cascade": {
+        "name": "CASCADE Delete Farmer User",
+        "url": "{{base_url}}/farmers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Permanently delete farmer and ALL related data (products, orders, transactions)",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Farmer and all related data deleted successfully (CASCADE)",
+          "data": {
+            "farmer_id": 1,
+            "name": "Ravi Kumar",
+            "email": "ravi.farmer@example.com",
+            "products_count": 5,
+            "orders_count": 12,
+            "transactions_count": 3,
+            "deleted_at": "2024-09-20T12:30:00.000Z",
+            "deleted_by": 1,
+            "cascade_info": {
+              "products_deleted": 5,
+              "orders_deleted": 12,
+              "transactions_deleted": 3,
+              "note": "All related cart items, wishlists, and product orders were also deleted"
+            }
+          }
+        }
+      },
+      "delete_customer_cascade": {
+        "name": "CASCADE Delete Customer User",
+        "url": "{{base_url}}/customers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Permanently delete customer and ALL related data (orders, cart, wishlist)",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Customer and all related data deleted successfully (CASCADE)",
+          "data": {
+            "customer_id": 1,
+            "name": "Priya Sharma",
+            "email": "priya.customer@example.com",
+            "orders_count": 8,
+            "cart_items_count": 3,
+            "wishlist_count": 15,
+            "deleted_at": "2024-09-20T12:35:00.000Z",
+            "deleted_by": 1,
+            "cascade_info": {
+              "orders_deleted": 8,
+              "cart_items_deleted": 3,
+              "wishlist_items_deleted": 15,
+              "note": "All customer orders, cart items, and wishlist items were automatically deleted"
+            }
+          }
+        }
+      },
+      "delete_transporter_cascade": {
+        "name": "CASCADE Delete Transporter User",
+        "url": "{{base_url}}/transporters/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Permanently delete transporter and ALL related data (delivery persons, vehicles, documents)",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Transporter and all related data deleted successfully (CASCADE)",
+          "data": {
+            "transporter_id": 1,
+            "name": "Raj Transport Solutions",
+            "email": "raj.transport@example.com",
+            "delivery_persons_count": 4,
+            "permanent_vehicles_count": 3,
+            "temporary_vehicles_count": 2,
+            "deleted_at": "2024-09-20T12:40:00.000Z",
+            "deleted_by": 1,
+            "cascade_info": {
+              "delivery_persons_deleted": 4,
+              "permanent_vehicles_deleted": 3,
+              "temporary_vehicles_deleted": 2,
+              "note": "All delivery persons, vehicles, and vehicle documents were automatically deleted"
+            }
+          }
+        }
+      },
+      "delete_delivery_person_cascade": {
+        "name": "CASCADE Delete Delivery Person",
+        "url": "{{base_url}}/delivery-persons/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Delete delivery person (orders preserved with NULL delivery_person_id)",
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Delivery person deleted successfully (CASCADE)",
+          "data": {
+            "delivery_person_id": 1,
+            "name": "Suresh Kumar",
+            "mobile_number": "9876543210",
+            "license_number": "KA1234567890",
+            "vehicle_type": "bike",
+            "orders_count": 25,
+            "rating": 4.5,
+            "total_deliveries": 150,
+            "deleted_at": "2024-09-20T12:45:00.000Z",
+            "deleted_by": 1,
+            "cascade_info": {
+              "orders_affected": 25,
+              "note": "Orders delivery_person_id field was set to NULL (orders preserved)"
+            }
+          }
+        }
+      },
+      "delete_user_by_role_farmer": {
+        "name": "CASCADE Delete User by Role - Farmer",
+        "url": "{{base_url}}/users/farmer/2",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Delete farmer using generic role-based endpoint with CASCADE",
+        "expected_status": 200
+      }
+    },
+    "pre_delete_analysis": {
+      "check_farmer_dependencies": {
+        "name": "Analyze Farmer Dependencies Before Delete",
+        "url": "{{base_url}}/users/farmer/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Check farmer's data and dependencies before CASCADE delete"
+      },
+      "check_customer_dependencies": {
+        "name": "Analyze Customer Dependencies Before Delete",
+        "url": "{{base_url}}/users/customer/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "description": "Check customer's orders, cart, wishlist before CASCADE delete"
+      },
+      "check_transporter_vehicles": {
+        "name": "Check Transporter Vehicles Before Delete",
+        "url": "http://localhost:3000/api/vehicles",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{transporter_token}}"
+        },
+        "description": "Check transporter's vehicles before CASCADE delete"
+      }
+    },
+    "verification_after_delete": {
+      "verify_farmer_products_deleted": {
+        "name": "Verify Farmer's Products Deleted",
+        "url": "http://localhost:3000/api/products?farmer_id=1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        },
+        "expected_result": "Empty array or 404 - products should be deleted"
+      },
+      "verify_customer_orders_deleted": {
+        "name": "Verify Customer's Orders Deleted",
+        "url": "http://localhost:3000/api/orders/customer/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        },
+        "expected_result": "Empty array or 404 - orders should be deleted"
+      },
+      "verify_transporter_vehicles_deleted": {
+        "name": "Verify Transporter's Vehicles Deleted",
+        "url": "http://localhost:3000/api/vehicles",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{deleted_transporter_token}}"
+        },
+        "expected_result": "401 Unauthorized - transporter deleted, token invalid"
+      }
+    },
+    "error_cases": {
+      "farmer_not_found": {
+        "name": "Error - Farmer Not Found",
+        "url": "{{base_url}}/farmers/99999",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "expected_status": 404,
+        "expected_response": {
+          "success": false,
+          "message": "Farmer not found"
+        }
+      },
+      "invalid_farmer_id": {
+        "name": "Error - Invalid Farmer ID",
+        "url": "{{base_url}}/farmers/abc",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "expected_status": 400,
+        "expected_response": {
+          "success": false,
+          "message": "Valid farmer ID is required"
+        }
+      },
+      "invalid_role": {
+        "name": "Error - Invalid Role",
+        "url": "{{base_url}}/users/invalid_role/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer {{admin_token}}"
+        },
+        "expected_status": 400,
+        "expected_response": {
+          "success": false,
+          "message": "Invalid role. Supported roles: farmer, customer, transporter, delivery_person"
+        }
+      },
+      "unauthorized_access": {
+        "name": "Error - Unauthorized Access",
+        "url": "{{base_url}}/farmers/1",
+        "method": "DELETE",
+        "headers": {
+          "Authorization": "Bearer invalid_token_here"
+        },
+        "expected_status": 401,
+        "expected_response": {
+          "success": false,
+          "message": "Access denied. Invalid or expired token."
+        }
+      }
+    }
+  },
+  "rich_test_data_setup": {
+    "create_farmer_with_products": {
+      "step1_register_farmer": {
+        "url": "http://localhost:3000/api/auth/register/farmer",
+        "method": "POST",
+        "body": {
+          "name": "Ravi Kumar",
+          "email": "ravi.cascade.test@example.com",
+          "mobile_number": "9876543210",
+          "password": "FarmerPass123!",
+          "address": "Village Kumta, Karnataka",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Uttara Kannada",
+          "age": 35
+        }
+      },
+      "step2_create_products": [
+        {
+          "url": "http://localhost:3000/api/products",
+          "method": "POST",
+          "body": {
+            "name": "Organic Tomatoes",
+            "price": 50.00,
+            "quantity": 100,
+            "farmer_id": "{{farmer_id}}"
+          }
+        },
+        {
+          "url": "http://localhost:3000/api/products",
+          "method": "POST",
+          "body": {
+            "name": "Fresh Onions",
+            "price": 30.00,
+            "quantity": 200,
+            "farmer_id": "{{farmer_id}}"
+          }
+        }
+      ]
+    },
+    "create_customer_with_orders": {
+      "step1_register_customer": {
+        "url": "http://localhost:3000/api/auth/register/customer",
+        "method": "POST",
+        "body": {
+          "customer_name": "Priya Cascade Test",
+          "email": "priya.cascade.test@example.com",
+          "mobile_number": "9876543212",
+          "password": "CustomerPass123!",
+          "address": "Koramangala, Bangalore",
+          "zone": "South",
+          "state": "Karnataka",
+          "district": "Bangalore Urban",
+          "age": 28
+        }
+      },
+      "step2_add_to_cart": {
+        "url": "http://localhost:3000/api/cart",
+        "method": "POST",
+        "body": {
+          "customerId": "{{customer_id}}",
+          "productId": "{{product_id}}",
+          "quantity": 5
+        }
+      },
+      "step3_create_order": {
+        "url": "http://localhost:3000/api/orders",
+        "method": "POST", 
+        "body": {
+          "consumer_id": "{{customer_id}}",
+          "farmer_id": "{{farmer_id}}",
+          "product_id": "{{product_id}}",
+          "quantity": 3
+        }
+      }
+    },
+    "create_transporter_with_vehicles": {
+      "step1_register_transporter": {
+        "url": "http://localhost:3000/api/auth/register/transporter",
+        "method": "POST",
+        "body": {
+          "name": "Cascade Test Transport",
+          "email": "cascade.transport@example.com",
+          "mobile_number": "9876543214",
+          "password": "TransportPass123!",
+          "address": "Transport Nagar, Bangalore"
+        }
+      },
+      "step2_add_vehicle": {
+        "url": "http://localhost:3000/api/vehicles/permanent",
+        "method": "POST",
+        "body": {
+          "vehicle_number": "KA99ZZ9999",
+          "vehicle_type": "truck",
+          "capacity_kg": 5000.00,
+          "make": "Tata",
+          "model": "407 CASCADE Test",
+          "year_of_manufacture": 2020,
+          "chassis_number": "CASCADE123456789",
+          "engine_number": "CASCENG987654321",
+          "rc_book_number": "CASC1234567890",
+          "rc_book_issue_date": "2020-01-15",
+          "rc_book_expiry_date": "2035-01-15",
+          "rc_book_issuing_authority": "RTO Test",
+          "rc_book_url": "https://storage.test.com/rc.pdf",
+          "insurance_number": "CASC202400123456",
+          "insurance_issue_date": "2024-06-01",
+          "insurance_expiry_date": "2025-06-01",
+          "insurance_issuing_authority": "Test Insurance",
+          "insurance_url": "https://storage.test.com/insurance.pdf",
+          "fitness_number": "CASCFIT001234",
+          "fitness_issue_date": "2024-01-01",
+          "fitness_expiry_date": "2025-01-01",
+          "fitness_issuing_authority": "RTO Test",
+          "fitness_url": "https://storage.test.com/fitness.pdf",
+          "pollution_number": "CASCPUC12345",
+          "pollution_issue_date": "2024-08-01",
+          "pollution_expiry_date": "2025-02-01",
+          "pollution_issuing_authority": "Test PUC Center",
+          "pollution_url": "https://storage.test.com/puc.pdf"
+        }
+      }
+    }
+  },
+  "curl_examples": {
+    "backup_database": "pg_dump farmercrate_db > backup_before_cascade_delete_$(date +%Y%m%d_%H%M%S).sql",
+    "delete_farmer_cascade": "curl -X DELETE \"http://localhost:3000/api/admin/farmers/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_customer_cascade": "curl -X DELETE \"http://localhost:3000/api/admin/customers/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_transporter_cascade": "curl -X DELETE \"http://localhost:3000/api/admin/transporters/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "delete_delivery_person": "curl -X DELETE \"http://localhost:3000/api/admin/delivery-persons/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "verify_farmer_deleted": "curl -X GET \"http://localhost:3000/api/admin/users/farmer/1\" -H \"Authorization: Bearer YOUR_ADMIN_TOKEN\"",
+    "verify_products_deleted": "curl -X GET \"http://localhost:3000/api/products?farmer_id=1\" -H \"Authorization: Bearer YOUR_TOKEN\""
+  },
+  "safety_guidelines": {
+    "pre_delete_checklist": [
+      "Backup database before CASCADE delete operations",
+      "Verify user ID is correct before deletion",
+      "Check dependencies - review what will be deleted",
+      "Confirm with stakeholders for high-impact deletions",
+      "Test on staging environment first"
+    ],
+    "recovery_options": [
+      "Database restore from backup (only option for CASCADE delete)",
+      "Data export before deletion for potential reconstruction",
+      "Audit logs to track what was deleted and when"
+    ],
+    "production_workflow": [
+      "1. Create database backup",
+      "2. Analyze deletion impact",
+      "3. Get stakeholder approval",
+      "4. Execute CASCADE delete",
+      "5. Verify deletion completed",
+      "6. Document deletion in audit log"
+    ]
+  },
+  "testing_workflow": [
+    "1. Setup: Register admin and get authentication token",
+    "2. Create rich test data: Users with multiple dependencies",
+    "3. Pre-delete analysis: Check what will be CASCADE deleted",
+    "4. Execute CASCADE deletes: Test each user type deletion",
+    "5. Verification: Confirm all related data was deleted",
+    "6. Error testing: Invalid IDs, unauthorized access, etc.",
+    "7. Recovery testing: Verify backup/restore procedures"
+  ],
+  "implementation_notes": {
+    "cascade_delete_mechanism": "Uses Sequelize model.destroy() with CASCADE associations defined in models/associations.js",
+    "data_safety": "NO SOFT DELETE - data is permanently removed from database",
+    "performance": "Large CASCADE deletes may take time due to foreign key constraints",
+    "referential_integrity": "Maintained through proper foreign key CASCADE/SET NULL configurations",
+    "audit_trail": "Deletion logged with admin ID, timestamp, and cascade impact summary"
+  }
+}

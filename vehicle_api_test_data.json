@@ -1,0 +1,619 @@
+{
+  "info": {
+    "name": "Vehicle Management API Test Collection",
+    "description": "Comprehensive test data for FarmerCrate Vehicle Management System",
+    "version": "1.0.0",
+    "base_url": "http://localhost:3000/api"
+  },
+  "auth": {
+    "setup": {
+      "register_transporter": {
+        "url": "{{base_url}}/auth/register/transporter",
+        "method": "POST",
+        "body": {
+          "name": "Raj Transport Solutions",
+          "email": "raj.transport@example.com",
+          "phone": "9876543210",
+          "password": "SecurePass123!",
+          "business_license": "BL123456789",
+          "company_name": "Raj Transport Solutions Pvt Ltd",
+          "company_address": "123 Transport Hub, Bangalore, Karnataka 560001",
+          "gst_number": "29ABCDE1234F1Z5",
+          "pan_number": "ABCDE1234F"
+        }
+      },
+      "login": {
+        "url": "{{base_url}}/auth/login",
+        "method": "POST",
+        "body": {
+          "email": "raj.transport@example.com",
+          "password": "SecurePass123!"
+        }
+      }
+    }
+  },
+  "test_cases": {
+    "permanent_vehicles": {
+      "success_case_1": {
+        "name": "Add Heavy Duty Truck (All Documents)",
+        "url": "{{base_url}}/vehicles/permanent",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA01AB1234",
+          "vehicle_type": "truck",
+          "capacity_kg": 5000.00,
+          "make": "Tata",
+          "model": "407 Pickup",
+          "year_of_manufacture": 2020,
+          "chassis_number": "MAT123456789012345",
+          "engine_number": "ENG987654321098765",
+          "rc_book_number": "KA011234567890",
+          "rc_book_issue_date": "2020-01-15",
+          "rc_book_expiry_date": "2035-01-15",
+          "rc_book_issuing_authority": "RTO Bangalore East",
+          "rc_book_url": "https://storage.farmercrate.com/documents/rc_ka01ab1234.pdf",
+          "insurance_number": "NICI202400123456",
+          "insurance_issue_date": "2024-06-01",
+          "insurance_expiry_date": "2025-06-01",
+          "insurance_issuing_authority": "New India Assurance Co Ltd",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_ka01ab1234.pdf",
+          "fitness_number": "FIT2024BLR001234",
+          "fitness_issue_date": "2024-01-01",
+          "fitness_expiry_date": "2025-01-01",
+          "fitness_issuing_authority": "RTO Bangalore East",
+          "fitness_url": "https://storage.farmercrate.com/documents/fitness_ka01ab1234.pdf",
+          "pollution_number": "PUC2024080112345",
+          "pollution_issue_date": "2024-08-01",
+          "pollution_expiry_date": "2025-02-01",
+          "pollution_issuing_authority": "Authorized PUC Center - Koramangala",
+          "pollution_url": "https://storage.farmercrate.com/documents/puc_ka01ab1234.pdf"
+        }
+      },
+      "success_case_2": {
+        "name": "Add Bharat Benz Heavy Truck",
+        "url": "{{base_url}}/vehicles/permanent",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA05IJ8888",
+          "vehicle_type": "heavy_truck",
+          "capacity_kg": 10000.00,
+          "make": "Bharat Benz",
+          "model": "1617R",
+          "year_of_manufacture": 2022,
+          "chassis_number": "BB1234567890123456",
+          "engine_number": "BBENG123456789012",
+          "rc_book_number": "KA051234509876",
+          "rc_book_issue_date": "2022-04-20",
+          "rc_book_expiry_date": "2037-04-20",
+          "rc_book_issuing_authority": "RTO Bangalore Central",
+          "rc_book_url": "https://storage.farmercrate.com/documents/rc_ka05ij8888.pdf",
+          "insurance_number": "ORIENTAL202400445566",
+          "insurance_issue_date": "2024-05-15",
+          "insurance_expiry_date": "2025-05-15",
+          "insurance_issuing_authority": "Oriental Insurance Company Ltd",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_ka05ij8888.pdf",
+          "fitness_number": "FIT2024BLR012345",
+          "fitness_issue_date": "2024-04-01",
+          "fitness_expiry_date": "2025-04-01",
+          "fitness_issuing_authority": "RTO Bangalore Central",
+          "fitness_url": "https://storage.farmercrate.com/documents/fitness_ka05ij8888.pdf",
+          "pollution_number": "PUC2024090154321",
+          "pollution_issue_date": "2024-09-01",
+          "pollution_expiry_date": "2025-03-01",
+          "pollution_issuing_authority": "Authorized PUC Center - Whitefield",
+          "pollution_url": "https://storage.farmercrate.com/documents/puc_ka05ij8888.pdf"
+        }
+      },
+      "success_case_3": {
+        "name": "Add Mahindra Pickup Truck",
+        "url": "{{base_url}}/vehicles/permanent",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA07MN2222",
+          "vehicle_type": "pickup",
+          "capacity_kg": 1500.00,
+          "make": "Mahindra",
+          "model": "Bolero Pickup",
+          "year_of_manufacture": 2021,
+          "chassis_number": "MH7654321098765432",
+          "engine_number": "MHENG876543210987",
+          "rc_book_number": "KA071357902468",
+          "rc_book_issue_date": "2021-08-10",
+          "rc_book_expiry_date": "2036-08-10",
+          "rc_book_issuing_authority": "RTO Bangalore South",
+          "rc_book_url": "https://storage.farmercrate.com/documents/rc_ka07mn2222.pdf",
+          "insurance_number": "BAJAJ202400667788",
+          "insurance_issue_date": "2024-07-20",
+          "insurance_expiry_date": "2025-07-20",
+          "insurance_issuing_authority": "Bajaj Allianz General Insurance",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_ka07mn2222.pdf",
+          "fitness_number": "FIT2024BLR078901",
+          "fitness_issue_date": "2024-06-15",
+          "fitness_expiry_date": "2025-06-15",
+          "fitness_issuing_authority": "RTO Bangalore South",
+          "fitness_url": "https://storage.farmercrate.com/documents/fitness_ka07mn2222.pdf",
+          "pollution_number": "PUC2024081598765",
+          "pollution_issue_date": "2024-08-15",
+          "pollution_expiry_date": "2025-02-15",
+          "pollution_issuing_authority": "Authorized PUC Center - Banashankari",
+          "pollution_url": "https://storage.farmercrate.com/documents/puc_ka07mn2222.pdf"
+        }
+      }
+    },
+    "temporary_vehicles": {
+      "success_case_1": {
+        "name": "Add Temporary Pickup (Rental)",
+        "url": "{{base_url}}/vehicles/temporary",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA02CD5678",
+          "vehicle_type": "pickup",
+          "ownership_type": "temporary",
+          "capacity_kg": 2000.00,
+          "day_limit": 30,
+          "notes": "Rented from ABC Vehicle Rental Services for 1 month",
+          "rc_book_number": "KA029876543210",
+          "rc_book_issue_date": "2019-05-10",
+          "rc_book_expiry_date": "2034-05-10",
+          "rc_book_issuing_authority": "RTO Bangalore North",
+          "rc_book_url": "https://storage.farmercrate.com/documents/owner_rc_ka02cd5678.pdf",
+          "insurance_number": "ICICI202400654321",
+          "insurance_issue_date": "2024-03-01",
+          "insurance_expiry_date": "2025-03-01",
+          "insurance_issuing_authority": "ICICI Lombard General Insurance",
+          "insurance_url": "https://storage.farmercrate.com/documents/owner_insurance_ka02cd5678.pdf"
+        }
+      },
+      "success_case_2": {
+        "name": "Add Leased Mini Truck",
+        "url": "{{base_url}}/vehicles/temporary",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA06KL4444",
+          "vehicle_type": "mini_truck",
+          "ownership_type": "leased",
+          "capacity_kg": 1000.00,
+          "day_limit": 90,
+          "notes": "Leased from XYZ Logistics for 3 months contract",
+          "rc_book_number": "KA064433221100",
+          "rc_book_issue_date": "2020-08-15",
+          "rc_book_expiry_date": "2035-08-15",
+          "rc_book_issuing_authority": "RTO Bangalore Rural",
+          "rc_book_url": "https://storage.farmercrate.com/documents/owner_rc_ka06kl4444.pdf",
+          "insurance_number": "BAJAJ202400998877",
+          "insurance_issue_date": "2024-07-10",
+          "insurance_expiry_date": "2025-07-10",
+          "insurance_issuing_authority": "Bajaj Allianz General Insurance",
+          "insurance_url": "https://storage.farmercrate.com/documents/owner_insurance_ka06kl4444.pdf"
+        }
+      }
+    },
+    "fleet_management": {
+      "get_all_vehicles": {
+        "name": "Get Fleet Overview",
+        "url": "{{base_url}}/vehicles",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      },
+      "get_available_vehicles": {
+        "name": "Get Available Vehicles",
+        "url": "{{base_url}}/vehicles/status/available",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      },
+      "get_in_transit_vehicles": {
+        "name": "Get In-Transit Vehicles",
+        "url": "{{base_url}}/vehicles/status/in_transit",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      },
+      "get_vehicle_details_permanent": {
+        "name": "Get Permanent Vehicle Details",
+        "url": "{{base_url}}/vehicles/permanent/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      },
+      "get_vehicle_details_temporary": {
+        "name": "Get Temporary Vehicle Details",
+        "url": "{{base_url}}/vehicles/temporary/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        }
+      }
+    },
+    "vehicle_operations": {
+      "update_status_to_in_transit": {
+        "name": "Update Vehicle Status - In Transit",
+        "url": "{{base_url}}/vehicles/permanent/1/status",
+        "method": "PATCH",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "availability_status": "in_transit",
+          "notes": "Vehicle dispatched for delivery to Mysore"
+        }
+      },
+      "update_status_to_maintenance": {
+        "name": "Update Vehicle Status - Maintenance",
+        "url": "{{base_url}}/vehicles/permanent/1/status",
+        "method": "PATCH",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "availability_status": "maintenance",
+          "notes": "Scheduled maintenance and tire replacement"
+        }
+      },
+      "update_status_to_available": {
+        "name": "Update Vehicle Status - Available",
+        "url": "{{base_url}}/vehicles/permanent/1/status",
+        "method": "PATCH",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "availability_status": "available",
+          "notes": "Maintenance completed, vehicle ready for dispatch"
+        }
+      },
+      "renew_insurance": {
+        "name": "Renew Vehicle Insurance",
+        "url": "{{base_url}}/vehicles/permanent/1/documents",
+        "method": "PUT",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "insurance_number": "NICI202400123457",
+          "insurance_issue_date": "2024-09-01",
+          "insurance_expiry_date": "2025-09-01",
+          "insurance_issuing_authority": "New India Assurance Co Ltd",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_renewed_ka01ab1234.pdf"
+        }
+      },
+      "renew_pollution_certificate": {
+        "name": "Renew Pollution Certificate",
+        "url": "{{base_url}}/vehicles/permanent/1/documents",
+        "method": "PUT",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "pollution_number": "PUC2024091012345",
+          "pollution_issue_date": "2024-09-10",
+          "pollution_expiry_date": "2025-03-10",
+          "pollution_issuing_authority": "Authorized PUC Center - Koramangala",
+          "pollution_url": "https://storage.farmercrate.com/documents/puc_renewed_ka01ab1234.pdf"
+        }
+      }
+    },
+    "error_cases": {
+      "missing_documents_permanent": {
+        "name": "Error - Missing Pollution Certificate",
+        "url": "{{base_url}}/vehicles/permanent",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA03EF9999",
+          "vehicle_type": "truck",
+          "capacity_kg": 3000.00,
+          "make": "Mahindra",
+          "model": "Bolero Pickup",
+          "year_of_manufacture": 2021,
+          "rc_book_number": "KA031122334455",
+          "rc_book_issue_date": "2021-03-15",
+          "rc_book_expiry_date": "2036-03-15",
+          "rc_book_issuing_authority": "RTO Bangalore South",
+          "rc_book_url": "https://storage.farmercrate.com/documents/rc_ka03ef9999.pdf",
+          "insurance_number": "HDFC202400789012",
+          "insurance_issue_date": "2024-04-01",
+          "insurance_expiry_date": "2025-04-01",
+          "insurance_issuing_authority": "HDFC ERGO General Insurance",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_ka03ef9999.pdf",
+          "fitness_number": "FIT2024BLR005678",
+          "fitness_issue_date": "2024-02-01",
+          "fitness_expiry_date": "2025-02-01",
+          "fitness_issuing_authority": "RTO Bangalore South",
+          "fitness_url": "https://storage.farmercrate.com/documents/fitness_ka03ef9999.pdf"
+        },
+        "expected_error": "Missing pollution certificate fields"
+      },
+      "expired_insurance": {
+        "name": "Error - Expired Insurance",
+        "url": "{{base_url}}/vehicles/permanent",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA04GH7777",
+          "vehicle_type": "pickup",
+          "capacity_kg": 1500.00,
+          "make": "Ashok Leyland",
+          "model": "Dost+",
+          "year_of_manufacture": 2019,
+          "rc_book_number": "KA045566778899",
+          "rc_book_issue_date": "2019-06-10",
+          "rc_book_expiry_date": "2034-06-10",
+          "rc_book_issuing_authority": "RTO Bangalore West",
+          "rc_book_url": "https://storage.farmercrate.com/documents/rc_ka04gh7777.pdf",
+          "insurance_number": "EXPIRED202300111222",
+          "insurance_issue_date": "2023-01-01",
+          "insurance_expiry_date": "2024-01-01",
+          "insurance_issuing_authority": "United India Insurance",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_ka04gh7777.pdf",
+          "fitness_number": "FIT2024BLR009012",
+          "fitness_issue_date": "2024-03-01",
+          "fitness_expiry_date": "2025-03-01",
+          "fitness_issuing_authority": "RTO Bangalore West",
+          "fitness_url": "https://storage.farmercrate.com/documents/fitness_ka04gh7777.pdf",
+          "pollution_number": "PUC2024070198765",
+          "pollution_issue_date": "2024-07-01",
+          "pollution_expiry_date": "2025-01-01",
+          "pollution_issuing_authority": "Authorized PUC Center - Jayanagar",
+          "pollution_url": "https://storage.farmercrate.com/documents/puc_ka04gh7777.pdf"
+        },
+        "expected_error": "Insurance must be valid (not expired)"
+      },
+      "duplicate_vehicle_number": {
+        "name": "Error - Duplicate Vehicle Number",
+        "url": "{{base_url}}/vehicles/permanent",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA01AB1234",
+          "vehicle_type": "truck",
+          "capacity_kg": 4000.00,
+          "make": "Eicher",
+          "model": "Pro 1110XP",
+          "year_of_manufacture": 2023,
+          "chassis_number": "EI9876543210987654",
+          "engine_number": "EIENG543210987654",
+          "rc_book_number": "KA019988776655",
+          "rc_book_issue_date": "2023-01-10",
+          "rc_book_expiry_date": "2038-01-10",
+          "rc_book_issuing_authority": "RTO Bangalore East",
+          "rc_book_url": "https://storage.farmercrate.com/documents/rc_duplicate_test.pdf",
+          "insurance_number": "RELIANCE202400334455",
+          "insurance_issue_date": "2024-08-01",
+          "insurance_expiry_date": "2025-08-01",
+          "insurance_issuing_authority": "Reliance General Insurance",
+          "insurance_url": "https://storage.farmercrate.com/documents/insurance_duplicate_test.pdf",
+          "fitness_number": "FIT2024BLR099988",
+          "fitness_issue_date": "2024-07-01",
+          "fitness_expiry_date": "2025-07-01",
+          "fitness_issuing_authority": "RTO Bangalore East",
+          "fitness_url": "https://storage.farmercrate.com/documents/fitness_duplicate_test.pdf",
+          "pollution_number": "PUC2024091099887",
+          "pollution_issue_date": "2024-09-10",
+          "pollution_expiry_date": "2025-03-10",
+          "pollution_issuing_authority": "Authorized PUC Center - Electronic City",
+          "pollution_url": "https://storage.farmercrate.com/documents/puc_duplicate_test.pdf"
+        },
+        "expected_error": "Vehicle with this number already exists"
+      },
+      "missing_documents_temporary": {
+        "name": "Error - Missing Insurance (Temporary Vehicle)",
+        "url": "{{base_url}}/vehicles/temporary",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{token}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "vehicle_number": "KA08OP5555",
+          "vehicle_type": "pickup",
+          "ownership_type": "temporary",
+          "capacity_kg": 1800.00,
+          "day_limit": 45,
+          "notes": "Rented vehicle missing insurance copy",
+          "rc_book_number": "KA085544332211",
+          "rc_book_issue_date": "2018-12-20",
+          "rc_book_expiry_date": "2033-12-20",
+          "rc_book_issuing_authority": "RTO Bangalore East",
+          "rc_book_url": "https://storage.farmercrate.com/documents/owner_rc_ka08op5555.pdf"
+        },
+        "expected_error": "Missing required insurance documents for temporary vehicle"
+      },
+      "invalid_vehicle_type": {
+        "name": "Error - Invalid Vehicle Type Parameter",
+        "url": "{{base_url}}/vehicles/invalid_type/1",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        },
+        "expected_error": "Invalid vehicle type. Must be either 'permanent' or 'temporary'"
+      },
+      "vehicle_not_found": {
+        "name": "Error - Vehicle Not Found",
+        "url": "{{base_url}}/vehicles/permanent/99999",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{token}}"
+        },
+        "expected_error": "Vehicle not found"
+      },
+      "unauthorized_access": {
+        "name": "Error - Invalid Token",
+        "url": "{{base_url}}/vehicles",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer invalid_token_here"
+        },
+        "expected_error": "Access denied. Invalid or expired token."
+      }
+    }
+  },
+  "sample_responses": {
+    "successful_permanent_vehicle_creation": {
+      "status": 201,
+      "response": {
+        "success": true,
+        "message": "Permanent vehicle added successfully with all required documents",
+        "data": {
+          "vehicle": {
+            "id": 1,
+            "transporter_id": 1,
+            "vehicle_number": "KA01AB1234",
+            "vehicle_type": "truck",
+            "capacity_kg": 5000.00,
+            "make": "Tata",
+            "model": "407 Pickup",
+            "year_of_manufacture": 2020,
+            "chassis_number": "MAT123456789012345",
+            "engine_number": "ENG987654321098765",
+            "availability_status": "available",
+            "verification_status": "pending",
+            "is_active": true,
+            "created_at": "2024-09-20T10:30:00.000Z",
+            "updated_at": "2024-09-20T10:30:00.000Z"
+          },
+          "documents": {
+            "id": 1,
+            "permanent_vehicle_id": 1,
+            "rc_book_number": "KA011234567890",
+            "rc_book_verified": false,
+            "insurance_number": "NICI202400123456",
+            "insurance_verified": false,
+            "fitness_number": "FIT2024BLR001234",
+            "fitness_verified": false,
+            "pollution_number": "PUC2024080112345",
+            "pollution_verified": false,
+            "created_at": "2024-09-20T10:30:00.000Z"
+          }
+        }
+      }
+    },
+    "missing_documents_error": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Vehicle creation failed: Missing required documents",
+        "error": {
+          "type": "MISSING_DOCUMENTS",
+          "details": "All required documents must be provided simultaneously for permanent vehicle creation",
+          "missing_fields": [
+            "pollution_number",
+            "pollution_issue_date", 
+            "pollution_expiry_date",
+            "pollution_issuing_authority",
+            "pollution_url"
+          ],
+          "validation_errors": [],
+          "help": "Please provide all required document fields: RC Book, Insurance, Fitness Certificate, and Pollution Certificate"
+        }
+      }
+    },
+    "expired_insurance_error": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Vehicle creation failed: Document validation errors",
+        "error": {
+          "type": "DOCUMENT_VALIDATION_ERROR",
+          "details": "Document validation failed due to invalid or expired documents",
+          "missing_fields": [],
+          "validation_errors": [
+            "Insurance must be valid (not expired)"
+          ],
+          "help": "Please ensure all documents are valid and not expired. Insurance expiry date: 2024-01-01 is in the past."
+        }
+      }
+    },
+    "fleet_overview": {
+      "status": 200,
+      "response": {
+        "success": true,
+        "message": "Fleet overview retrieved successfully",
+        "data": {
+          "summary": {
+            "total_vehicles": 5,
+            "permanent_vehicles": 3,
+            "temporary_vehicles": 2,
+            "available_vehicles": 4,
+            "in_transit_vehicles": 1,
+            "maintenance_vehicles": 0
+          },
+          "permanent_vehicles": [
+            {
+              "id": 1,
+              "vehicle_number": "KA01AB1234",
+              "vehicle_type": "truck",
+              "capacity_kg": 5000.00,
+              "make": "Tata",
+              "model": "407 Pickup",
+              "availability_status": "available",
+              "verification_status": "pending"
+            }
+          ],
+          "temporary_vehicles": [
+            {
+              "id": 1,
+              "vehicle_number": "KA02CD5678",
+              "vehicle_type": "pickup",
+              "ownership_type": "temporary",
+              "capacity_kg": 2000.00,
+              "availability_status": "available"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "testing_workflow": [
+    "1. Setup authentication (register transporter, login, get token)",
+    "2. Test successful vehicle creation (permanent and temporary)",
+    "3. Test error cases (missing documents, expired insurance, duplicates)",
+    "4. Test fleet management operations (get all, filter by status)",
+    "5. Test vehicle operations (status updates, document renewals)",
+    "6. Test error handling (invalid tokens, not found, invalid parameters)"
+  ],
+  "curl_examples": {
+    "add_permanent_vehicle": "curl -X POST http://localhost:3000/api/vehicles/permanent \\ \n  -H \"Authorization: Bearer YOUR_TOKEN\" \\ \n  -H \"Content-Type: application/json\" \\ \n  -d '{\"vehicle_number\":\"KA01AB1234\",\"vehicle_type\":\"truck\",\"capacity_kg\":5000.00,\"make\":\"Tata\",\"model\":\"407 Pickup\",\"year_of_manufacture\":2020,\"chassis_number\":\"MAT123456789012345\",\"engine_number\":\"ENG987654321098765\",\"rc_book_number\":\"KA011234567890\",\"rc_book_issue_date\":\"2020-01-15\",\"rc_book_expiry_date\":\"2035-01-15\",\"rc_book_issuing_authority\":\"RTO Bangalore East\",\"rc_book_url\":\"https://storage.farmercrate.com/documents/rc_ka01ab1234.pdf\",\"insurance_number\":\"NICI202400123456\",\"insurance_issue_date\":\"2024-06-01\",\"insurance_expiry_date\":\"2025-06-01\",\"insurance_issuing_authority\":\"New India Assurance Co Ltd\",\"insurance_url\":\"https://storage.farmercrate.com/documents/insurance_ka01ab1234.pdf\",\"fitness_number\":\"FIT2024BLR001234\",\"fitness_issue_date\":\"2024-01-01\",\"fitness_expiry_date\":\"2025-01-01\",\"fitness_issuing_authority\":\"RTO Bangalore East\",\"fitness_url\":\"https://storage.farmercrate.com/documents/fitness_ka01ab1234.pdf\",\"pollution_number\":\"PUC2024080112345\",\"pollution_issue_date\":\"2024-08-01\",\"pollution_expiry_date\":\"2025-02-01\",\"pollution_issuing_authority\":\"Authorized PUC Center - Koramangala\",\"pollution_url\":\"https://storage.farmercrate.com/documents/puc_ka01ab1234.pdf\"}'",
+    "get_fleet_overview": "curl -X GET http://localhost:3000/api/vehicles \\ \n  -H \"Authorization: Bearer YOUR_TOKEN\"",
+    "update_vehicle_status": "curl -X PATCH http://localhost:3000/api/vehicles/permanent/1/status \\ \n  -H \"Authorization: Bearer YOUR_TOKEN\" \\ \n  -H \"Content-Type: application/json\" \\ \n  -d '{\"availability_status\":\"in_transit\",\"notes\":\"Vehicle dispatched for delivery to Mysore\"}'"
+  }
+}

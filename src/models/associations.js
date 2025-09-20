@@ -8,6 +8,12 @@ const Transaction = require('./transaction.model');
 const DeliveryPerson = require('./deliveryPerson.model');
 const Wishlist = require('./wishlist.model');
 
+// Vehicle Models
+const PermanentVehicle = require('./permanentVehicle.model');
+const TemporaryVehicle = require('./temporaryVehicle.model');
+const PermanentVehicleDocument = require('./permanentVehicleDocument.model');
+const TemporaryVehicleDocument = require('./temporaryVehicleDocument.model');
+
 // Farmer - Product relationship
 Product.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id', onDelete: 'CASCADE' });
 FarmerUser.hasMany(Product, { as: 'products', foreignKey: 'farmer_id', onDelete: 'CASCADE' });
@@ -49,5 +55,74 @@ CustomerUser.hasMany(Wishlist, { foreignKey: 'customer_id' });
 Wishlist.belongsTo(CustomerUser, { foreignKey: 'customer_id' });
 Product.hasMany(Wishlist, { foreignKey: 'product_id' });
 Wishlist.belongsTo(Product, { foreignKey: 'product_id' });
+
+/**
+ * VEHICLE MANAGEMENT ASSOCIATIONS
+ * 
+ * These associations establish relationships between transporters and their vehicles,
+ * as well as between vehicles and their documents. CASCADE delete ensures data
+ * integrity - when a transporter is deleted, all their vehicles are removed,
+ * and when a vehicle is deleted, all its documents are removed.
+ */
+
+// Transporter - Permanent Vehicle relationship (1:N)
+// When transporter is deleted, all their permanent vehicles are deleted (CASCADE)
+TransporterUser.hasMany(PermanentVehicle, { 
+  as: 'permanent_vehicles', 
+  foreignKey: 'transporter_id', 
+  sourceKey: 'transporter_id',
+  onDelete: 'CASCADE' 
+});
+
+PermanentVehicle.belongsTo(TransporterUser, { 
+  as: 'transporter', 
+  foreignKey: 'transporter_id', 
+  targetKey: 'transporter_id',
+  onDelete: 'CASCADE' 
+});
+
+// Transporter - Temporary Vehicle relationship (1:N)
+// When transporter is deleted, all their temporary vehicles are deleted (CASCADE)
+TransporterUser.hasMany(TemporaryVehicle, { 
+  as: 'temporary_vehicles', 
+  foreignKey: 'transporter_id', 
+  sourceKey: 'transporter_id',
+  onDelete: 'CASCADE' 
+});
+
+TemporaryVehicle.belongsTo(TransporterUser, { 
+  as: 'transporter', 
+  foreignKey: 'transporter_id', 
+  targetKey: 'transporter_id',
+  onDelete: 'CASCADE' 
+});
+
+// Permanent Vehicle - Documents relationship (1:1)
+// When permanent vehicle is deleted, its documents are deleted (CASCADE)
+PermanentVehicle.hasOne(PermanentVehicleDocument, { 
+  as: 'documents', 
+  foreignKey: 'vehicle_id', 
+  onDelete: 'CASCADE' 
+});
+
+PermanentVehicleDocument.belongsTo(PermanentVehicle, { 
+  as: 'vehicle', 
+  foreignKey: 'vehicle_id', 
+  onDelete: 'CASCADE' 
+});
+
+// Temporary Vehicle - Documents relationship (1:1)
+// When temporary vehicle is deleted, its documents are deleted (CASCADE)
+TemporaryVehicle.hasOne(TemporaryVehicleDocument, { 
+  as: 'documents', 
+  foreignKey: 'vehicle_id', 
+  onDelete: 'CASCADE' 
+});
+
+TemporaryVehicleDocument.belongsTo(TemporaryVehicle, { 
+  as: 'vehicle', 
+  foreignKey: 'vehicle_id', 
+  onDelete: 'CASCADE' 
+});
 
 module.exports = {};
