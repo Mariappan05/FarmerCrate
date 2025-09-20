@@ -80,6 +80,16 @@ router.post(
   authController.verifyCustomerFirstLoginOTP
 );
 
+// Resend customer first login OTP route
+router.post(
+  '/resend-customer-first-login-otp',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('tempToken').notEmpty().withMessage('Temporary token is required')
+  ],
+  authController.resendCustomerFirstLoginOTP
+);
+
 // Farmer code verification route
 router.post(
   '/verify-farmer-code',

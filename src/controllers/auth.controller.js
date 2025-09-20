@@ -465,6 +465,69 @@ exports.verifyCustomerFirstLoginOTP = async (req, res) => {
   }
 };
 
+// Resend customer first login OTP
+exports.resendCustomerFirstLoginOTP = async (req, res) => {
+  try {
+    const { email, tempToken } = req.body;
+    
+    if (!tempToken) {
+      return res.status(400).json({ message: 'Temporary token is required' });
+    }
+    
+    // Verify temp token
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (!decoded.temp) {
+        return res.status(400).json({ message: 'Invalid token type' });
+      }
+    } catch (error) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    
+    // Find customer
+    const customer = await CustomerUser.findByPk(decoded.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+    
+    if (customer.first_login_completed) {
+      return res.status(400).json({ message: 'First login already completed' });
+    }
+    
+    // Generate new OTP
+    const otp = generateOTP();
+    const timestamp = Date.now();
+    otpStore.set(email, { otp, timestamp, attempts: 0, userId: customer.id });
+    
+    // Send OTP to email
+    try {
+      const { sendOTPEmail } = require('../utils/email.util');
+      const emailSent = await sendOTPEmail(email, otp);
+      
+      if (!emailSent) {
+        console.error('Email sending failed, but continuing with OTP process');
+        console.log(`\n=== RESEND OTP FOR ${email} ===`);
+        console.log(`OTP: ${otp}`);
+        console.log('=== USE THIS OTP FOR TESTING ===\n');
+      }
+    } catch (emailError) {
+      console.error('Email utility error:', emailError);
+      console.log(`\n=== RESEND OTP FOR ${email} ===`);
+      console.log(`OTP: ${otp}`);
+      console.log('=== USE THIS OTP FOR TESTING ===\n');
+    }
+    
+    res.json({
+      message: 'OTP resent successfully to your email',
+      email: email
+    });
+  } catch (error) {
+    console.error('Resend customer first login OTP error:', error);
+    res.status(500).json({ message: 'Error resending OTP' });
+  }
+};
+
 // Farmer code verification (unchanged)
 exports.verifyFarmerCode = async (req, res) => {
   try {
