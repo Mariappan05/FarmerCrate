@@ -101,14 +101,14 @@ exports.getOrders = async (req, res) => {
       includeModels.push({
         model: CustomerUser,
         as: 'consumer',
-        attributes: ['customer_name', 'email', 'mobile_number']
+        attributes: ['customer_name', 'email', 'mobile_number', 'image_url']
       });
     } else if (req.user.role === 'consumer') {
       whereClause.consumer_id = req.user.id;
       includeModels.push({
         model: FarmerUser,
         as: 'farmer',
-        attributes: ['name', 'email', 'mobile_number']
+        attributes: ['name', 'email', 'mobile_number', 'image_url']
       });
     }
 
@@ -145,8 +145,8 @@ exports.getOrder = async (req, res) => {
       where: whereClause,
       include: [
         { model: Product, attributes: ['name', 'price', 'images'] },
-        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
-        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number'] },
+        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number', 'image_url'] },
+        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
         { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
       ]
     });
@@ -168,8 +168,8 @@ exports.getAllOrders = async (req, res) => {
     const orders = await Order.findAll({
       include: [
         { model: Product, attributes: ['name', 'price', 'images'] },
-        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number'] },
-        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number'] },
+        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
+        { model: CustomerUser, as: 'consumer', attributes: ['customer_name', 'email', 'mobile_number', 'image_url'] },
         { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
       ],
       order: [['created_at', 'DESC']]
