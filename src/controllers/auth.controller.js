@@ -289,6 +289,15 @@ exports.login = async (req, res) => {
     // Delivery Person: username == mobile_number
     user = await DeliveryPerson.findOne({ where: { mobile_number: username } });
     if (user && user.password === password) {
+      // Check if this is first login
+      if (!user.first_login_completed) {
+        return res.json({
+          message: 'First login detected. Password change required.',
+          requiresPasswordChange: true,
+          tempToken: jwt.sign({ id: user.id, role: 'delivery', temp: true }, process.env.JWT_SECRET, { expiresIn: '15m' })
+        });
+      }
+      
       return res.json({
         message: 'Login successful',
         token: jwt.sign({ id: user.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
@@ -462,6 +471,128 @@ exports.verifyCustomerFirstLoginOTP = async (req, res) => {
   } catch (error) {
     console.error('Verify customer first login OTP error:', error);
     res.status(500).json({ message: 'Error verifying OTP' });
+  }
+};
+
+// Resend customer first login OTP
+exports.resendCustomerFirstLoginOTP = async (req, res) => {
+  try {
+    const { email, tempToken } = req.body;
+    
+    if (!tempToken) {
+      return res.status(400).json({ message: 'Temporary token is required' });
+    }
+    
+    // Verify temp token
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (!decoded.temp) {
+        return res.status(400).json({ message: 'Invalid token type' });
+      }
+    } catch (error) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    
+    // Find customer
+    const customer = await CustomerUser.findByPk(decoded.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+    
+    if (customer.first_login_completed) {
+      return res.status(400).json({ message: 'First login already completed' });
+    }
+    
+    // Generate new OTP
+    const otp = generateOTP();
+    const timestamp = Date.now();
+    otpStore.set(email, { otp, timestamp, attempts: 0, userId: customer.id });
+    
+    // Send OTP to email
+    try {
+      const { sendOTPEmail } = require('../utils/email.util');
+      const emailSent = await sendOTPEmail(email, otp);
+      
+      if (!emailSent) {
+        console.error('Email sending failed, but continuing with OTP process');
+        console.log(`\n=== RESEND OTP FOR ${email} ===`);
+        console.log(`OTP: ${otp}`);
+        console.log('=== USE THIS OTP FOR TESTING ===\n');
+      }
+    } catch (emailError) {
+      console.error('Email utility error:', emailError);
+      console.log(`\n=== RESEND OTP FOR ${email} ===`);
+      console.log(`OTP: ${otp}`);
+      console.log('=== USE THIS OTP FOR TESTING ===\n');
+    }
+    
+    res.json({
+      message: 'OTP resent successfully to your email',
+      email: email
+    });
+  } catch (error) {
+    console.error('Resend customer first login OTP error:', error);
+    res.status(500).json({ message: 'Error resending OTP' });
+  }
+};
+
+// Change delivery person password on first login
+exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
+  try {
+    const { newPassword, tempToken } = req.body;
+    
+    if (!tempToken) {
+      return res.status(400).json({ message: 'Temporary token is required' });
+    }
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+    
+    // Verify temp token
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (!decoded.temp || decoded.role !== 'delivery') {
+        return res.status(400).json({ message: 'Invalid token type' });
+      }
+    } catch (error) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    
+    // Find delivery person
+    const deliveryPerson = await DeliveryPerson.findByPk(decoded.id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+    
+    if (deliveryPerson.first_login_completed) {
+      return res.status(400).json({ message: 'First login already completed' });
+    }
+    
+    // Update password and mark first login as completed
+    await deliveryPerson.update({
+      password: newPassword,
+      first_login_completed: true
+    });
+    
+    // Generate final token
+    const token = jwt.sign({ id: deliveryPerson.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    
+    res.json({
+      message: 'Password changed successfully. Login completed.',
+      token,
+      user: {
+        id: deliveryPerson.id,
+        role: 'delivery',
+        name: deliveryPerson.name,
+        mobile_number: deliveryPerson.mobile_number
+      }
+    });
+  } catch (error) {
+    console.error('Change delivery person first login password error:', error);
+    res.status(500).json({ message: 'Error changing password' });
   }
 };
 

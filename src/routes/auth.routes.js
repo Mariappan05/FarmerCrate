@@ -80,6 +80,26 @@ router.post(
   authController.verifyCustomerFirstLoginOTP
 );
 
+// Resend customer first login OTP route
+router.post(
+  '/resend-customer-first-login-otp',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email'),
+    body('tempToken').notEmpty().withMessage('Temporary token is required')
+  ],
+  authController.resendCustomerFirstLoginOTP
+);
+
+// Delivery person first login password change route
+router.post(
+  '/delivery-person-first-login-password',
+  [
+    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    body('tempToken').notEmpty().withMessage('Temporary token is required')
+  ],
+  authController.changeDeliveryPersonFirstLoginPassword
+);
+
 // Farmer code verification route
 router.post(
   '/verify-farmer-code',
