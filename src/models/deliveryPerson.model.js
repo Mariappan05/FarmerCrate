@@ -19,7 +19,8 @@ const DeliveryPerson = sequelize.define('delivery_persons', {
   current_location_lat: { type: DataTypes.DECIMAL(10, 8) },
   current_location_lng: { type: DataTypes.DECIMAL(11, 8) },
   rating: { type: DataTypes.DECIMAL(4, 2), defaultValue: 0.00 },
-  total_deliveries: { type: DataTypes.INTEGER, defaultValue: 0 }
+  total_deliveries: { type: DataTypes.INTEGER, defaultValue: 0 },
+  first_login_completed: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, {
   tableName: 'delivery_persons',
   timestamps: true,

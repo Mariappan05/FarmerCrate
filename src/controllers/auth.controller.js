@@ -289,6 +289,15 @@ exports.login = async (req, res) => {
     // Delivery Person: username == mobile_number
     user = await DeliveryPerson.findOne({ where: { mobile_number: username } });
     if (user && user.password === password) {
+      // Check if this is first login
+      if (!user.first_login_completed) {
+        return res.json({
+          message: 'First login detected. Password change required.',
+          requiresPasswordChange: true,
+          tempToken: jwt.sign({ id: user.id, role: 'delivery', temp: true }, process.env.JWT_SECRET, { expiresIn: '15m' })
+        });
+      }
+      
       return res.json({
         message: 'Login successful',
         token: jwt.sign({ id: user.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
@@ -525,6 +534,65 @@ exports.resendCustomerFirstLoginOTP = async (req, res) => {
   } catch (error) {
     console.error('Resend customer first login OTP error:', error);
     res.status(500).json({ message: 'Error resending OTP' });
+  }
+};
+
+// Change delivery person password on first login
+exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
+  try {
+    const { newPassword, tempToken } = req.body;
+    
+    if (!tempToken) {
+      return res.status(400).json({ message: 'Temporary token is required' });
+    }
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+    
+    // Verify temp token
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (!decoded.temp || decoded.role !== 'delivery') {
+        return res.status(400).json({ message: 'Invalid token type' });
+      }
+    } catch (error) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    
+    // Find delivery person
+    const deliveryPerson = await DeliveryPerson.findByPk(decoded.id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+    
+    if (deliveryPerson.first_login_completed) {
+      return res.status(400).json({ message: 'First login already completed' });
+    }
+    
+    // Update password and mark first login as completed
+    await deliveryPerson.update({
+      password: newPassword,
+      first_login_completed: true
+    });
+    
+    // Generate final token
+    const token = jwt.sign({ id: deliveryPerson.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    
+    res.json({
+      message: 'Password changed successfully. Login completed.',
+      token,
+      user: {
+        id: deliveryPerson.id,
+        role: 'delivery',
+        name: deliveryPerson.name,
+        mobile_number: deliveryPerson.mobile_number
+      }
+    });
+  } catch (error) {
+    console.error('Change delivery person first login password error:', error);
+    res.status(500).json({ message: 'Error changing password' });
   }
 };
 
