@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database').sequelize;
+const { sequelize } = require('../config/database');
 
 const AdminUser = sequelize.define('admin_users', {
   admin_id: {
@@ -8,61 +8,31 @@ const AdminUser = sequelize.define('admin_users', {
     autoIncrement: true
   },
   name: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.STRING(255),
     allowNull: false
   },
   email: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.STRING(255),
     allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true
-    }
+    unique: true
   },
   password: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
   mobile_number: {
-    type: DataTypes.STRING(15),
-    allowNull: false,
-    unique: true
+    type: DataTypes.STRING(20)
   },
   role: {
-    type: DataTypes.ENUM('super_admin', 'admin', 'moderator'),
-    allowNull: false,
+    type: DataTypes.STRING(50),
     defaultValue: 'admin'
   },
   is_active: {
     type: DataTypes.BOOLEAN,
-    allowNull: false,
     defaultValue: true
   },
   last_login: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW
-  },
-  updated_at: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW
-  },
-  deactivated_at: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  deactivation_reason: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  reactivated_at: {
-    type: DataTypes.DATE,
-    allowNull: true
+    type: DataTypes.DATE
   }
 }, {
   tableName: 'admin_users',

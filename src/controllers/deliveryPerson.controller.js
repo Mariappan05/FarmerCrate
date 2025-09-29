@@ -1,93 +1,97 @@
-const getProfile = async (req, res) => {
-  const DeliveryPerson = require('../models/deliveryPerson.model');
-  
+const Order = require('../models/order.model');
+const Product = require('../models/product.model');
+const CustomerUser = require('../models/customer_user.model');
+const DeliveryPerson = require('../models/deliveryPerson.model');
+const TransporterUser = require('../models/transporter_user.model');
+const PermanentVehicle = require('../models/permanentVehicle.model');
+const TemporaryVehicle = require('../models/temporaryVehicle.model');
+
+const getAssignedOrders = async (req, res) => {
   try {
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+
+    const orders = await Order.findAll({
+      where: { delivery_person_id: req.user.delivery_person_id },
+      include: [
+        { model: Product, attributes: ['name', 'current_price'] },
+        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
+      ],
+      order: [['created_at', 'DESC']]
     });
-    if (!deliveryPerson) return res.status(404).json({ message: 'Delivery person not found' });
-    
-    res.json(deliveryPerson);
+
+    const ordersWithDetails = await Promise.all(orders.map(async (order) => {
+      const isSourceTransporter = order.source_transporter_id === deliveryPerson.transporter_id;
+      const isDestinationTransporter = order.destination_transporter_id === deliveryPerson.transporter_id;
+      
+      let vehicleInfo = null;
+      if (order.permanent_vehicle_id) {
+        const vehicle = await PermanentVehicle.findByPk(order.permanent_vehicle_id);
+        vehicleInfo = vehicle ? {
+          type: 'permanent',
+          vehicle_number: vehicle.vehicle_number,
+          vehicle_type: vehicle.vehicle_type
+        } : null;
+      } else if (order.temp_vehicle_id) {
+        const vehicle = await TemporaryVehicle.findByPk(order.temp_vehicle_id);
+        vehicleInfo = vehicle ? {
+          type: 'temporary',
+          vehicle_number: vehicle.vehicle_number,
+          vehicle_type: vehicle.vehicle_type
+        } : null;
+      }
+      
+      return {
+        ...order.toJSON(),
+        delivery_type: isSourceTransporter ? 'PICKUP' : 'DELIVERY',
+        task_description: isSourceTransporter ? 'Pickup from farmer and transport to destination' : 'Receive from source and deliver to customer',
+        vehicle_info: vehicleInfo
+      };
+    }));
+
+    res.json({
+      success: true,
+      count: ordersWithDetails.length,
+      data: ordersWithDetails
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get assigned orders error:', error);
+    res.status(500).json({ message: 'Error fetching assigned orders' });
   }
 };
 
-const updateLocation = async (req, res) => {
-  const DeliveryPerson = require('../models/deliveryPerson.model');
-  const { lat, lng } = req.body;
-  
+const getProfile = async (req, res) => {
   try {
-    await DeliveryPerson.update(
-      { current_location_lat: lat, current_location_lng: lng },
-      { where: { id: req.user.id } }
-    );
-    
-    res.json({ message: 'Location updated successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const updateAvailability = async (req, res) => {
-  const DeliveryPerson = require('../models/deliveryPerson.model');
-  const { is_available } = req.body;
-  
-  try {
-    await DeliveryPerson.update(
-      { is_available },
-      { where: { id: req.user.id } }
-    );
-    
-    res.json({ message: 'Availability updated successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const updatePassword = async (req, res) => {
-  const DeliveryPerson = require('../models/deliveryPerson.model');
-  const { password } = req.body;
-  
-  try {
-    const updated = await DeliveryPerson.update(
-      { password },
-      { where: { id: req.user.id } }
-    );
-    
-    if (!updated[0]) {
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
       return res.status(404).json({ message: 'Delivery person not found' });
     }
     
-    res.json({ message: 'Password updated successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const getAssignedOrders = async (req, res) => {
-  const Order = require('../models/order.model');
-  
-  try {
-    const orders = await Order.findAll({
-      where: { delivery_person_id: req.user.id }
+    res.json({
+      success: true,
+      data: deliveryPerson
     });
-    
-    res.json({ orders });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get profile error:', error);
+    res.status(500).json({ message: 'Error fetching profile' });
   }
 };
 
-const completeOrder = async (req, res) => {
-  const Order = require('../models/order.model');
-  const { order_id } = req.body;
-  
+const updateOrderStatus = async (req, res) => {
   try {
+    const { order_id, status } = req.body;
+    
+    const validStatuses = ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'COMPLETED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    
     const order = await Order.findOne({
       where: { 
-        id: order_id,
-        delivery_person_id: req.user.id 
+        order_id,
+        delivery_person_id: req.user.delivery_person_id
       }
     });
     
@@ -95,57 +99,26 @@ const completeOrder = async (req, res) => {
       return res.status(404).json({ message: 'Order not found or not assigned to you' });
     }
     
-    await order.update({ status: 'completed' });
+    const previousStatus = order.current_status;
+    await order.update({ current_status: status });
     
-    res.json({ message: 'Order completed successfully', order });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const getAllUsers = async (req, res) => {
-  const DeliveryPerson = require('../models/deliveryPerson.model');
-  
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-    
-    // Optional filters
-    const whereClause = {};
-    if (req.query.is_available !== undefined) {
-      whereClause.is_available = req.query.is_available === 'true';
-    }
-    if (req.query.vehicle_type) {
-      whereClause.vehicle_type = req.query.vehicle_type;
-    }
-
-    const deliveryPersons = await DeliveryPerson.findAndCountAll({
-      where: whereClause,
-      attributes: { 
-        exclude: ['password'] // Exclude sensitive information
-      },
-      limit: limit,
-      offset: offset,
-      order: [['created_at', 'DESC']]
-    });
-
-    const totalPages = Math.ceil(deliveryPersons.count / limit);
-
-    res.json({ 
-      success: true, 
-      data: deliveryPersons.rows,
-      pagination: {
-        currentPage: page,
-        totalPages: totalPages,
-        totalCount: deliveryPersons.count,
-        limit: limit
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      data: {
+        order_id,
+        previous_status: previousStatus,
+        new_status: status
       }
     });
   } catch (error) {
-    console.error('Get all delivery persons error:', error);
-    res.status(500).json({ message: 'Error retrieving delivery persons', error: error.message });
+    console.error('Update order status error:', error);
+    res.status(500).json({ message: 'Error updating order status' });
   }
 };
 
-module.exports = { getProfile, updateLocation, updateAvailability, updatePassword, getAssignedOrders, completeOrder, getAllUsers };
+module.exports = {
+  getAssignedOrders,
+  getProfile,
+  updateOrderStatus
+};

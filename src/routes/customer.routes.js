@@ -4,7 +4,6 @@ const { body } = require('express-validator');
 const customerController = require('../controllers/customer.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
-// Only fetch and update personal details
 router.get('/me', protect, authorize('customer'), customerController.getMe);
 
 router.put('/me',
@@ -19,7 +18,8 @@ router.put('/me',
   customerController.updateMe
 );
 
-// Route to get all customers with pagination and filtering
+router.get('/check-pincode/:pincode', customerController.checkPincodeAvailability);
+
 router.get('/all', customerController.getAllUsers);
 
-module.exports = router; 
+module.exports = router;

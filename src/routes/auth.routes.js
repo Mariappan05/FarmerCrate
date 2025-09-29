@@ -21,8 +21,8 @@ router.post(
   [
     (req, res, next) => {
       if (req.body.role === 'farmer') {
-        // Farmer: require unique_id and password
-        body('unique_id').isLength({ min: 6, max: 6 }).withMessage('Unique code must be 6 digits')(req, res, () => {});
+        // Farmer: require global_farmer_id and password
+        body('global_farmer_id').isLength({ min: 6, max: 6 }).withMessage('Global farmer ID must be 6 digits')(req, res, () => {});
         body('password').notEmpty().withMessage('Password is required')(req, res, () => {});
         body('role').equals('farmer').withMessage('Role must be farmer')(req, res, () => {});
       } else {

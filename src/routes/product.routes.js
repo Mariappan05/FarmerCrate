@@ -8,9 +8,8 @@ const { protect, authorize } = require('../middleware/auth.middleware');
 const productValidation = [
   body('name').trim().notEmpty().withMessage('Product name is required'),
   body('description').trim().notEmpty().withMessage('Product description is required'),
-  body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+  body('current_price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('quantity').isInt({ min: 0 }).withMessage('Quantity must be a positive number'),
-  body('images').trim().notEmpty().withMessage('Images is required'),
   body('category').optional().trim()
 ];
 
@@ -21,7 +20,7 @@ const productCreateValidation = [
 ];
 
 const priceUpdateValidation = [
-  body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number')
+  body('current_price').isFloat({ min: 0 }).withMessage('Price must be a positive number')
 ];
 
 // Public routes

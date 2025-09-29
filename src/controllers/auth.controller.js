@@ -9,6 +9,7 @@ const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const AdminUser = require('../models/admin_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
+const GovVerificationService = require('../services/govVerification.service');
 
 // In-memory OTP storage
 const otpStore = new Map();
@@ -41,7 +42,7 @@ exports.register = async (req, res) => {
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
 
     if (role === 'farmer') {
-      const { name, email, password, mobileNumber, address, zone, state, district, age, account_number, ifsc_code, image_url } = req.body;
+      const { name, email, password, mobileNumber, address, zone, state, district, age, account_number, ifsc_code, image_url, global_farmer_id } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Farmer already exists' });
       const farmer = await Model.create({
@@ -53,20 +54,33 @@ exports.register = async (req, res) => {
         zone,
         state,
         district,
-        verified_status: false,
         age,
         account_number,
         ifsc_code,
-        image_url
-        // unique_id will be generated only when admin approves
+        image_url,
+        global_farmer_id
       });
+      
+      // Trigger government verification if global_farmer_id is provided
+      if (farmer.global_farmer_id) {
+        // Run verification in background
+        GovVerificationService.verifyFarmerWithGov(farmer.global_farmer_id, farmer.farmer_id)
+          .then(result => {
+            console.log(`Gov verification result for farmer ${farmer.farmer_id}:`, result);
+          })
+          .catch(error => {
+            console.error(`Gov verification failed for farmer ${farmer.farmer_id}:`, error);
+          });
+      }
+      
       return res.status(201).json({
-        message: 'Farmer registered successfully. Await admin approval.',
+        message: 'Farmer registered successfully. Government verification initiated.',
         farmer: {
-          id: farmer.id,
+          id: farmer.farmer_id,
           name: farmer.name,
           email: farmer.email,
-          verified_status: farmer.verified_status
+          is_verified_by_gov: farmer.is_verified_by_gov,
+          verification_status: farmer.global_farmer_id ? 'pending' : 'not_initiated'
         }
       });
     }
@@ -75,7 +89,7 @@ exports.register = async (req, res) => {
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Customer already exists' });
       const customer = await Model.create({
-        customer_name: name,
+        name,
         mobile_number: mobileNumber,
         email,
         address,
@@ -89,8 +103,8 @@ exports.register = async (req, res) => {
       return res.status(201).json({
         message: 'Customer registered successfully.',
         customer: {
-          id: customer.id,
-          name: customer.customer_name,
+          id: customer.customer_id,
+          name: customer.name,
           email: customer.email
         }
       });
@@ -186,31 +200,33 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Both username and password are required.' });
     }
 
-    // Farmer: username == unique_id
-    let user = await FarmerUser.findOne({ where: { unique_id: username } });
+    // Farmer: username == global_farmer_id (case-insensitive)
+    const allFarmers = await FarmerUser.findAll();
+    let user = allFarmers.find(f => f.global_farmer_id?.toLowerCase() === username?.toLowerCase());
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
-        token: jwt.sign({ id: user.id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        token: jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
         user: {
-          id: user.id,
+          id: user.farmer_id,
           email: user.email,
           role: 'farmer',
           name: user.name,
-          unique_id: user.unique_id
+          global_farmer_id: user.global_farmer_id
         }
       });
     }
 
-    // Customer: username == customer_name
-    user = await CustomerUser.findOne({ where: { customer_name: username } });
+    // Customer: username == name (case-insensitive)
+    const allCustomers = await CustomerUser.findAll();
+    user = allCustomers.find(c => c.name?.toLowerCase() === username?.toLowerCase());
     if (user && user.password === password) {
       // Check if this is first login
       if (!user.first_login_completed) {
         // Generate and send OTP to email
         const otp = generateOTP();
         const timestamp = Date.now();
-        otpStore.set(user.email, { otp, timestamp, attempts: 0, userId: user.id });
+        otpStore.set(user.email, { otp, timestamp, attempts: 0, userId: user.customer_id });
         
         // Send OTP to email
         try {
@@ -235,24 +251,25 @@ exports.login = async (req, res) => {
           message: 'First login detected. OTP sent to your email.',
           requiresOTP: true,
           email: user.email,
-          tempToken: jwt.sign({ id: user.id, role: 'customer', temp: true }, process.env.JWT_SECRET, { expiresIn: '10m' })
+          tempToken: jwt.sign({ customer_id: user.customer_id, role: 'customer', temp: true }, process.env.JWT_SECRET, { expiresIn: '10m' })
         });
       }
       
       return res.json({
         message: 'Login successful',
-        token: jwt.sign({ id: user.id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        token: jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
         user: {
-          id: user.id,
+          id: user.customer_id,
           email: user.email,
           role: 'customer',
-          name: user.customer_name
+          name: user.name
         }
       });
     }
 
-    // Transporter: username == unique_id
-    user = await TransporterUser.findOne({ where: { unique_id: username } });
+    // Transporter: username == unique_id (case-insensitive)
+    const allTransporters = await TransporterUser.findAll();
+    user = allTransporters.find(t => t.unique_id?.toLowerCase() === username?.toLowerCase());
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
@@ -267,8 +284,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Admin: username == name
-    user = await AdminUser.findOne({ where: { name: username } });
+    // Admin: username == name (case-insensitive)
+    const allAdmins = await AdminUser.findAll();
+    user = allAdmins.find(a => a.name?.toLowerCase() === username?.toLowerCase());
     if (user && user.password === password) {
       if (!user.is_active) {
         return res.status(401).json({ message: 'Account is deactivated' });
@@ -286,23 +304,24 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Delivery Person: username == mobile_number
-    user = await DeliveryPerson.findOne({ where: { mobile_number: username } });
+    // Delivery Person: username == mobile_number (case-insensitive)
+    const allDeliveryPersons = await DeliveryPerson.findAll();
+    user = allDeliveryPersons.find(d => d.mobile_number?.toLowerCase() === username?.toLowerCase());
     if (user && user.password === password) {
       // Check if this is first login
       if (!user.first_login_completed) {
         return res.json({
           message: 'First login detected. Password change required.',
           requiresPasswordChange: true,
-          tempToken: jwt.sign({ id: user.id, role: 'delivery', temp: true }, process.env.JWT_SECRET, { expiresIn: '15m' })
+          tempToken: jwt.sign({ delivery_person_id: user.delivery_person_id, role: 'delivery', temp: true }, process.env.JWT_SECRET, { expiresIn: '15m' })
         });
       }
       
       return res.json({
         message: 'Login successful',
-        token: jwt.sign({ id: user.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        token: jwt.sign({ delivery_person_id: user.delivery_person_id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
         user: {
-          id: user.id,
+          id: user.delivery_person_id,
           role: 'delivery',
           name: user.name,
           mobile_number: user.mobile_number
@@ -447,7 +466,7 @@ exports.verifyCustomerFirstLoginOTP = async (req, res) => {
     }
     
     // OTP verified, update customer record
-    const customer = await CustomerUser.findByPk(decoded.id);
+    const customer = await CustomerUser.findByPk(decoded.customer_id);
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
     }
@@ -456,16 +475,16 @@ exports.verifyCustomerFirstLoginOTP = async (req, res) => {
     otpStore.delete(email);
     
     // Generate final token
-    const token = jwt.sign({ id: customer.id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    const token = jwt.sign({ customer_id: customer.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
     
     res.json({
       message: 'First login verification successful',
       token,
       user: {
-        id: customer.id,
+        id: customer.customer_id,
         email: customer.email,
         role: 'customer',
-        name: customer.customer_name
+        name: customer.name
       }
     });
   } catch (error) {
@@ -495,7 +514,7 @@ exports.resendCustomerFirstLoginOTP = async (req, res) => {
     }
     
     // Find customer
-    const customer = await CustomerUser.findByPk(decoded.id);
+    const customer = await CustomerUser.findByPk(decoded.customer_id);
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
     }
@@ -507,7 +526,7 @@ exports.resendCustomerFirstLoginOTP = async (req, res) => {
     // Generate new OTP
     const otp = generateOTP();
     const timestamp = Date.now();
-    otpStore.set(email, { otp, timestamp, attempts: 0, userId: customer.id });
+    otpStore.set(email, { otp, timestamp, attempts: 0, userId: customer.customer_id });
     
     // Send OTP to email
     try {
@@ -562,7 +581,7 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
     }
     
     // Find delivery person
-    const deliveryPerson = await DeliveryPerson.findByPk(decoded.id);
+    const deliveryPerson = await DeliveryPerson.findByPk(decoded.delivery_person_id);
     if (!deliveryPerson) {
       return res.status(404).json({ message: 'Delivery person not found' });
     }
@@ -578,13 +597,13 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
     });
     
     // Generate final token
-    const token = jwt.sign({ id: deliveryPerson.id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    const token = jwt.sign({ delivery_person_id: deliveryPerson.delivery_person_id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
     
     res.json({
       message: 'Password changed successfully. Login completed.',
       token,
       user: {
-        id: deliveryPerson.id,
+        id: deliveryPerson.delivery_person_id,
         role: 'delivery',
         name: deliveryPerson.name,
         mobile_number: deliveryPerson.mobile_number

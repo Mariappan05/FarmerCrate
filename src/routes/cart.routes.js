@@ -6,7 +6,7 @@ const { protect, authorize } = require('../middleware/auth.middleware');
 
 // Validation middleware
 const addToCartValidation = [
-  body('productId').isInt().withMessage('Valid product ID is required'),
+  body('product_id').isInt().withMessage('Valid product ID is required'),
   body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
 ];
 
@@ -25,7 +25,7 @@ router.get('/',
 );
 
 // Update cart item quantity
-router.put('/item/:cartItemId',
+router.put('/item/:id',
   protect,
   authorize('customer'),
   body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
@@ -33,7 +33,7 @@ router.put('/item/:cartItemId',
 );
 
 // Remove item from cart
-router.delete('/item/:cartItemId',
+router.delete('/item/:id',
   protect,
   authorize('customer'),
   cartController.removeFromCart

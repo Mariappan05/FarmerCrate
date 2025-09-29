@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const TransporterUser = sequelize.define('transporter_users', {
+const TransporterUser = sequelize.define('transporters', {
   transporter_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   unique_id: { type: DataTypes.STRING(6), allowNull: true, comment: '6-digit verification code' },
   name: { type: DataTypes.STRING, allowNull: false },
@@ -12,6 +12,7 @@ const TransporterUser = sequelize.define('transporter_users', {
   zone: { type: DataTypes.STRING },
   district: { type: DataTypes.STRING },
   state: { type: DataTypes.STRING },
+  pincode: { type: DataTypes.STRING(10) },
   password: { type: DataTypes.STRING, allowNull: false },
   verified_status: { type: DataTypes.BOOLEAN, defaultValue: false },
   approved_at: { type: DataTypes.DATE, allowNull: true },
@@ -29,7 +30,7 @@ const TransporterUser = sequelize.define('transporter_users', {
   voter_id_number: { type: DataTypes.STRING, allowNull: true },
   license_number: { type: DataTypes.STRING, allowNull: true }
 }, {
-  tableName: 'transporter_users',
+  tableName: 'transporters',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

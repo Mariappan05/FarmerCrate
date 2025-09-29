@@ -1,29 +1,26 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/product.model');
 const FarmerUser = require('../models/farmer_user.model');
+const ProductPriceHistory = require('../models/productPriceHistory.model');
 const { Op } = require('sequelize');
 
-// Get all products (for customers, admins, and farmers)
 exports.getAllProducts = async (req, res) => {
   try {
     let whereClause = {};
     
-    // If user is not admin or farmer, only show available products (hide sold_out and hidden)
     if (!req.user || (req.role !== 'admin' && req.role !== 'farmer')) {
       whereClause.status = 'available';
     }
     
-    // If user is customer, only show available products
-    if (req.user && req.role === 'consumer') {
+    if (req.user && req.role === 'customer') {
       whereClause.status = 'available';
     }
     
-    // If user is a farmer, show their own products regardless of status
     if (req.user && req.role === 'farmer') {
       whereClause = {
         [Op.or]: [
           { status: 'available' },
-          { farmer_id: req.user.id }
+          { farmer_id: req.user.farmer_id }
         ]
       };
     }
@@ -48,14 +45,13 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
-// Get all products posted by a specific farmer (for farmer dashboard)
 exports.getProductsByFarmer = async (req, res) => {
   try {
     if (!req.user || req.role !== 'farmer') {
       return res.status(403).json({ message: 'Only farmers can view their products' });
     }
     const products = await Product.findAll({
-      where: { farmer_id: req.user.id },
+      where: { farmer_id: req.user.farmer_id },
       include: [{
         model: FarmerUser,
         as: 'farmer'
@@ -73,43 +69,6 @@ exports.getProductsByFarmer = async (req, res) => {
   }
 };
 
-// Get related products (by name or category)
-exports.getRelatedProducts = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const product = await Product.findByPk(id);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    // Find products with similar name or category, excluding the current product
-    const relatedProducts = await Product.findAll({
-      where: {
-        [Op.and]: [
-          { id: { [Op.ne]: id } },
-          {
-            [Op.or]: [
-              { name: { [Op.like]: `%${product.name}%` } },
-              product.category ? { category: product.category } : {}
-            ]
-          },
-          { status: 'available' }
-        ]
-      },
-      limit: 10,
-      order: [['created_at', 'DESC']]
-    });
-    res.json({
-      success: true,
-      count: relatedProducts.length,
-      data: relatedProducts
-    });
-  } catch (error) {
-    console.error('Get related products error:', error);
-    res.status(500).json({ message: 'Error fetching related products' });
-  }
-};
-
-// Get single product
 exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id, {
@@ -123,9 +82,6 @@ exports.getProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Increment views
-    await product.increment('views');
-
     res.json({
       success: true,
       data: product
@@ -136,7 +92,6 @@ exports.getProduct = async (req, res) => {
   }
 };
 
-// Create product (only for farmers)
 exports.createProduct = async (req, res) => {
   try {
     if (!req.user || req.role !== 'farmer') {
@@ -146,20 +101,17 @@ exports.createProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { name, description, price, quantity, images, category, harvest_date, expiry_date } = req.body;
+    const { name, description, current_price, quantity, category, harvest_date, expiry_date } = req.body;
     const product = await Product.create({
       name,
       description,
-      price,
+      current_price,
       quantity,
-      images,
       category,
       harvest_date,
       expiry_date,
-      farmer_id: req.user.id,
-      last_price_update: new Date(),
-      status: 'available',
-      views: 0
+      farmer_id: req.user.farmer_id,
+      status: 'available'
     });
     res.status(201).json({
       success: true,
@@ -172,7 +124,6 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-// Update product (only by the farmer who posted it)
 exports.updateProduct = async (req, res) => {
   try {
     if (!req.user || req.role !== 'farmer') {
@@ -182,24 +133,19 @@ exports.updateProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const product = await Product.findOne({
-      where: {
-        id: req.params.id,
-        farmer_id: req.user.id
-      }
-    });
-    if (!product) {
+    
+    const product = await Product.findByPk(req.params.id);
+    if (!product || product.farmer_id !== req.user.farmer_id) {
       return res.status(404).json({ message: 'Product not found or not owned by you' });
     }
-    const { name, description, price, quantity, images, category } = req.body;
+    
+    const { name, description, current_price, quantity, category } = req.body;
     await product.update({
       name: name || product.name,
       description: description || product.description,
-      price: price || product.price,
+      current_price: current_price || product.current_price,
       quantity: quantity || product.quantity,
-      images: images || product.images,
       category: category || product.category
-      // harvest_date and expiry_date are not updatable
     });
     res.json({
       success: true,
@@ -212,33 +158,6 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
-// Delete product (only by the farmer who posted it)
-exports.deleteProduct = async (req, res) => {
-  try {
-    if (!req.user || req.role !== 'farmer') {
-      return res.status(403).json({ message: 'Only farmers can delete products' });
-    }
-    const product = await Product.findOne({
-      where: {
-        id: req.params.id,
-        farmer_id: req.user.id
-      }
-    });
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found or not owned by you' });
-    }
-    await product.update({ status: 'hidden' });
-    res.json({
-      success: true,
-      message: 'Product deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete product error:', error);
-    res.status(500).json({ message: 'Error deleting product' });
-  }
-};
-
-// Update product status (only by the farmer who posted it)
 exports.updateProductStatus = async (req, res) => {
   try {
     if (!req.user || req.role !== 'farmer') {
@@ -250,14 +169,8 @@ exports.updateProductStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status. Use: available, sold_out, or hidden' });
     }
 
-    const product = await Product.findOne({
-      where: {
-        id: req.params.id,
-        farmer_id: req.user.id
-      }
-    });
-
-    if (!product) {
+    const product = await Product.findByPk(req.params.id);
+    if (!product || product.farmer_id !== req.user.farmer_id) {
       return res.status(404).json({ message: 'Product not found or not owned by you' });
     }
 
@@ -274,50 +187,86 @@ exports.updateProductStatus = async (req, res) => {
   }
 };
 
-// Update product price
-exports.updatePrice = async (req, res) => {
+exports.getRelatedProducts = async (req, res) => {
   try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const product = await Product.findOne({
-      where: {
-        id: req.params.id,
-        farmer_id: req.user.id
-      }
-    });
-
+    const product = await Product.findByPk(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Check if product is unsold for more than a week
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    if (product.last_price_update > oneWeekAgo) {
-      return res.status(400).json({
-        message: 'Product price can only be updated after one week of being unsold'
-      });
-    }
-
-    const { price } = req.body;
-
-    await product.update({
-      price,
-      last_price_update: new Date()
+    const relatedProducts = await Product.findAll({
+      where: {
+        product_id: { [Op.ne]: req.params.id },
+        category: product.category,
+        status: 'available'
+      },
+      include: [{
+        model: FarmerUser,
+        as: 'farmer'
+      }],
+      limit: 5,
+      order: [['created_at', 'DESC']]
     });
 
     res.json({
       success: true,
-      message: 'Product price updated successfully',
+      count: relatedProducts.length,
+      data: relatedProducts
+    });
+  } catch (error) {
+    console.error('Get related products error:', error);
+    res.status(500).json({ message: 'Error fetching related products' });
+  }
+};
+
+exports.updatePrice = async (req, res) => {
+  try {
+    if (!req.user || req.role !== 'farmer') {
+      return res.status(403).json({ message: 'Only farmers can update prices' });
+    }
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
+    const product = await Product.findByPk(req.params.id);
+    if (!product || product.farmer_id !== req.user.farmer_id) {
+      return res.status(404).json({ message: 'Product not found or not owned by you' });
+    }
+    
+    const { current_price } = req.body;
+    await product.update({ current_price });
+    
+    res.json({
+      success: true,
+      message: 'Price updated successfully',
       data: product
     });
   } catch (error) {
     console.error('Update price error:', error);
-    res.status(500).json({ message: 'Error updating product price' });
+    res.status(500).json({ message: 'Error updating price' });
   }
-}; 
+};
+
+exports.deleteProduct = async (req, res) => {
+  try {
+    if (!req.user || req.role !== 'farmer') {
+      return res.status(403).json({ message: 'Only farmers can delete products' });
+    }
+    
+    const product = await Product.findByPk(req.params.id);
+    if (!product || product.farmer_id !== req.user.farmer_id) {
+      return res.status(404).json({ message: 'Product not found or not owned by you' });
+    }
+    
+    await product.destroy();
+    
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ message: 'Error deleting product' });
+  }
+};

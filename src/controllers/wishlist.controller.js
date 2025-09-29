@@ -3,13 +3,13 @@ const Product = require('../models/product.model');
 
 exports.addToWishlist = async (req, res) => {
   try {
-    const { customer_id, product_id } = req.body;
+    const { product_id } = req.body;
+    const customer_id = req.user.customer_id;
 
-    if (!customer_id || !product_id) {
-      return res.status(400).json({ success: false, message: 'customer_id and product_id are required' });
+    if (!product_id) {
+      return res.status(400).json({ success: false, message: 'product_id is required' });
     }
     
-    // Check if item already exists in wishlist
     const existing = await Wishlist.findOne({
       where: { customer_id, product_id }
     });
@@ -40,10 +40,13 @@ exports.addToWishlist = async (req, res) => {
 
 exports.getWishlist = async (req, res) => {
   try {
-    const { customerId } = req.params;
+    const customer_id = req.user.customer_id;
     const wishlist = await Wishlist.findAll({
-      where: { customer_id: customerId },
-      include: [{ model: Product }]
+      where: { customer_id },
+      include: [{ 
+        model: Product,
+        attributes: ['name', 'description', 'current_price', 'status']
+      }]
     });
 
     res.json({
@@ -61,7 +64,14 @@ exports.getWishlist = async (req, res) => {
 exports.removeFromWishlist = async (req, res) => {
   try {
     const { id } = req.params;
-    await Wishlist.destroy({ where: { id } });
+    const customer_id = req.user.customer_id;
+    
+    await Wishlist.destroy({ 
+      where: { 
+        wishlist_id: id,
+        customer_id 
+      } 
+    });
     
     res.status(200).json({
       success: true,

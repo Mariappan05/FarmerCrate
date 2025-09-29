@@ -1,12 +1,8 @@
 const { validationResult } = require('express-validator');
 const Cart = require('../models/cart.model');
-const FarmerUser = require('../models/farmer_user.model');
-const CustomerUser = require('../models/customer_user.model');
-const TransporterUser = require('../models/transporter_user.model');
 const Product = require('../models/product.model');
-const { Op } = require('sequelize');
+const FarmerUser = require('../models/farmer_user.model');
 
-// Add item to cart
 exports.addToCart = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -14,13 +10,12 @@ exports.addToCart = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { productId, quantity } = req.body;
-    const customerId = req.user.id;
+    const { product_id, quantity } = req.body;
+    const customer_id = req.user.customer_id;
 
-    // Check if product exists and is available
     const product = await Product.findOne({
       where: { 
-        id: productId,
+        product_id,
         status: 'available'
       }
     });
@@ -29,7 +24,6 @@ exports.addToCart = async (req, res) => {
       return res.status(404).json({ message: 'Product not found or not available' });
     }
 
-    // Check if requested quantity is available
     if (product.quantity < quantity) {
       return res.status(400).json({ 
         message: 'Requested quantity not available',
@@ -37,40 +31,25 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    // Check if product is already in cart
     let cartItem = await Cart.findOne({
-      where: { customerId, productId }
+      where: { customer_id, product_id }
     });
 
     if (cartItem) {
-      // Update quantity if product already in cart
       cartItem.quantity += quantity;
-      cartItem.price = product.price * cartItem.quantity;
       await cartItem.save();
     } else {
-      // Add new item to cart
       cartItem = await Cart.create({
-        customerId,
-        productId,
-        quantity,
-        price: product.price * quantity
+        customer_id,
+        product_id,
+        quantity
       });
     }
 
     res.status(201).json({
       success: true,
       message: 'Item added to cart successfully',
-      data: {
-        id: cartItem.id,
-        productId: cartItem.productId,
-        quantity: cartItem.quantity,
-        price: cartItem.price,
-        product: {
-          id: product.id,
-          name: product.name,
-          price: product.price
-        }
-      }
+      data: cartItem
     });
   } catch (error) {
     console.error('Add to cart error:', error);
@@ -78,46 +57,27 @@ exports.addToCart = async (req, res) => {
   }
 };
 
-// Get user's cart
 exports.getCart = async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const customer_id = req.user.customer_id;
 
     const cartItems = await Cart.findAll({
-      where: { customerId },
+      where: { customer_id },
       include: [{
         model: Product,
-        attributes: ['name', 'description', 'images', 'price']
+        as: 'cart_product',
+        attributes: ['name', 'description', 'current_price'],
+        include: [{
+          model: FarmerUser,
+          as: 'farmer',
+          attributes: ['name', 'mobile_number']
+        }]
       }]
     });
 
-    // Debug logging
-    console.log('customerId:', customerId);
-    console.log('cartItems:', cartItems);
-
-    // Only include items with a valid product
-    const validItems = cartItems.filter(item => item.product);
-    // Calculate total from valid items only
-    const total = validItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
-
     res.json({
       success: true,
-      data: {
-        items: validItems.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          product: {
-            id: item.product.id,
-            name: item.product.name,
-            description: item.product.description,
-            images: item.product.images,
-            price: item.product.price
-          }
-        })),
-        total
-      }
+      data: cartItems
     });
   } catch (error) {
     console.error('Get cart error:', error);
@@ -125,7 +85,6 @@ exports.getCart = async (req, res) => {
   }
 };
 
-// Update cart item quantity
 exports.updateCartItem = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -133,59 +92,25 @@ exports.updateCartItem = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { cartItemId } = req.params;
+    const { id } = req.params;
     const { quantity } = req.body;
-    const customerId = req.user.id;
+    const customer_id = req.user.customer_id;
 
     const cartItem = await Cart.findOne({
-      where: { id: cartItemId, customerId },
-      include: [{
-        model: Product,
-        attributes: ['name', 'description', 'images', 'price', 'quantity'],
-        include: [{
-          model: FarmerUser,
-          as: 'farmer',
-          attributes: ['name', 'mobile_number'] // changed 'mobileNumber' to 'mobile_number'
-        }]
-      }]
+      where: { cart_id: id, customer_id }
     });
 
     if (!cartItem) {
       return res.status(404).json({ message: 'Cart item not found' });
     }
 
-    // Check if requested quantity is available
-    if (cartItem.product.quantity < quantity) {
-      return res.status(400).json({ 
-        message: 'Requested quantity not available',
-        availableQuantity: cartItem.product.quantity
-      });
-    }
-
     cartItem.quantity = quantity;
-    cartItem.price = cartItem.product.price * quantity;
     await cartItem.save();
 
     res.json({
       success: true,
       message: 'Cart item updated successfully',
-      data: {
-        id: cartItem.id,
-        productId: cartItem.productId,
-        quantity: cartItem.quantity,
-        price: cartItem.price,
-        product: {
-          id: cartItem.product.id,
-          name: cartItem.product.name,
-          description: cartItem.product.description,
-          images: cartItem.product.images,
-          price: cartItem.product.price,
-          farmer: cartItem.product.farmer ? {
-            name: cartItem.product.farmer.name,
-            mobileNumber: cartItem.product.farmer.mobile_number // changed to match DB column
-          } : null
-        }
-      }
+      data: cartItem
     });
   } catch (error) {
     console.error('Update cart error:', error);
@@ -193,14 +118,13 @@ exports.updateCartItem = async (req, res) => {
   }
 };
 
-// Remove item from cart
 exports.removeFromCart = async (req, res) => {
   try {
-    const { cartItemId } = req.params;
-    const customerId = req.user.id;
+    const { id } = req.params;
+    const customer_id = req.user.customer_id;
 
     const cartItem = await Cart.findOne({
-      where: { id: cartItemId, customerId }
+      where: { cart_id: id, customer_id }
     });
 
     if (!cartItem) {
@@ -219,13 +143,12 @@ exports.removeFromCart = async (req, res) => {
   }
 };
 
-// Clear cart
 exports.clearCart = async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const customer_id = req.user.customer_id;
 
     await Cart.destroy({
-      where: { customerId }
+      where: { customer_id }
     });
 
     res.json({
@@ -237,20 +160,3 @@ exports.clearCart = async (req, res) => {
     res.status(500).json({ message: 'Error clearing cart' });
   }
 };
-
-// Example: Get all cart items for a farmer
-exports.getFarmerCart = async (req, res) => {
-  try {
-    const cartItems = await Cart.findAll({
-      where: { userId: req.user.id },
-      include: [
-        { model: FarmerUser, attributes: ['name', 'email', 'mobile_number'] },
-        { model: Product }
-      ]
-    });
-    res.json({ success: true, count: cartItems.length, data: cartItems });
-  } catch (error) {
-    console.error('Get farmer cart error:', error);
-    res.status(500).json({ message: 'Error fetching cart items' });
-  }
-}; 

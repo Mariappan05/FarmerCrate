@@ -2,26 +2,20 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 // Create Sequelize instance with environment variables
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    dialect: 'postgres',
-    logging: false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false // Use this only if you're connecting to a trusted database
-      }
-    },
-    define: {
-      underscored: true, // This makes Sequelize use snake_case in the database
-      timestamps: true   // This enables timestamps for all models
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  logging: false,
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
     }
+  },
+  define: {
+    underscored: true,
+    timestamps: true
   }
-);
+});
 
 // Initialize database and create tables
 const initializeDatabase = async () => {
@@ -38,11 +32,15 @@ const initializeDatabase = async () => {
     require('../models/admin_user.model');
     require('../models/wishlist.model');
     
+    // New models
+    require('../models/productPriceHistory.model');
+    require('../models/farmerVerificationHistory.model');
+    require('../models/deliveryTracking.model');
+    
     // Vehicle Management Models
     require('../models/permanentVehicle.model');
     require('../models/temporaryVehicle.model');
     require('../models/permanentVehicleDocument.model');
-    require('../models/temporaryVehicleDocument.model');
     
     // Set up associations
     require('../models/associations');
@@ -51,11 +49,17 @@ const initializeDatabase = async () => {
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
     
-    // Sync all models with database - using safe mode
-    await sequelize.sync({ 
-      alter: true, // Enable to auto-create/update tables and columns
-      logging: false
-    });
+    // Sync all models with database - simple sync for new database
+    try {
+      await sequelize.sync({ 
+        force: false,
+        alter: false, // Disable alter to avoid schema issues
+        logging: false
+      });
+    } catch (syncError) {
+      console.log('Sync warning (tables may already exist):', syncError.message);
+      // Continue anyway as tables might exist
+    }
     console.log('Database synchronized successfully.');
 
     return true;

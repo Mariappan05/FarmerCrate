@@ -4,7 +4,6 @@ const { body } = require('express-validator');
 const farmerController = require('../controllers/farmer.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
-// Only fetch and update personal details
 router.get('/me', protect, authorize('farmer'), farmerController.getMe);
 
 router.put('/me',
@@ -19,10 +18,6 @@ router.put('/me',
   farmerController.updateMe
 );
 
-// Route to get all farmer names
-router.get('/names', farmerController.getAllFarmerNames);
-
-// Route to get all farmers with pagination and filtering
 router.get('/all', farmerController.getAllUsers);
 
-module.exports = router; 
+module.exports = router;

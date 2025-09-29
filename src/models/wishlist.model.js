@@ -1,10 +1,8 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const CustomerUser = require('./customer_user.model');
-const Product = require('./product.model');
 
-const Wishlist = sequelize.define('Wishlist', {
-  id: {
+const Wishlist = sequelize.define('wishlists', {
+  wishlist_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
@@ -13,27 +11,26 @@ const Wishlist = sequelize.define('Wishlist', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: CustomerUser,
-      key: 'id'
-    }
+      model: 'customer_users',
+      key: 'customer_id'
+    },
+    onDelete: 'CASCADE'
   },
   product_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: Product,
-      key: 'id'
-    }
+      model: 'products',
+      key: 'product_id'
+    },
+    onDelete: 'CASCADE'
   }
 }, {
   tableName: 'wishlists',
-  underscored: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['customer_id', 'product_id']
-    }
-  ]
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  underscored: true
 });
 
 module.exports = Wishlist;

@@ -2,37 +2,37 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const FarmerUser = sequelize.define('FarmerUser', {
-  id: {
+  farmer_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  unique_id: {
-    type: DataTypes.STRING(6),
-    allowNull: true,
-    comment: '6-digit verification code'
+  global_farmer_id: {
+    type: DataTypes.STRING(50),
+    unique: true
   },
   name: { type: DataTypes.STRING, allowNull: false },
-  mobile_number: { type: DataTypes.STRING, allowNull: false },
+  mobile_number: { type: DataTypes.STRING(20), allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
   address: { type: DataTypes.STRING },
   zone: { type: DataTypes.STRING },
   state: { type: DataTypes.STRING },
   district: { type: DataTypes.STRING },
-  verified_status: { type: DataTypes.BOOLEAN, defaultValue: false },
   password: { type: DataTypes.STRING, allowNull: false },
   age: { type: DataTypes.INTEGER },
-  account_number: { type: DataTypes.STRING },
-  ifsc_code: { type: DataTypes.STRING },
+  account_number: { type: DataTypes.STRING(50) },
+  ifsc_code: { type: DataTypes.STRING(20) },
   image_url: { type: DataTypes.STRING },
-  approved_at: { type: DataTypes.DATE, allowNull: true },
-  approval_notes: { type: DataTypes.TEXT, allowNull: true },
-  rejected_at: { type: DataTypes.DATE, allowNull: true },
-  rejection_reason: { type: DataTypes.TEXT, allowNull: true },
-  code_updated_at: { type: DataTypes.DATE, allowNull: true }
+  is_verified_by_gov: { type: DataTypes.BOOLEAN, defaultValue: false },
+  verification_request_sent: { type: DataTypes.DATE },
+  verification_completed_at: { type: DataTypes.DATE },
+  verification_notes: { type: DataTypes.TEXT }
 }, {
-  tableName: 'farmer_users',
-  underscored: true  // This ensures snake_case in database
+  tableName: 'farmers',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  underscored: true
 });
 
 module.exports = FarmerUser;

@@ -22,27 +22,30 @@ const protect = async (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'No token provided' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { id, role } = decoded;
-    const Model = getModelByRole(role);
+    const Model = getModelByRole(decoded.role);
     if (!Model) return res.status(401).json({ message: 'Invalid role' });
     
     let user;
-    if (role === 'transporter') {
-      user = await Model.findOne({ where: { transporter_id: id } });
-    } else if (role === 'admin') {
-      user = await Model.findOne({ where: { admin_id: id } });
-    } else {
-      user = await Model.findOne({ where: { id } });
+    if (decoded.role === 'farmer') {
+      user = await Model.findOne({ where: { farmer_id: decoded.farmer_id } });
+    } else if (decoded.role === 'customer') {
+      user = await Model.findOne({ where: { customer_id: decoded.customer_id } });
+    } else if (decoded.role === 'transporter') {
+      user = await Model.findOne({ where: { transporter_id: decoded.transporter_id } });
+    } else if (decoded.role === 'admin') {
+      user = await Model.findOne({ where: { admin_id: decoded.admin_id } });
+    } else if (decoded.role === 'delivery') {
+      user = await Model.findOne({ where: { delivery_person_id: decoded.delivery_person_id } });
     }
     if (!user) return res.status(401).json({ message: 'User not found' });
     
     // Check if admin is active
-    if (role === 'admin' && !user.is_active) {
+    if (decoded.role === 'admin' && !user.is_active) {
       return res.status(401).json({ message: 'Account is deactivated' });
     }
     
     req.user = user;
-    req.role = role;
+    req.role = decoded.role;
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Unauthorized', error: err.message });

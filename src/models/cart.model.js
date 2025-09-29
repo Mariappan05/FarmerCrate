@@ -1,50 +1,41 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const CustomerUser = require('./customer_user.model');
-const Product = require('./product.model');
 
-const Cart = sequelize.define('Cart', {
-  id: {
+const Cart = sequelize.define('carts', {
+  cart_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  customerId: {
+  customer_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
       model: 'customer_users',
-      key: 'id'
+      key: 'customer_id'
     },
     onDelete: 'CASCADE'
   },
-  productId: {
+  product_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
       model: 'products',
-      key: 'id'
+      key: 'product_id'
     },
     onDelete: 'CASCADE'
   },
   quantity: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 1,
-    validate: {
-      min: 1
-    }
-  },
-  price: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
+    defaultValue: 1
   }
 }, {
-  timestamps: true
+  tableName: 'carts',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  underscored: true
 });
-
-// Define relationships
-Cart.belongsTo(CustomerUser, { foreignKey: 'customerId' });
-Cart.belongsTo(Product, { foreignKey: 'productId' });
 
 module.exports = Cart;
