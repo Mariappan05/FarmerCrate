@@ -31,9 +31,9 @@ const protect = async (req, res, next) => {
     } else if (decoded.role === 'customer') {
       user = await Model.findOne({ where: { customer_id: decoded.customer_id } });
     } else if (decoded.role === 'transporter') {
-      user = await Model.findOne({ where: { transporter_id: decoded.transporter_id } });
+      user = await Model.findOne({ where: { transporter_id: decoded.transporter_id || decoded.id } });
     } else if (decoded.role === 'admin') {
-      user = await Model.findOne({ where: { admin_id: decoded.admin_id } });
+      user = await Model.findOne({ where: { admin_id: decoded.admin_id || decoded.id } });
     } else if (decoded.role === 'delivery') {
       user = await Model.findOne({ where: { delivery_person_id: decoded.delivery_person_id } });
     }

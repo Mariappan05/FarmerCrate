@@ -42,14 +42,14 @@ exports.register = async (req, res) => {
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
 
     if (role === 'farmer') {
-      const { name, email, password, mobileNumber, address, zone, state, district, age, account_number, ifsc_code, image_url, global_farmer_id } = req.body;
+      const { name, email, password, mobile_number, address, zone, state, district, age, account_number, ifsc_code, image_url, global_farmer_id } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Farmer already exists' });
       const farmer = await Model.create({
         name,
         email,
         password,
-        mobile_number: mobileNumber,
+        mobile_number,
         address,
         zone,
         state,
@@ -85,12 +85,12 @@ exports.register = async (req, res) => {
       });
     }
     if (role === 'customer') {
-      const { name, email, password, mobileNumber, address, zone, state, district, age, image_url } = req.body;
+      const { name, email, password, mobile_number, address, zone, state, district, age, image_url } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Customer already exists' });
       const customer = await Model.create({
         name,
-        mobile_number: mobileNumber,
+        mobile_number,
         email,
         address,
         zone,
@@ -110,14 +110,14 @@ exports.register = async (req, res) => {
       });
     }
     if (role === 'transporter') {
-      const { name, email, password, mobileNumber, address, zone, state, district, age, image_url,
+      const { name, email, password, mobile_number, address, zone, state, district, age, image_url,
         aadhar_url, pan_url, voter_id_url, license_url,
         aadhar_number, pan_number, voter_id_number, license_number } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Transporter already exists' });
       const transporter = await Model.create({
         name,
-        mobile_number: mobileNumber,
+        mobile_number,
         email,
         age,
         address,
@@ -146,7 +146,7 @@ exports.register = async (req, res) => {
       });
     }
     if (role === 'admin') {
-      const { name, email, password, mobileNumber, adminRole } = req.body;
+      const { name, email, password, mobile_number, adminRole } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Admin already exists' });
       
@@ -160,7 +160,7 @@ exports.register = async (req, res) => {
         name,
         email,
         password,
-        mobile_number: mobileNumber,
+        mobile_number,
         role: adminRole || 'admin'
       });
       return res.status(201).json({
@@ -273,7 +273,7 @@ exports.login = async (req, res) => {
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
-        token: jwt.sign({ id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        token: jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
         user: {
           id: user.transporter_id,
           email: user.email,
@@ -294,7 +294,7 @@ exports.login = async (req, res) => {
       await user.update({ last_login: new Date() });
       return res.json({
         message: 'Login successful',
-        token: jwt.sign({ id: user.admin_id, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+        token: jwt.sign({ admin_id: user.admin_id, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
         user: {
           id: user.admin_id,
           email: user.email,
