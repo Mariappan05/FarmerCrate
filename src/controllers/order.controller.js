@@ -65,15 +65,33 @@ exports.createOrder = async (req, res) => {
     const farmerZone = product.farmer.zone?.toLowerCase();
     const customerZoneLower = customer_zone?.toLowerCase();
     
-    const sourceTransporters = allTransporters.filter(t => 
-      t.zone?.toLowerCase() === farmerZone
-    );
-    
-    const destinationTransporters = farmerZone === customerZoneLower 
-      ? sourceTransporters 
-      : allTransporters.filter(t => 
-          t.zone?.toLowerCase() === customerZoneLower
+    // Helper function to find matching transporters by zone similarity
+    const findTransportersByZone = (targetZone, transporters) => {
+      if (!targetZone) return [];
+      
+      // First try exact match
+      let matches = transporters.filter(t => 
+        t.zone?.toLowerCase() === targetZone.toLowerCase()
+      );
+      
+      if (matches.length > 0) return matches;
+      
+      // Then try partial matches - split zone into words and find overlaps
+      const targetWords = targetZone.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      
+      return transporters.filter(t => {
+        if (!t.zone) return false;
+        const transporterWords = t.zone.toLowerCase().split(/\s+/);
+        return targetWords.some(word => 
+          transporterWords.some(tWord => 
+            tWord.includes(word) || word.includes(tWord)
+          )
         );
+      });
+    };
+    
+    const sourceTransporters = findTransportersByZone(farmerZone, allTransporters);
+    const destinationTransporters = findTransportersByZone(customerZoneLower, allTransporters);
 
     console.log(`Found ${sourceTransporters.length} source transporters in zone: ${product.farmer.zone}`);
     console.log(`Found ${destinationTransporters.length} destination transporters in zone: ${customer_zone}`);

@@ -234,13 +234,33 @@ exports.updatePrice = async (req, res) => {
       return res.status(404).json({ message: 'Product not found or not owned by you' });
     }
     
-    const { current_price } = req.body;
+    const { current_price, reason } = req.body;
+    const oldPrice = product.current_price;
+    
+    // Update product price
     await product.update({ current_price });
+    
+    // Store price change in history
+    await ProductPriceHistory.create({
+      product_id: product.product_id,
+      old_price: oldPrice,
+      new_price: current_price,
+      notes: reason || 'Price updated',
+      updated_by: req.user.farmer_id,
+      updated_by_role: 'farmer'
+    });
     
     res.json({
       success: true,
-      message: 'Price updated successfully',
-      data: product
+      message: 'Price updated successfully and stored in history',
+      data: {
+        product,
+        price_change: {
+          old_price: oldPrice,
+          new_price: current_price,
+          reason: reason || 'Price updated'
+        }
+      }
     });
   } catch (error) {
     console.error('Update price error:', error);
