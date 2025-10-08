@@ -54,6 +54,7 @@ const Order = sequelize.define('orders', {
     type: DataTypes.ENUM('pending', 'completed', 'failed'), 
     defaultValue: 'pending' 
   },
+
   current_status: { 
     type: DataTypes.ENUM(
       'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 

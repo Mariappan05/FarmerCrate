@@ -8,21 +8,25 @@ const Order = require('./order.model');
 const Transaction = sequelize.define('transactions', {
   transaction_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-  type: { type: DataTypes.ENUM('credit', 'debit', 'refund'), allowNull: false },
+  type: { type: DataTypes.ENUM('credit', 'debit', 'refund', 'commission', 'payment'), allowNull: false },
   status: { type: DataTypes.ENUM('pending', 'completed', 'failed'), defaultValue: 'pending' },
   description: { type: DataTypes.TEXT, allowNull: true },
+  user_type: { type: DataTypes.ENUM('farmer', 'customer', 'transporter', 'admin'), allowNull: false },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
   farmer_id: { 
     type: DataTypes.INTEGER, 
-    allowNull: false, 
+    allowNull: true, 
     references: { model: 'farmers', key: 'farmer_id' },
     onDelete: 'CASCADE'
   },
+
   order_id: { 
     type: DataTypes.INTEGER, 
     allowNull: true, 
     references: { model: 'orders', key: 'order_id' },
     onDelete: 'CASCADE'
-  }
+  },
+
 }, {
   tableName: 'transactions',
   timestamps: true,

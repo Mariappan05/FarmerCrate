@@ -28,8 +28,7 @@ const orderValidation = [
   body('total_price').isDecimal().withMessage('Valid total price is required'),
   body('farmer_amount').isDecimal().withMessage('Valid farmer amount is required'),
   body('admin_commission').isDecimal().withMessage('Valid admin commission is required'),
-  body('transport_charge').isDecimal().withMessage('Valid transport charge is required'),
-  body('qr_code').notEmpty().withMessage('QR code image link is required')
+  body('transport_charge').isDecimal().withMessage('Valid transport charge is required')
 ];
 
 // Protected routes
@@ -38,6 +37,16 @@ router.post('/',
   authorize('customer'), 
   orderValidation, 
   orderController.createOrder
+);
+
+router.post('/complete', 
+  authenticate, 
+  authorize('customer'),
+  body('razorpay_order_id').notEmpty().withMessage('Razorpay order ID required'),
+  body('razorpay_payment_id').notEmpty().withMessage('Razorpay payment ID required'),
+  body('razorpay_signature').notEmpty().withMessage('Razorpay signature required'),
+  body('order_data').isObject().withMessage('Order data required'),
+  orderController.completeOrder
 );
 
 router.get('/', 

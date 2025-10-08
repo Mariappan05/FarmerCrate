@@ -9,10 +9,12 @@ const Transaction = require('../models/transaction.model');
 const DeliveryTracking = require('../models/deliveryTracking.model');
 const OrderTrackingService = require('../services/orderTracking.service');
 const GoogleMapsService = require('../services/googleMaps.service');
+const RazorpayService = require('../services/razorpay.service');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
+// Create payment order (step 1)
 exports.createOrder = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -32,6 +34,34 @@ exports.createOrder = async (req, res) => {
       transport_charge,
       qr_code
     } = req.body;
+    
+    // Create Razorpay order for payment
+    const receipt = `order_${Date.now()}`;
+    const razorpayOrder = await RazorpayService.createOrder(total_price, 'INR', receipt);
+    
+    // Return payment details for frontend to process
+    return res.json({
+      success: true,
+      message: 'Payment order created. Complete payment to place order.',
+      payment_details: {
+        razorpay_order_id: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        key_id: process.env.RAZORPAY_KEY_ID
+      },
+      order_data: {
+        product_id,
+        quantity,
+        delivery_address,
+        customer_zone,
+        customer_pincode,
+        total_price,
+        farmer_amount,
+        admin_commission,
+        transport_charge,
+        qr_code
+      }
+    });
     
     // Check if transporters are available for the customer's pincode (case-insensitive)
     const allTransportersForPincode = await TransporterUser.findAll();
@@ -197,7 +227,206 @@ exports.createOrder = async (req, res) => {
       ? new Date(Date.now() + (routeData.duration * 60 * 1000))
       : null;
 
-    // Create order with optimal transporter assignments
+
+  } catch (error) {
+    console.error('Create payment order error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error creating payment order: ' + error.message 
+    });
+  }
+};
+
+// Complete order after payment (step 2)
+exports.completeOrder = async (req, res) => {
+  try {
+    const { 
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      order_data
+    } = req.body;
+    
+    console.log('\n=== ORDER COMPLETION STARTED ===');
+    console.log('Request Data:', { razorpay_order_id, razorpay_payment_id, razorpay_signature });
+    console.log('Order Data:', order_data);
+    
+    // Verify payment
+    const isPaymentValid = await RazorpayService.verifyPayment(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    );
+    
+    console.log('Payment Verification Result:', isPaymentValid);
+    
+    if (!isPaymentValid) {
+      console.log('❌ Payment verification failed - Order creation aborted');
+      return res.status(400).json({ 
+        success: false,
+        message: 'Payment verification failed. Order not created.' 
+      });
+    }
+    
+    console.log('✅ Payment verified successfully - Proceeding with order creation');
+    
+    const { 
+      product_id, 
+      quantity, 
+      delivery_address,
+      customer_zone,
+      customer_pincode,
+      total_price,
+      farmer_amount,
+      admin_commission,
+      transport_charge,
+      qr_code
+    } = order_data;
+    
+    // Get product with farmer details
+    const product = await Product.findByPk(product_id, {
+      include: [{ model: FarmerUser, as: 'farmer' }]
+    });
+    
+    if (!product || product.quantity < quantity) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Product not available or insufficient quantity' 
+      });
+    }
+    
+    // Check transporter availability for pincode
+    const allTransportersForPincode = await TransporterUser.findAll();
+    const availableTransporters = allTransportersForPincode.filter(t => 
+      t.pincode?.toLowerCase() === customer_pincode?.toLowerCase()
+    );
+    
+    if (availableTransporters.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Delivery not available in your area. No transporters found for pincode: ' + customer_pincode,
+        pincode: customer_pincode
+      });
+    }
+    
+    // Advanced transporter allocation
+    const allTransporters = await TransporterUser.findAll();
+    const farmerZone = product.farmer.zone?.toLowerCase();
+    const customerZoneLower = customer_zone?.toLowerCase();
+    
+    // Helper function to find matching transporters by zone
+    const findTransportersByZone = (targetZone, transporters) => {
+      if (!targetZone) return [];
+      
+      // First try exact match
+      let matches = transporters.filter(t => 
+        t.zone?.toLowerCase() === targetZone.toLowerCase()
+      );
+      
+      if (matches.length > 0) return matches;
+      
+      // Then try partial matches
+      const targetWords = targetZone.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      
+      return transporters.filter(t => {
+        if (!t.zone) return false;
+        const transporterWords = t.zone.toLowerCase().split(/\s+/);
+        return targetWords.some(word => 
+          transporterWords.some(tWord => 
+            tWord.includes(word) || word.includes(tWord)
+          )
+        );
+      });
+    };
+    
+    const sourceTransporters = findTransportersByZone(farmerZone, allTransporters);
+    const destinationTransporters = findTransportersByZone(customerZoneLower, allTransporters);
+    
+    const pickupAddress = `${product.farmer.address}, ${product.farmer.zone}, ${product.farmer.district}, ${product.farmer.state}`;
+    
+    let selectedSourceTransporter = null;
+    let selectedDestinationTransporter = null;
+    
+    // Advanced transporter allocation with Google Maps optimization
+    let shortestFarmerDistance = Infinity;
+    let shortestCustomerDistance = Infinity;
+    let transporterToTransporterDistance = 0;
+    let routeData = null;
+    
+    console.log('\n=== TRANSPORTER ALLOCATION PROCESS ===');
+    console.log('Farmer Zone:', product.farmer.zone);
+    console.log('Customer Zone:', customer_zone);
+    console.log('Available Source Transporters:', sourceTransporters.length);
+    console.log('Available Destination Transporters:', destinationTransporters.length);
+    
+    try {
+      // Find optimal source transporter (closest to farmer)
+      console.log('\n=== FARMER TO SOURCE TRANSPORTER DISTANCES ===');
+      for (const transporter of sourceTransporters) {
+        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+        const distance = await GoogleMapsService.calculateDistanceAndDuration(
+          [pickupAddress],
+          [transporterAddress]
+        );
+        
+        console.log(`Farmer to ${transporter.name}: ${distance.distance}km`);
+        
+        if (distance.distance < shortestFarmerDistance) {
+          shortestFarmerDistance = distance.distance;
+          selectedSourceTransporter = transporter;
+        }
+      }
+      
+      // Find optimal destination transporter (closest to customer)
+      console.log('\n=== CUSTOMER TO DESTINATION TRANSPORTER DISTANCES ===');
+      for (const transporter of destinationTransporters) {
+        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+        const distance = await GoogleMapsService.calculateDistanceAndDuration(
+          [delivery_address],
+          [transporterAddress]
+        );
+        
+        console.log(`Customer to ${transporter.name}: ${distance.distance}km`);
+        
+        if (distance.distance < shortestCustomerDistance) {
+          shortestCustomerDistance = distance.distance;
+          selectedDestinationTransporter = transporter;
+        }
+      }
+      
+      // Calculate inter-transporter distance
+      if (selectedSourceTransporter && selectedDestinationTransporter) {
+        const sourceAddress = `${selectedSourceTransporter.address}, ${selectedSourceTransporter.zone}`;
+        const destAddress = `${selectedDestinationTransporter.address}, ${selectedDestinationTransporter.zone}`;
+        
+        const interDistance = await GoogleMapsService.calculateDistanceAndDuration(
+          [sourceAddress],
+          [destAddress]
+        );
+        
+        transporterToTransporterDistance = interDistance.distance;
+        routeData = interDistance;
+        
+        console.log(`\n=== INTER-TRANSPORTER DISTANCE ===`);
+        console.log(`${selectedSourceTransporter.name} to ${selectedDestinationTransporter.name}: ${interDistance.distance}km`);
+      }
+    } catch (error) {
+      console.warn('Google Maps API failed, using zone-based selection:', error.message);
+    }
+    
+    console.log('\n=== FINAL ALLOCATION RESULTS ===');
+    console.log('Selected Source Transporter:', selectedSourceTransporter?.name || 'None');
+    console.log('Selected Destination Transporter:', selectedDestinationTransporter?.name || 'None');
+    console.log('Farmer to Source Distance:', shortestFarmerDistance !== Infinity ? shortestFarmerDistance + 'km' : 'N/A');
+    console.log('Source to Destination Distance:', transporterToTransporterDistance + 'km');
+    console.log('Destination to Customer Distance:', shortestCustomerDistance !== Infinity ? shortestCustomerDistance + 'km' : 'N/A');
+    console.log('Total Route Distance:', (shortestFarmerDistance + transporterToTransporterDistance + shortestCustomerDistance) + 'km');
+    
+    // Fallback to first available if no optimal found
+    const sourceTransporter = selectedSourceTransporter || sourceTransporters[0] || allTransporters[0];
+    const destTransporter = selectedDestinationTransporter || destinationTransporters[0] || allTransporters[1] || allTransporters[0];
+    
+    // Create order in PENDING status for farmer verification
     const order = await Order.create({
       customer_id: req.user.customer_id,
       product_id,
@@ -208,58 +437,50 @@ exports.createOrder = async (req, res) => {
       admin_commission,
       transport_charge,
       qr_code,
-      current_status: 'PLACED',
-      source_transporter_id: selectedSourceTransporter?.transporter_id,
-      destination_transporter_id: selectedDestinationTransporter?.transporter_id,
-      pickup_address: pickupAddress,
-      estimated_distance: routeData?.distance,
-      estimated_delivery_time: estimatedDeliveryTime
+      current_status: 'PENDING',
+      payment_status: 'completed',
+      pickup_address: pickupAddress
     });
-
+    
+    console.log('✅ Order created successfully:', order.order_id);
+    console.log('Order Details:', {
+      order_id: order.order_id,
+      customer_id: order.customer_id,
+      product_id: order.product_id,
+      quantity: order.quantity,
+      total_price: order.total_price,
+      farmer_amount: order.farmer_amount,
+      admin_commission: order.admin_commission,
+      transport_charge: order.transport_charge,
+      status: order.current_status,
+      payment_status: order.payment_status
+    });
+    
     // Update product quantity
     await product.update({ quantity: product.quantity - quantity });
-
-    // Create transaction record
-    await Transaction.create({
-      farmer_id: product.farmer_id,
-      order_id: order.order_id,
-      amount: farmer_amount,
-      type: 'credit',
-      status: 'pending',
-      description: `Payment for order #${order.order_id}`
-    });
-
+    
     res.status(201).json({
       success: true,
-      message: 'Order created successfully with optimal transporter assignment',
+      message: 'Payment verified and order created. Waiting for farmer acceptance.',
       data: {
-        ...order.toJSON(),
-        route_info: routeData ? {
-          distance: routeData.distance_text,
-          duration: routeData.duration_text,
-          estimated_delivery: estimatedDeliveryTime
-        } : null,
-        transporter_info: {
-          source_transporter: selectedSourceTransporter ? {
-            id: selectedSourceTransporter.transporter_id,
-            name: selectedSourceTransporter.name,
-            zone: selectedSourceTransporter.zone,
-            address: selectedSourceTransporter.address
-          } : null,
-          destination_transporter: selectedDestinationTransporter ? {
-            id: selectedDestinationTransporter.transporter_id,
-            name: selectedDestinationTransporter.name,
-            zone: selectedDestinationTransporter.zone,
-            address: selectedDestinationTransporter.address
-          } : null
-        }
+        order_id: order.order_id,
+        payment_status: 'completed',
+        current_status: 'PENDING',
+        message: 'Order sent to farmer for verification'
       }
     });
+    
   } catch (error) {
-    console.error('Create order error:', error);
-    res.status(500).json({ message: error.message });
+    console.error('❌ Complete order error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error completing order: ' + error.message 
+    });
   }
 };
+
+
 
 exports.getOrders = async (req, res) => {
   try {

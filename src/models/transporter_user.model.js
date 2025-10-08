@@ -28,7 +28,9 @@ const TransporterUser = sequelize.define('transporters', {
   aadhar_number: { type: DataTypes.STRING, allowNull: true },
   pan_number: { type: DataTypes.STRING, allowNull: true },
   voter_id_number: { type: DataTypes.STRING, allowNull: true },
-  license_number: { type: DataTypes.STRING, allowNull: true }
+  license_number: { type: DataTypes.STRING, allowNull: true },
+  account_number: { type: DataTypes.STRING, allowNull: true },
+  ifsc_code: { type: DataTypes.STRING, allowNull: true }
 }, {
   tableName: 'transporters',
   timestamps: true,
