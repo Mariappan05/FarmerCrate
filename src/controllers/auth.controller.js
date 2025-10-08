@@ -112,7 +112,8 @@ exports.register = async (req, res) => {
     if (role === 'transporter') {
       const { name, email, password, mobile_number, address, zone, state, district, age, image_url,
         aadhar_url, pan_url, voter_id_url, license_url,
-        aadhar_number, pan_number, voter_id_number, license_number } = req.body;
+        aadhar_number, pan_number, voter_id_number, license_number,
+        account_number, ifsc_code } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Transporter already exists' });
       const transporter = await Model.create({
@@ -133,7 +134,9 @@ exports.register = async (req, res) => {
         aadhar_number,
         pan_number,
         voter_id_number,
-        license_number
+        license_number,
+        account_number,
+        ifsc_code
       });
       return res.status(201).json({
         message: 'Transporter registered successfully. Await admin approval.',
