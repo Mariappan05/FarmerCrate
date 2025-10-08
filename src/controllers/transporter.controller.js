@@ -35,7 +35,7 @@ const updateProfile = async (req, res) => {
 };
 
 const addDeliveryPerson = async (req, res) => {
-  const { name, mobile_number, vehicle_number, license_number, vehicle_type, license_url, image_url } = req.body;
+  const { name, mobile_number, vehicle_number, license_number, vehicle_type, license_url, image_url, current_location } = req.body;
   
   try {
     const password = Math.random().toString(36).slice(-8);
@@ -50,7 +50,8 @@ const addDeliveryPerson = async (req, res) => {
       license_number,
       vehicle_type,
       license_url,
-      image_url
+      image_url,
+      current_location
     });
     
     res.status(201).json({
@@ -117,6 +118,8 @@ const assignVehicleToOrder = async (req, res) => {
   }
 };
 
+
+//manual order
 const assignOrderToDeliveryPerson = async (req, res) => {
   const { order_id, delivery_person_id, permanent_vehicle_id, temp_vehicle_id } = req.body;
   
@@ -161,7 +164,7 @@ const assignOrderToDeliveryPerson = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-
+//automatic order
 const assignPickupDeliveryPerson = async (req, res) => {
   const { order_id, permanent_vehicle_id, temp_vehicle_id } = req.body;
   
@@ -236,7 +239,7 @@ const assignPickupDeliveryPerson = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-
+//manual receive order
 const manualReceiveOrder = async (req, res) => {
   const { order_id, delivery_person_id, permanent_vehicle_id, temp_vehicle_id } = req.body;
   
@@ -291,6 +294,7 @@ const manualReceiveOrder = async (req, res) => {
   }
 };
 
+//automatic receive order
 const receiveOrderAndAssignDelivery = async (req, res) => {
   const { order_id } = req.body;
   

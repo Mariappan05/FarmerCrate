@@ -95,10 +95,19 @@ class VehicleController {
       
       await transaction.commit();
       
+      // Fetch complete vehicle with documents
+      const completeVehicle = await PermanentVehicle.findByPk(vehicle.vehicle_id, {
+        include: [{
+          model: PermanentVehicleDocument,
+          as: 'documents',
+          required: false
+        }]
+      });
+      
       res.status(201).json({
         success: true,
         message: 'Permanent vehicle added successfully',
-        data: vehicle
+        data: completeVehicle
       });
       
     } catch (error) {
