@@ -1,28 +1,24 @@
+const sgMail = require('@sendgrid/mail');
+
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
 exports.sendOTPEmail = async (email, otp) => {
   console.log('\n=== SENDING EMAIL ===');
   console.log('From:', process.env.EMAIL_USER);
   console.log('To:', email);
   console.log('OTP:', otp);
   
+  if (!process.env.SENDGRID_API_KEY) {
+    console.error('⚠️  SENDGRID_API_KEY not set. Get it from: https://signup.sendgrid.com/');
+    return false;
+  }
+  
   try {
-    const nodemailer = require('nodemailer');
-    
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
-
-    const mailOptions = {
-      from: `FarmerCrate <${process.env.EMAIL_USER}>`,
+    const msg = {
       to: email,
+      from: process.env.EMAIL_USER,
       subject: 'FarmerCrate - First Login Verification',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -44,21 +40,13 @@ exports.sendOTPEmail = async (email, otp) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully!');
+    await sgMail.send(msg);
+    console.log('✅ Email sent via SendGrid!');
     console.log('=== EMAIL SENT ===\n');
     return true;
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
     console.error('Error:', error.message);
-    console.error('Code:', error.code);
-    console.error('Stack:', error.stack);
-    
-    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
-      console.error('\n⚠️  RENDER BLOCKS GMAIL SMTP PORTS (587/465)');
-      console.error('Gmail SMTP will NOT work on Render.');
-    }
-    
     console.error('=== END EMAIL ERROR ===\n');
     return false;
   }
