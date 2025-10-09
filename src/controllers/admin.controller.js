@@ -198,3 +198,95 @@ exports.getDashboardStats = async (req, res) => {
     res.status(500).json({ message: 'Error fetching dashboard statistics' });
   }
 };
+
+exports.getAllFarmers = async (req, res) => {
+  try {
+    const farmers = await FarmerUser.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, count: farmers.length, data: farmers });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching farmers' });
+  }
+};
+
+exports.getAllCustomers = async (req, res) => {
+  try {
+    const customers = await CustomerUser.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, count: customers.length, data: customers });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching customers' });
+  }
+};
+
+exports.getAllTransporters = async (req, res) => {
+  try {
+    const transporters = await TransporterUser.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, count: transporters.length, data: transporters });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching transporters' });
+  }
+};
+
+exports.getAllDeliveryPersons = async (req, res) => {
+  try {
+    const deliveryPersons = await DeliveryPerson.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, count: deliveryPersons.length, data: deliveryPersons });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching delivery persons' });
+  }
+};
+
+exports.deleteFarmer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await FarmerUser.destroy({ where: { farmer_id: id } });
+    if (!deleted) return res.status(404).json({ message: 'Farmer not found' });
+    res.json({ success: true, message: 'Farmer deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting farmer' });
+  }
+};
+
+exports.deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await CustomerUser.destroy({ where: { customer_id: id } });
+    if (!deleted) return res.status(404).json({ message: 'Customer not found' });
+    res.json({ success: true, message: 'Customer deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting customer' });
+  }
+};
+
+exports.deleteTransporter = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await TransporterUser.destroy({ where: { transporter_id: id } });
+    if (!deleted) return res.status(404).json({ message: 'Transporter not found' });
+    res.json({ success: true, message: 'Transporter deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting transporter' });
+  }
+};
+
+exports.deleteDeliveryPerson = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await DeliveryPerson.destroy({ where: { delivery_person_id: id } });
+    if (!deleted) return res.status(404).json({ message: 'Delivery person not found' });
+    res.json({ success: true, message: 'Delivery person deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting delivery person' });
+  }
+};

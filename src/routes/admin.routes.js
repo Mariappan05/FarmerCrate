@@ -26,4 +26,16 @@ router.put('/transporters/:transporter_id/approve', [
   body('approval_notes').optional().isLength({ max: 500 })
 ], adminController.approveTransporter);
 
+// Get all users
+router.get('/farmers', adminController.getAllFarmers);
+router.get('/customers', adminController.getAllCustomers);
+router.get('/transporters', adminController.getAllTransporters);
+router.get('/delivery-persons', adminController.getAllDeliveryPersons);
+
+// Delete users
+router.delete('/farmers/:id', adminController.deleteFarmer);
+router.delete('/customers/:id', adminController.deleteCustomer);
+router.delete('/transporters/:id', adminController.deleteTransporter);
+router.delete('/delivery-persons/:id', adminController.deleteDeliveryPerson);
+
 module.exports = router;
