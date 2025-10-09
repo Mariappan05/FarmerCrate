@@ -47,6 +47,22 @@ exports.sendOTPEmail = async (email, otp) => {
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
     console.error('Error:', error.message);
+    
+    if (error.response) {
+      console.error('Status Code:', error.response.statusCode);
+      console.error('Response Body:', JSON.stringify(error.response.body, null, 2));
+    }
+    
+    if (error.message === 'Forbidden') {
+      console.error('\n⚠️  SENDER EMAIL NOT VERIFIED');
+      console.error('You MUST verify farmercrate@gmail.com in SendGrid:');
+      console.error('1. Go to: https://app.sendgrid.com/settings/sender_auth');
+      console.error('2. Click "Verify a Single Sender"');
+      console.error('3. Enter: farmercrate@gmail.com');
+      console.error('4. Check farmercrate@gmail.com inbox');
+      console.error('5. Click verification link');
+    }
+    
     console.error('=== END EMAIL ERROR ===\n');
     return false;
   }
