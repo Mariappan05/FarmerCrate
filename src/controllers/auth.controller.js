@@ -233,7 +233,7 @@ exports.login = async (req, res) => {
         
         // Send OTP to email
         try {
-          const { sendOTPEmail } = require('../utils/email.util');
+          const { sendOTPEmail } = require('../utils/email');
           const emailSent = await sendOTPEmail(user.email, otp);
           
           if (!emailSent) {
@@ -533,7 +533,7 @@ exports.resendCustomerFirstLoginOTP = async (req, res) => {
     
     // Send OTP to email
     try {
-      const { sendOTPEmail } = require('../utils/email.util');
+      const { sendOTPEmail } = require('../utils/email');
       const emailSent = await sendOTPEmail(email, otp);
       
       if (!emailSent) {
