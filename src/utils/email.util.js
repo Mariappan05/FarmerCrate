@@ -8,19 +8,31 @@ const createTransporter = () => {
     return null;
   }
   
-  return nodemailer.createTransport({
-    service: 'gmail',
+  return nodemailer.createTransporter({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER || 'farmercrate@gmail.com',
       pass: emailPassword
     },
     tls: {
-      rejectUnauthorized: false
-    }
+      rejectUnauthorized: false,
+      ciphers: 'SSLv3'
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000
   });
 };
 
 exports.sendOTPEmail = async (email, otp) => {
+  console.log('\n=== SENDING EMAIL ===');
+  console.log('From:', process.env.EMAIL_USER);
+  console.log('To:', email);
+  console.log('OTP:', otp);
+  console.log('Environment:', process.env.NODE_ENV);
+  
   try {
     const transporter = createTransporter();
     
@@ -28,6 +40,10 @@ exports.sendOTPEmail = async (email, otp) => {
       console.error('Email transporter not configured');
       return false;
     }
+    
+    console.log('Verifying SMTP connection...');
+    await transporter.verify();
+    console.log('SMTP connection verified!');
     
     const mailOptions = {
       from: `FarmerCrate <${process.env.EMAIL_USER || 'farmercrate@gmail.com'}>`,
@@ -47,24 +63,36 @@ exports.sendOTPEmail = async (email, otp) => {
         </div>
       `
     };
-
-    console.log('\n=== SENDING EMAIL ===');
-    console.log('To:', email);
-    console.log('OTP:', otp);
-    console.log('From:', process.env.EMAIL_USER);
     
+    console.log('Sending email...');
     const info = await transporter.sendMail(mailOptions);
     
-    console.log('Email sent successfully!');
+    console.log('✅ Email sent successfully!');
     console.log('Message ID:', info.messageId);
+    console.log('Response:', info.response);
     console.log('=== EMAIL SENT ===\n');
     
     return true;
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
-    console.error('Error:', error.message);
-    console.error('Code:', error.code);
-    console.error('Response:', error.response);
+    console.error('Error Message:', error.message);
+    console.error('Error Code:', error.code);
+    console.error('Error Command:', error.command);
+    
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
+      console.error('\n⚠️  CONNECTION TIMEOUT - Possible causes:');
+      console.error('1. Hosting provider blocking SMTP ports (587/465)');
+      console.error('2. Firewall blocking outbound SMTP');
+      console.error('3. Gmail blocking connection from server IP');
+      console.error('\nSolution: Use SendGrid/Mailgun/AWS SES instead of Gmail SMTP');
+    }
+    
+    if (error.responseCode === 535) {
+      console.error('\n⚠️  AUTHENTICATION FAILED');
+      console.error('Check: Gmail App Password is correct');
+      console.error('Check: 2-Step Verification is enabled');
+    }
+    
     console.error('=== END EMAIL ERROR ===\n');
     return false;
   }
