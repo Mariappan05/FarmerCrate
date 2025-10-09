@@ -38,4 +38,16 @@ router.put('/update-status',
   deliveryPersonController.updateOrderStatus
 );
 
+router.put('/update-location',
+  authenticate,
+  authorize('delivery'),
+  body('latitude').isFloat().withMessage('Valid latitude required'),
+  body('longitude').isFloat().withMessage('Valid longitude required'),
+  deliveryPersonController.updateLocation
+);
+
+router.get('/track/:order_id', deliveryPersonController.trackOrder);
+
+router.get('/tracking-history/:order_id', deliveryPersonController.getTrackingHistory);
+
 module.exports = router;
