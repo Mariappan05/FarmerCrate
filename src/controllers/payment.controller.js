@@ -51,4 +51,20 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-module.exports = { createPaymentOrder, verifyPayment };
+exports.getRazorpayKey = async (req, res) => {
+  try {
+    if (!process.env.RAZORPAY_KEY_ID) {
+      return res.status(500).json({ message: 'Razorpay key not configured' });
+    }
+    
+    res.json({
+      success: true,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    console.error('Get Razorpay key error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { createPaymentOrder, verifyPayment, getRazorpayKey };

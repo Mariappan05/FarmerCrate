@@ -18,4 +18,6 @@ router.post('/verify',
   paymentController.verifyPayment
 );
 
+router.get('/razorpay-key', paymentController.getRazorpayKey);
+
 module.exports = router;
