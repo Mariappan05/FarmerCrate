@@ -109,4 +109,10 @@ router.get('/check-availability/:pincode',
   orderController.checkTransporterAvailability
 );
 
+router.post('/current-location',
+  body('lat').isFloat().withMessage('Valid latitude is required'),
+  body('lng').isFloat().withMessage('Valid longitude is required'),
+  orderController.getCurrentLocation
+);
+
 module.exports = router;

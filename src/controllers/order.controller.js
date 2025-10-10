@@ -743,3 +743,28 @@ exports.updateQRCode = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Get current location address from coordinates
+exports.getCurrentLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'Latitude and longitude are required' });
+    }
+
+    const address = await GoogleMapsService.getAddressFromCoordinates(lat, lng);
+
+    res.json({
+      success: true,
+      data: {
+        lat,
+        lng,
+        address
+      }
+    });
+  } catch (error) {
+    console.error('Get current location error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
