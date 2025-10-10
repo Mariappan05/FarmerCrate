@@ -74,11 +74,11 @@ exports.getPendingOrders = async (req, res) => {
       include: [{
         model: Product,
         where: { farmer_id: req.user.farmer_id },
-        attributes: ['name', 'current_price']
+        attributes: ['name', 'current_price', 'image_url']
       }, {
         model: CustomerUser,
         as: 'customer',
-        attributes: ['name', 'mobile_number']
+        attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
       }],
       where: { current_status: 'PENDING' },
       order: [['created_at', 'DESC']]
