@@ -96,6 +96,14 @@ router.put('/status',
   orderController.updateOrderStatus
 );
 
+router.put('/:order_id/qr-code',
+  authenticate,
+  authorize(['admin', 'farmer']),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  body('qr_code').notEmpty().withMessage('QR code is required'),
+  orderController.updateQRCode
+);
+
 router.get('/check-availability/:pincode',
   orderController.checkTransporterAvailability
 );
