@@ -115,4 +115,10 @@ router.post('/current-location',
   orderController.getCurrentLocation
 );
 
+router.get('/details/:order_id',
+  authenticate,
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  orderController.getOrderDetailsById
+);
+
 module.exports = router;

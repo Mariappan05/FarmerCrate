@@ -768,3 +768,33 @@ exports.getCurrentLocation = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Get complete order details by order_id
+exports.getOrderDetailsById = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+
+    const order = await Order.findByPk(order_id, {
+      include: [
+        { model: Product, attributes: ['product_id', 'name', 'current_price', 'description', 'image_url'] },
+        { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'email', 'mobile_number', 'address', 'image_url'] },
+        { model: FarmerUser, as: 'farmer', attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url'] },
+        { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
+        { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type'] }
+      ]
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json({
+      success: true,
+      data: order
+    });
+  } catch (error) {
+    console.error('Get order details error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
