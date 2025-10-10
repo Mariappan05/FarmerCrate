@@ -110,15 +110,15 @@ exports.register = async (req, res) => {
       });
     }
     if (role === 'transporter') {
-      const { name, email, password, mobile_number, address, zone, state, district, age, image_url,
+      const { name, email, password, mobileNumber, address, zone, state, district, age, image_url,
         aadhar_url, pan_url, voter_id_url, license_url,
-        aadhar_number, pan_number, pincode,voter_id_number, license_number,
+        aadhar_number, pan_number, pincode, voter_id_number, license_number,
         account_number, ifsc_code } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Transporter already exists' });
       const transporter = await Model.create({
         name,
-        mobile_number,
+        mobile_number: mobileNumber,
         email,
         age,
         address,
