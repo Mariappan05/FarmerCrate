@@ -98,7 +98,7 @@ router.put('/status',
 
 router.put('/:order_id/qr-code',
   authenticate,
-  authorize(['admin', 'farmer']),
+  authorize(['admin', 'farmer','customer']),
   param('order_id').isInt().withMessage('Valid order ID required'),
   body('qr_code').notEmpty().withMessage('QR code is required'),
   orderController.updateQRCode
