@@ -68,6 +68,15 @@ router.get('/transporter/allocated',
   orderController.getTransporterOrders
 );
 
+// Update QR code - must be before /:id route
+router.put('/:order_id/qr-code',
+  authenticate,
+  authorize(['admin', 'farmer', 'customer']),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  body('qr_code').notEmpty().withMessage('QR code is required'),
+  orderController.updateQRCode
+);
+
 router.get('/:id', 
   authenticate, 
   orderController.getOrder
@@ -94,14 +103,6 @@ router.put('/status',
   body('order_id').isInt().withMessage('Valid order ID required'),
   body('status').isIn(['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED']).withMessage('Invalid status'),
   orderController.updateOrderStatus
-);
-
-router.put('/:order_id/qr-code',
-  authenticate,
-  authorize(['admin', 'farmer','customer']),
-  param('order_id').isInt().withMessage('Valid order ID required'),
-  body('qr_code').notEmpty().withMessage('QR code is required'),
-  orderController.updateQRCode
 );
 
 router.get('/check-availability/:pincode',
