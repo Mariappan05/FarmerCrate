@@ -31,8 +31,7 @@ exports.createOrder = async (req, res) => {
       total_price,
       farmer_amount,
       admin_commission,
-      transport_charge,
-      qr_code
+      transport_charge
     } = req.body;
     
     // Create Razorpay order for payment
@@ -58,8 +57,7 @@ exports.createOrder = async (req, res) => {
         total_price,
         farmer_amount,
         admin_commission,
-        transport_charge,
-        qr_code
+        transport_charge
       }
     });
     
@@ -279,8 +277,7 @@ exports.completeOrder = async (req, res) => {
       total_price,
       farmer_amount,
       admin_commission,
-      transport_charge,
-      qr_code
+      transport_charge
     } = order_data;
     
     // Get product with farmer details
@@ -436,7 +433,6 @@ exports.completeOrder = async (req, res) => {
       farmer_amount,
       admin_commission,
       transport_charge,
-      qr_code,
       current_status: 'PENDING',
       payment_status: 'completed',
       pickup_address: pickupAddress
@@ -713,6 +709,37 @@ exports.updateOrderStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Update status error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update QR code for order
+exports.updateQRCode = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { qr_code } = req.body;
+
+    if (!qr_code) {
+      return res.status(400).json({ message: 'QR code is required' });
+    }
+
+    const order = await Order.findByPk(order_id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    await order.update({ qr_code });
+
+    res.json({
+      success: true,
+      message: 'QR code updated successfully',
+      data: {
+        order_id,
+        qr_code
+      }
+    });
+  } catch (error) {
+    console.error('Update QR code error:', error);
     res.status(500).json({ message: error.message });
   }
 };
