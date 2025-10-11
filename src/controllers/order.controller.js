@@ -604,7 +604,9 @@ exports.getTransporterOrders = async (req, res) => {
     const destinationOrders = await Order.findAll({
       where: { 
         destination_transporter_id: transporterId,
-        current_status: ['SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']
+        current_status: {
+          [Op.in]: ['PLACED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']
+        }
       },
       include: [
         { model: Product, attributes: ['name', 'current_price', 'images'] },
