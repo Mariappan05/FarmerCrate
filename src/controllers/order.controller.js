@@ -605,7 +605,7 @@ exports.getTransporterOrders = async (req, res) => {
       where: { 
         destination_transporter_id: transporterId,
         current_status: {
-          [Op.in]: ['PLACED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']
+          [Op.in]: [ 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']
         }
       },
       include: [
