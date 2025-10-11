@@ -554,3 +554,72 @@ exports.shipOrder = async (req, res) => {
     res.status(500).json({ message: 'Error shipping order' });
   }
 };
+
+
+// Reject order by farmer
+exports.rejectOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { reason } = req.body;
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const Notification = require('../models/notification.model');
+    
+    const order = await Order.findOne({
+      where: { order_id },
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id }
+      }]
+    });
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    if (order.current_status !== 'PENDING') {
+      return res.status(400).json({ message: 'Only pending orders can be rejected' });
+    }
+    
+    // Update order status to CANCELLED
+    await order.update({ 
+      current_status: 'CANCELLED'
+    });
+    
+    // Restore product quantity
+    const product = order.Product;
+    await product.update({ 
+      quantity: product.quantity + order.quantity 
+    });
+    
+    // Notify customer
+    await Notification.create({
+      user_type: 'customer',
+      user_id: order.customer_id,
+      title: 'Order Rejected',
+      message: `Your order #${order.order_id} has been rejected by the farmer${reason ? `: ${reason}` : ''}`,
+      type: 'order',
+      order_id: order.order_id
+    });
+    
+    console.log('\n=== ORDER REJECTED ===');
+    console.log('Order ID:', order_id);
+    console.log('Farmer ID:', req.user.farmer_id);
+    console.log('Reason:', reason || 'No reason provided');
+    console.log('Product quantity restored:', order.quantity);
+    console.log('=== END ORDER REJECTION ===\n');
+    
+    res.json({
+      success: true,
+      message: 'Order rejected successfully',
+      data: {
+        order_id,
+        status: 'CANCELLED',
+        reason: reason || null
+      }
+    });
+  } catch (error) {
+    console.error('Reject order error:', error);
+    res.status(500).json({ message: 'Error rejecting order' });
+  }
+};
