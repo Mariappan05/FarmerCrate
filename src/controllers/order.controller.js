@@ -595,7 +595,7 @@ exports.getTransporterOrders = async (req, res) => {
     const sourceOrders = await Order.findAll({
       where: { source_transporter_id: transporterId },
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
+        { model: Product, attributes: ['name', 'current_price', 'images'] },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
       ]
     });
@@ -607,7 +607,7 @@ exports.getTransporterOrders = async (req, res) => {
         current_status: ['SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']
       },
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
+        { model: Product, attributes: ['name', 'current_price', 'images'] },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
       ]
     });
