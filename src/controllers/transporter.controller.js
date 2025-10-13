@@ -418,7 +418,59 @@ const getDeliveryPersons = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
     
-    res.json({ success: true, data: deliveryPersons });
+    // Get total deliveries count for each delivery person
+    const deliveryPersonsWithStats = await Promise.all(
+      deliveryPersons.map(async (person) => {
+        const totalDeliveries = await Order.count({
+          where: {
+            delivery_person_id: person.delivery_person_id,
+            current_status: 'COMPLETED'
+          }
+        });
+        
+        return {
+          ...person.toJSON(),
+          total_deliveries: totalDeliveries
+        };
+      })
+    );
+    
+    res.json({ success: true, data: deliveryPersonsWithStats });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const getVehicles = async (req, res) => {
+  try {
+    const permanentVehicles = await PermanentVehicle.findAll({
+      where: { transporter_id: req.user.transporter_id },
+      include: [{
+        model: TransporterUser,
+        as: 'transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'zone', 'district', 'state']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+    
+    const temporaryVehicles = await TemporaryVehicle.findAll({
+      where: { transporter_id: req.user.transporter_id },
+      include: [{
+        model: TransporterUser,
+        as: 'transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'zone', 'district', 'state']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        permanent: permanentVehicles,
+        temporary: temporaryVehicles,
+        total: permanentVehicles.length + temporaryVehicles.length
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -436,5 +488,6 @@ module.exports = {
   receiveOrderAndAssignDelivery,
   getAssignedOrders,
   updateOrderStatus,
-  getDeliveryPersons
+  getDeliveryPersons,
+  getVehicles
 };

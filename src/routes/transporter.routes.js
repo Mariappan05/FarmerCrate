@@ -62,4 +62,7 @@ router.post('/receive-order',
 // Delivery persons management
 router.get('/delivery-persons', authenticate, authorize('transporter'), transporterController.getDeliveryPersons);
 
+// Vehicles management
+router.get('/vehicles', authenticate, authorize('transporter'), transporterController.getVehicles);
+
 module.exports = router;
