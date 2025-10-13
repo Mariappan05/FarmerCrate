@@ -64,6 +64,47 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// Get all orders for farmer (order history)
+exports.getAllOrders = async (req, res) => {
+  try {
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
+    const TransporterUser = require('../models/transporter_user.model');
+    
+    const orders = await Order.findAll({
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }, {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
+      }, {
+        model: TransporterUser,
+        as: 'sourceTransporter',
+        attributes: ['name', 'mobile_number', 'zone']
+      }, {
+        model: TransporterUser,
+        as: 'destinationTransporter',
+        attributes: ['name', 'mobile_number', 'zone']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get all orders error:', error);
+    res.status(500).json({ message: 'Error retrieving orders' });
+  }
+};
+
 // Get pending orders for farmer
 exports.getPendingOrders = async (req, res) => {
   try {

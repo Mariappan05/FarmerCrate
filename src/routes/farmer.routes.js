@@ -21,6 +21,7 @@ router.put('/me',
 router.get('/all', farmerController.getAllUsers);
 
 // Order management routes
+router.get('/orders', protect, authorize('farmer'), farmerController.getAllOrders);
 router.get('/orders/pending', protect, authorize('farmer'), farmerController.getPendingOrders);
 router.put('/orders/:order_id/accept', protect, authorize('farmer'), farmerController.acceptOrder);
 router.put('/orders/:order_id/reject', protect, authorize('farmer'), farmerController.rejectOrder);
