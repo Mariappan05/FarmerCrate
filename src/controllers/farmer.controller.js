@@ -603,6 +603,25 @@ exports.shipOrder = async (req, res) => {
 };
 
 
+// Update order status (generic endpoint for Flutter app)
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { status } = req.body;
+    
+    if (status === 'accepted') {
+      return exports.acceptOrder(req, res);
+    } else if (status === 'rejected') {
+      return exports.rejectOrder(req, res);
+    } else {
+      return res.status(400).json({ message: 'Invalid status. Use "accepted" or "rejected"' });
+    }
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({ message: 'Error updating order status' });
+  }
+};
+
 // Reject order by farmer
 exports.rejectOrder = async (req, res) => {
   try {
@@ -634,10 +653,12 @@ exports.rejectOrder = async (req, res) => {
     });
     
     // Restore product quantity
-    const product = order.Product;
-    await product.update({ 
-      quantity: product.quantity + order.quantity 
-    });
+    const product = order.Product || await Product.findByPk(order.product_id);
+    if (product) {
+      await product.update({ 
+        quantity: product.quantity + order.quantity 
+      });
+    }
     
     // Notify customer
     await Notification.create({

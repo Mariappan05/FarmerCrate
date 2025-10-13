@@ -29,7 +29,8 @@
     "razorpay": "^2.9.6",
     "sequelize": "^6.33.0",
     "twilio": "^5.7.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
