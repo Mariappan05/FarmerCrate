@@ -129,7 +129,7 @@ router.get('/details/:order_id',
 // Bill routes
 router.put('/:order_id/bill',
   authenticate,
-  authorize(['admin', 'farmer']),
+  authorize(['admin', 'farmer', 'transporter']),
   param('order_id').isInt().withMessage('Valid order ID required'),
   body('bill_url').notEmpty().withMessage('Bill URL is required'),
   billController.updateBillUrl
