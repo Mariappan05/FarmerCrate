@@ -85,17 +85,22 @@ const assignVehicleToOrder = async (req, res) => {
   const { order_id, vehicle_id, vehicle_type } = req.body;
   
   try {
+    console.log('Assign vehicle:', { order_id, vehicle_id, vehicle_type });
+    
+    if (!order_id || !vehicle_id || !vehicle_type) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+    
     const order = await Order.findByPk(order_id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     
     const VehicleModel = vehicle_type === 'permanent' ? PermanentVehicle : TemporaryVehicle;
     const vehicle = await VehicleModel.findByPk(vehicle_id);
     
     if (!vehicle || vehicle.transporter_id !== req.user.transporter_id) {
-      return res.status(404).json({ message: 'Vehicle not found' });
+      return res.status(404).json({ success: false, message: 'Vehicle not found' });
     }
     
-    // Check vehicle capacity
     const { Op } = require('sequelize');
     const activeOrdersCount = await Order.count({
       where: {
@@ -106,6 +111,7 @@ const assignVehicleToOrder = async (req, res) => {
     
     if (activeOrdersCount >= vehicle.capacity) {
       return res.status(400).json({ 
+        success: false,
         message: `Vehicle capacity full. Current: ${activeOrdersCount}/${vehicle.capacity}` 
       });
     }
@@ -116,7 +122,6 @@ const assignVehicleToOrder = async (req, res) => {
     
     await Order.update(updateData, { where: { order_id } });
     
-    // Update availability based on capacity
     const newCount = activeOrdersCount + 1;
     await vehicle.update({ is_available: newCount < vehicle.capacity });
     
@@ -126,7 +131,8 @@ const assignVehicleToOrder = async (req, res) => {
       data: { order_id, vehicle_id, vehicle_type, capacity_used: `${newCount}/${vehicle.capacity}` }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Assign vehicle error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -136,6 +142,11 @@ const assignOrderToDeliveryPerson = async (req, res) => {
   const { order_id, delivery_person_id, permanent_vehicle_id, temp_vehicle_id } = req.body;
   
   try {
+    console.log('Assign delivery person:', { order_id, delivery_person_id, permanent_vehicle_id, temp_vehicle_id });
+    
+    const order = await Order.findByPk(order_id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    
     const deliveryPerson = await DeliveryPerson.findOne({
       where: { 
         delivery_person_id,
@@ -144,10 +155,9 @@ const assignOrderToDeliveryPerson = async (req, res) => {
     });
     
     if (!deliveryPerson) {
-      return res.status(404).json({ message: 'Delivery person not found or not owned by this transporter' });
+      return res.status(404).json({ success: false, message: 'Delivery person not found or not owned by this transporter' });
     }
     
-    // Check delivery person capacity (max 10 active orders)
     const { Op } = require('sequelize');
     const activeOrdersCount = await Order.count({
       where: {
@@ -158,23 +168,22 @@ const assignOrderToDeliveryPerson = async (req, res) => {
     
     if (activeOrdersCount >= 10) {
       return res.status(400).json({ 
+        success: false,
         message: `Delivery person has reached maximum capacity (10 orders). Current: ${activeOrdersCount}/10` 
       });
     }
     
-    const updated = await Order.update(
-      { 
-        delivery_person_id,
-        permanent_vehicle_id: permanent_vehicle_id || null,
-        temp_vehicle_id: temp_vehicle_id || null,
-        current_status: 'ASSIGNED'
-      },
-      { where: { order_id } }
-    );
+    const updateData = { 
+      delivery_person_id,
+      current_status: 'ASSIGNED'
+    };
     
-    if (!updated[0]) return res.status(404).json({ message: 'Order not found' });
+    if (permanent_vehicle_id) updateData.permanent_vehicle_id = permanent_vehicle_id;
+    if (temp_vehicle_id) updateData.temp_vehicle_id = temp_vehicle_id;
     
-    // Update availability based on order count
+    await order.update(updateData);
+    console.log('Order updated:', updateData);
+    
     const newCount = activeOrdersCount + 1;
     await deliveryPerson.update({ is_available: newCount < 10 });
     
@@ -184,13 +193,13 @@ const assignOrderToDeliveryPerson = async (req, res) => {
       data: {
         order_id,
         delivery_person_id,
-        vehicle_id: permanent_vehicle_id || temp_vehicle_id,
         status: 'ASSIGNED',
         orders_assigned: `${newCount}/10`
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Assign delivery person error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 //automatic order
