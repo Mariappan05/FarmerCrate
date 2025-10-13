@@ -70,7 +70,6 @@ exports.getAllOrders = async (req, res) => {
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
     const CustomerUser = require('../models/customer_user.model');
-    const TransporterUser = require('../models/transporter_user.model');
     
     const orders = await Order.findAll({
       include: [{
@@ -86,14 +85,6 @@ exports.getAllOrders = async (req, res) => {
         model: CustomerUser,
         as: 'customer',
         attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
-      }, {
-        model: TransporterUser,
-        as: 'sourceTransporter',
-        attributes: ['name', 'mobile_number', 'zone']
-      }, {
-        model: TransporterUser,
-        as: 'destinationTransporter',
-        attributes: ['name', 'mobile_number', 'zone']
       }],
       order: [['created_at', 'DESC']]
     });
