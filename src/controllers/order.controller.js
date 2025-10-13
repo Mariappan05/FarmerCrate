@@ -225,7 +225,6 @@ exports.createOrder = async (req, res) => {
       ? new Date(Date.now() + (routeData.duration * 60 * 1000))
       : null;
 
-
   } catch (error) {
     console.error('Create payment order error:', error);
     res.status(500).json({ 
@@ -487,8 +486,19 @@ exports.getOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { customer_id: req.user.customer_id },
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
-        { model: FarmerUser, as: 'farmer', attributes: ['name', 'email', 'mobile_number', 'image_url'] }
+        { 
+          model: Product, 
+          attributes: ['name', 'current_price'],
+          required: false,
+          include: [
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['name', 'email', 'mobile_number', 'image_url'],
+              required: false
+            }
+          ]
+        }
       ],
       order: [['created_at', 'DESC']]
     });
@@ -500,7 +510,11 @@ exports.getOrders = async (req, res) => {
     });
   } catch (error) {
     console.error('Get orders error:', error);
-    res.status(500).json({ message: 'Error fetching orders' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching orders: ' + error.message 
+    });
   }
 };
 

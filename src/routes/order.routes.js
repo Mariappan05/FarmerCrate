@@ -51,6 +51,10 @@ router.post('/complete',
 
 router.get('/', 
   authenticate, 
+  (req, res, next) => {
+    console.log('GET /api/orders - User:', req.user?.customer_id, 'Role:', req.role);
+    next();
+  },
   orderController.getOrders
 );
 

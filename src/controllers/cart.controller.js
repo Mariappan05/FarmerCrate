@@ -66,7 +66,7 @@ exports.getCart = async (req, res) => {
       include: [{
         model: Product,
         as: 'cart_product',
-        attributes: ['name', 'description', 'current_price'],
+        attributes: ['name', 'description', 'current_price', 'images'],
         include: [{
           model: FarmerUser,
           as: 'farmer',
@@ -75,9 +75,24 @@ exports.getCart = async (req, res) => {
       }]
     });
 
+    // Normalize response: expose a single image URL as `image_url` for frontend
+    const normalized = cartItems.map(item => {
+      const plain = item.toJSON();
+      if (plain.cart_product) {
+        const imgs = plain.cart_product.images;
+        if (imgs && typeof imgs === 'string') {
+          // If multiple images are stored comma-separated, take the first one
+          plain.cart_product.image_url = imgs.split(',')[0].trim();
+        } else {
+          plain.cart_product.image_url = null;
+        }
+      }
+      return plain;
+    });
+
     res.json({
       success: true,
-      data: cartItems
+      data: normalized
     });
   } catch (error) {
     console.error('Get cart error:', error);

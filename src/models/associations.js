@@ -25,6 +25,12 @@ CustomerUser.hasMany(Order, { as: 'orders', foreignKey: 'customer_id', sourceKey
 Order.belongsTo(Product, { foreignKey: 'product_id', targetKey: 'product_id', onDelete: 'CASCADE' });
 Product.hasMany(Order, { foreignKey: 'product_id', sourceKey: 'product_id', onDelete: 'CASCADE' });
 
+// Transporter - Order relationships
+Order.belongsTo(TransporterUser, { as: 'source_transporter', foreignKey: 'source_transporter_id', targetKey: 'transporter_id', onDelete: 'SET NULL' });
+Order.belongsTo(TransporterUser, { as: 'destination_transporter', foreignKey: 'destination_transporter_id', targetKey: 'transporter_id', onDelete: 'SET NULL' });
+TransporterUser.hasMany(Order, { as: 'source_orders', foreignKey: 'source_transporter_id', sourceKey: 'transporter_id', onDelete: 'SET NULL' });
+TransporterUser.hasMany(Order, { as: 'destination_orders', foreignKey: 'destination_transporter_id', sourceKey: 'transporter_id', onDelete: 'SET NULL' });
+
 // DeliveryPerson - Order relationship
 Order.belongsTo(DeliveryPerson, { as: 'delivery_person', foreignKey: 'delivery_person_id', targetKey: 'delivery_person_id', onDelete: 'SET NULL' });
 DeliveryPerson.hasMany(Order, { as: 'orders', foreignKey: 'delivery_person_id', sourceKey: 'delivery_person_id', onDelete: 'SET NULL' });

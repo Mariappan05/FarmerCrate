@@ -57,10 +57,10 @@ const Order = sequelize.define('orders', {
 
   current_status: { 
     type: DataTypes.ENUM(
-      'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 
+      'PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 
       'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'
     ), 
-    defaultValue: 'PLACED' 
+    defaultValue: 'PENDING' 
   },
   qr_code: { type: DataTypes.STRING },
   pickup_address: { type: DataTypes.TEXT },
