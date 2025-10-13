@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body, param } = require('express-validator');
 const orderController = require('../controllers/order.controller');
+const billController = require('../controllers/bill.controller');
 const authenticate = require('../middleware/auth');
 
 // Simple authorize middleware
@@ -123,6 +124,21 @@ router.get('/details/:order_id',
   authenticate,
   param('order_id').isInt().withMessage('Valid order ID required'),
   orderController.getOrderDetailsById
+);
+
+// Bill routes
+router.put('/:order_id/bill',
+  authenticate,
+  authorize(['admin', 'farmer']),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  body('bill_url').notEmpty().withMessage('Bill URL is required'),
+  billController.updateBillUrl
+);
+
+router.get('/:order_id/bill',
+  authenticate,
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  billController.getBillUrl
 );
 
 module.exports = router;
