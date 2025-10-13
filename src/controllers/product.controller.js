@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/product.model');
+const ProductImage = require('../models/productImage.model');
 const FarmerUser = require('../models/farmer_user.model');
 const ProductPriceHistory = require('../models/productPriceHistory.model');
 const { Op } = require('sequelize');
@@ -27,10 +28,16 @@ exports.getAllProducts = async (req, res) => {
 
     const products = await Product.findAll({
       where: whereClause,
-      include: [{
-        model: FarmerUser,
-        as: 'farmer'
-      }],
+      include: [
+        {
+          model: FarmerUser,
+          as: 'farmer'
+        },
+        {
+          model: ProductImage,
+          as: 'images'
+        }
+      ],
       order: [['created_at', 'DESC']]
     });
 
@@ -52,10 +59,16 @@ exports.getProductsByFarmer = async (req, res) => {
     }
     const products = await Product.findAll({
       where: { farmer_id: req.user.farmer_id },
-      include: [{
-        model: FarmerUser,
-        as: 'farmer'
-      }],
+      include: [
+        {
+          model: FarmerUser,
+          as: 'farmer'
+        },
+        {
+          model: ProductImage,
+          as: 'images'
+        }
+      ],
       order: [['created_at', 'DESC']]
     });
     res.json({
@@ -72,10 +85,16 @@ exports.getProductsByFarmer = async (req, res) => {
 exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id, {
-      include: [{
-        model: FarmerUser,
-        as: 'farmer'
-      }]
+      include: [
+        {
+          model: FarmerUser,
+          as: 'farmer'
+        },
+        {
+          model: ProductImage,
+          as: 'images'
+        }
+      ]
     });
 
     if (!product) {
@@ -101,7 +120,7 @@ exports.createProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { name, description, current_price, quantity, category, harvest_date, expiry_date } = req.body;
+    const { name, description, current_price, quantity, category, harvest_date, expiry_date, image_urls } = req.body;
     const product = await Product.create({
       name,
       description,
@@ -113,6 +132,18 @@ exports.createProduct = async (req, res) => {
       farmer_id: req.user.farmer_id,
       status: 'available'
     });
+
+    // Add images if provided
+    if (image_urls && Array.isArray(image_urls)) {
+      for (let i = 0; i < image_urls.length; i++) {
+        await ProductImage.create({
+          product_id: product.product_id,
+          image_url: image_urls[i],
+          is_primary: i === 0,
+          display_order: i
+        });
+      }
+    }
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
@@ -200,10 +231,16 @@ exports.getRelatedProducts = async (req, res) => {
         category: product.category,
         status: 'available'
       },
-      include: [{
-        model: FarmerUser,
-        as: 'farmer'
-      }],
+      include: [
+        {
+          model: FarmerUser,
+          as: 'farmer'
+        },
+        {
+          model: ProductImage,
+          as: 'images'
+        }
+      ],
       limit: 5,
       order: [['created_at', 'DESC']]
     });
