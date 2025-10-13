@@ -20,6 +20,11 @@ router.put('/me',
 
 router.get('/check-pincode/:pincode', customerController.checkPincodeAvailability);
 
+// Order tracking routes
+router.get('/orders', protect, authorize('customer'), customerController.getMyOrders);
+router.get('/orders/:order_id/track', protect, authorize('customer'), customerController.trackOrder);
+router.get('/orders/:order_id/updates', protect, authorize('customer'), customerController.getTrackingUpdates);
+
 router.get('/all', customerController.getAllUsers);
 
 module.exports = router;

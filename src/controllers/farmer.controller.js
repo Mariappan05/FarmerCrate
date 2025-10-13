@@ -412,6 +412,15 @@ exports.acceptOrder = async (req, res) => {
       });
     }
     
+    // Send real-time update
+    const WebSocketService = require('../services/websocket.service');
+    WebSocketService.sendOrderUpdate(order_id, {
+      status: 'PLACED',
+      message: 'Order accepted by farmer',
+      source_transporter: sourceTransporter?.name,
+      destination_transporter: destTransporter?.name
+    });
+
     res.json({
       success: true,
       message: 'Order accepted, transporters assigned, and funds transferred',
@@ -615,6 +624,14 @@ exports.rejectOrder = async (req, res) => {
     console.log('Product quantity restored:', order.quantity);
     console.log('=== END ORDER REJECTION ===\n');
     
+    // Send real-time update
+    const WebSocketService = require('../services/websocket.service');
+    WebSocketService.sendOrderUpdate(order_id, {
+      status: 'CANCELLED',
+      message: 'Order rejected by farmer',
+      reason: reason || null
+    });
+
     res.json({
       success: true,
       message: 'Order rejected successfully',

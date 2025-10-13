@@ -35,7 +35,9 @@ exports.getAllProducts = async (req, res) => {
         },
         {
           model: ProductImage,
-          as: 'images'
+          as: 'images',
+          separate: true,
+          order: [['display_order', 'ASC']]
         }
       ],
       order: [['created_at', 'DESC']]
@@ -66,7 +68,9 @@ exports.getProductsByFarmer = async (req, res) => {
         },
         {
           model: ProductImage,
-          as: 'images'
+          as: 'images',
+          separate: true,
+          order: [['display_order', 'ASC']]
         }
       ],
       order: [['created_at', 'DESC']]
@@ -92,7 +96,9 @@ exports.getProduct = async (req, res) => {
         },
         {
           model: ProductImage,
-          as: 'images'
+          as: 'images',
+          separate: true,
+          order: [['display_order', 'ASC']]
         }
       ]
     });
@@ -238,7 +244,9 @@ exports.getRelatedProducts = async (req, res) => {
         },
         {
           model: ProductImage,
-          as: 'images'
+          as: 'images',
+          separate: true,
+          order: [['display_order', 'ASC']]
         }
       ],
       limit: 5,
