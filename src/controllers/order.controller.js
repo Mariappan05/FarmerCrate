@@ -423,12 +423,6 @@ exports.completeOrder = async (req, res) => {
     const sourceTransporter = selectedSourceTransporter || sourceTransporters[0] || allTransporters[0];
     const destTransporter = selectedDestinationTransporter || destinationTransporters[0] || allTransporters[1] || allTransporters[0];
     
-    console.log('\n=== ASSIGNING TRANSPORTERS TO ORDER ===');
-    console.log('Source Transporter ID:', sourceTransporter?.transporter_id);
-    console.log('Source Transporter Name:', sourceTransporter?.name);
-    console.log('Destination Transporter ID:', destTransporter?.transporter_id);
-    console.log('Destination Transporter Name:', destTransporter?.name);
-    
     // Create order in PENDING status for farmer verification
     const order = await Order.create({
       customer_id: req.user.customer_id,
@@ -441,9 +435,7 @@ exports.completeOrder = async (req, res) => {
       transport_charge,
       current_status: 'PENDING',
       payment_status: 'completed',
-      pickup_address: pickupAddress,
-      source_transporter_id: sourceTransporter?.transporter_id || null,
-      destination_transporter_id: destTransporter?.transporter_id || null
+      pickup_address: pickupAddress
     });
     
     console.log('✅ Order created successfully:', order.order_id);
