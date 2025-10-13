@@ -63,6 +63,7 @@ const Order = sequelize.define('orders', {
     defaultValue: 'PENDING' 
   },
   qr_code: { type: DataTypes.STRING },
+  bill_url: { type: DataTypes.STRING },
   pickup_address: { type: DataTypes.TEXT },
   delivery_address: { type: DataTypes.TEXT },
   estimated_distance: { type: DataTypes.DECIMAL(8, 2) },
