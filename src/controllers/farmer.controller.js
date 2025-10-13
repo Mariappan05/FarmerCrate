@@ -1,4 +1,5 @@
 const FarmerUser = require('../models/farmer_user.model');
+const ProductImage = require('../models/productImage.model');
 const { validationResult } = require('express-validator');
 
 exports.getMe = async (req, res) => {
@@ -74,7 +75,12 @@ exports.getPendingOrders = async (req, res) => {
       include: [{
         model: Product,
         where: { farmer_id: req.user.farmer_id },
-        attributes: ['name', 'current_price','images']
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
       }, {
         model: CustomerUser,
         as: 'customer',

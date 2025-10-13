@@ -1,5 +1,6 @@
 const Wishlist = require('../models/wishlist.model');
 const Product = require('../models/product.model');
+const ProductImage = require('../models/productImage.model');
 
 exports.addToWishlist = async (req, res) => {
   try {
@@ -45,7 +46,12 @@ exports.getWishlist = async (req, res) => {
       where: { customer_id },
       include: [{ 
         model: Product,
-        attributes: ['name', 'description', 'current_price', 'status']
+        attributes: ['product_id', 'name', 'description', 'current_price', 'status'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
       }]
     });
 

@@ -5,6 +5,7 @@ const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
 const Product = require('../models/product.model');
+const ProductImage = require('../models/productImage.model');
 const Transaction = require('../models/transaction.model');
 const DeliveryTracking = require('../models/deliveryTracking.model');
 const OrderTrackingService = require('../services/orderTracking.service');
@@ -488,13 +489,19 @@ exports.getOrders = async (req, res) => {
       include: [
         { 
           model: Product, 
-          attributes: ['name', 'current_price'],
+          attributes: ['product_id', 'name', 'current_price'],
           required: false,
           include: [
             {
               model: FarmerUser,
               as: 'farmer',
               attributes: ['name', 'email', 'mobile_number', 'image_url'],
+              required: false
+            },
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
               required: false
             }
           ]
@@ -523,7 +530,15 @@ exports.getOrder = async (req, res) => {
     const order = await Order.findOne({
       where: { order_id: req.params.id, customer_id: req.user.customer_id },
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
+        { 
+          model: Product, 
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          }]
+        },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
         { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
       ]
@@ -544,7 +559,15 @@ exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.findAll({
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
+        { 
+          model: Product, 
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          }]
+        },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
         { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
       ],
@@ -609,7 +632,15 @@ exports.getTransporterOrders = async (req, res) => {
     const sourceOrders = await Order.findAll({
       where: { source_transporter_id: transporterId },
       include: [
-        { model: Product, attributes: ['name', 'current_price', 'images'] },
+        { 
+          model: Product, 
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          }]
+        },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
       ]
     });
@@ -623,7 +654,15 @@ exports.getTransporterOrders = async (req, res) => {
         }
       },
       include: [
-        { model: Product, attributes: ['name', 'current_price', 'images'] },
+        { 
+          model: Product, 
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          }]
+        },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
       ]
     });
@@ -792,7 +831,15 @@ exports.getOrderDetailsById = async (req, res) => {
 
     const order = await Order.findByPk(order_id, {
       include: [
-        { model: Product, attributes: ['product_id', 'name', 'current_price', 'description', 'image_url'] },
+        { 
+          model: Product, 
+          attributes: ['product_id', 'name', 'current_price', 'description'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary', 'display_order']
+          }]
+        },
         { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'email', 'mobile_number', 'address', 'image_url'] },
         { model: FarmerUser, as: 'farmer', attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url'] },
         { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
