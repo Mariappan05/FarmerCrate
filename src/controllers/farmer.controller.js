@@ -669,6 +669,161 @@ exports.shipOrder = async (req, res) => {
 };
 
 
+// Track specific order for farmer
+exports.trackOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
+    const DeliveryTracking = require('../models/deliveryTracking.model');
+    
+    const order = await Order.findOne({
+      where: { order_id },
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }, {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['name', 'mobile_number', 'address', 'zone']
+      }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const trackingHistory = await DeliveryTracking.findAll({
+      where: { order_id },
+      order: [['scanned_at', 'ASC']]
+    });
+
+    const trackingSteps = [
+      { status: 'PLACED', label: 'Order Accepted', icon: '✅' },
+      { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
+      { status: 'SHIPPED', label: 'Picked Up from Farm', icon: '📤' },
+      { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
+      { status: 'RECEIVED', label: 'Reached Destination Hub', icon: '🏢' },
+      { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
+      { status: 'COMPLETED', label: 'Delivered to Customer', icon: '✅' }
+    ];
+
+    const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
+    
+    const enrichedSteps = trackingSteps.map((step, index) => {
+      const trackingEvent = trackingHistory.find(t => t.status === step.status);
+      return {
+        ...step,
+        completed: index <= currentStepIndex,
+        current: index === currentStepIndex,
+        timestamp: trackingEvent?.scanned_at,
+        location: trackingEvent?.location_address,
+        notes: trackingEvent?.notes
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order,
+        tracking_steps: enrichedSteps,
+        tracking_history: trackingHistory,
+        estimated_delivery: order.estimated_delivery_time
+      }
+    });
+  } catch (error) {
+    console.error('Track order error:', error);
+    res.status(500).json({ message: 'Error tracking order' });
+  }
+};
+
+// Get real-time tracking updates for farmer
+exports.getTrackingUpdates = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const DeliveryTracking = require('../models/deliveryTracking.model');
+    
+    const order = await Order.findOne({
+      where: { order_id },
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id }
+      }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const latestTracking = await DeliveryTracking.findOne({
+      where: { order_id },
+      order: [['scanned_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order_id,
+        current_status: order.current_status,
+        latest_update: latestTracking,
+        last_updated: latestTracking?.scanned_at || order.updated_at,
+        source_transporter_id: order.source_transporter_id,
+        destination_transporter_id: order.destination_transporter_id
+      }
+    });
+  } catch (error) {
+    console.error('Get tracking updates error:', error);
+    res.status(500).json({ message: 'Error getting tracking updates' });
+  }
+};
+
+// Get all active shipments for farmer
+exports.getActiveShipments = async (req, res) => {
+  try {
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
+    const { Op } = require('sequelize');
+    
+    const orders = await Order.findAll({
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }, {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['name', 'mobile_number', 'address']
+      }],
+      where: {
+        current_status: {
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+        }
+      },
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get active shipments error:', error);
+    res.status(500).json({ message: 'Error retrieving active shipments' });
+  }
+};
+
 // Update order status (generic endpoint for Flutter app)
 exports.updateOrderStatus = async (req, res) => {
   try {
