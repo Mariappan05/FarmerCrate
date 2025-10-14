@@ -96,6 +96,72 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
+// Get accepted orders for farmer
+exports.getAcceptedOrders = async (req, res) => {
+  try {
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
+    
+    const orders = await Order.findAll({
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }, {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
+      }],
+      where: { current_status: 'PLACED' },
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get accepted orders error:', error);
+    res.status(500).json({ message: 'Error retrieving accepted orders' });
+  }
+};
+
+// Get rejected orders for farmer
+exports.getRejectedOrders = async (req, res) => {
+  try {
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
+    
+    const orders = await Order.findAll({
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }, {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
+      }],
+      where: { current_status: 'CANCELLED' },
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get rejected orders error:', error);
+    res.status(500).json({ message: 'Error retrieving rejected orders' });
+  }
+};
+
 // Get pending orders for farmer
 exports.getPendingOrders = async (req, res) => {
   try {
