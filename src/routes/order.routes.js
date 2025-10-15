@@ -141,4 +141,25 @@ router.get('/:order_id/bill',
   billController.getBillUrl
 );
 
+// Customer tracking routes
+router.get('/active',
+  authenticate,
+  authorize('customer'),
+  orderController.getActiveShipments
+);
+
+router.get('/:order_id/track',
+  authenticate,
+  authorize('customer'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  orderController.trackOrder
+);
+
+router.get('/:order_id/updates',
+  authenticate,
+  authorize('customer'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  orderController.getTrackingUpdates
+);
+
 module.exports = router;

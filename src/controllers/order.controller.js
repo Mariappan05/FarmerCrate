@@ -861,3 +861,132 @@ exports.getOrderDetailsById = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+// Get active shipments for customer
+exports.getActiveShipments = async (req, res) => {
+  try {
+    const orders = await Order.findAll({
+      where: {
+        customer_id: req.user.customer_id,
+        current_status: {
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+        }
+      },
+      include: [{
+        model: Product,
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get active shipments error:', error);
+    res.status(500).json({ message: 'Error retrieving active shipments' });
+  }
+};
+
+// Track specific order for customer
+exports.trackOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    
+    const order = await Order.findOne({
+      where: { order_id, customer_id: req.user.customer_id },
+      include: [{
+        model: Product,
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const trackingHistory = await DeliveryTracking.findAll({
+      where: { order_id },
+      order: [['scanned_at', 'ASC']]
+    });
+
+    const trackingSteps = [
+      { status: 'PLACED', label: 'Order Accepted', icon: '✅' },
+      { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
+      { status: 'SHIPPED', label: 'Picked Up', icon: '📤' },
+      { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
+      { status: 'RECEIVED', label: 'Reached Hub', icon: '🏢' },
+      { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
+      { status: 'COMPLETED', label: 'Delivered', icon: '✅' }
+    ];
+
+    const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
+    
+    const enrichedSteps = trackingSteps.map((step, index) => {
+      const trackingEvent = trackingHistory.find(t => t.status === step.status);
+      return {
+        ...step,
+        completed: index <= currentStepIndex,
+        current: index === currentStepIndex,
+        timestamp: trackingEvent?.scanned_at,
+        location: trackingEvent?.location_address,
+        notes: trackingEvent?.notes
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order,
+        tracking_steps: enrichedSteps,
+        tracking_history: trackingHistory,
+        estimated_delivery: order.estimated_delivery_time
+      }
+    });
+  } catch (error) {
+    console.error('Track order error:', error);
+    res.status(500).json({ message: 'Error tracking order' });
+  }
+};
+
+// Get real-time tracking updates for customer
+exports.getTrackingUpdates = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    
+    const order = await Order.findOne({
+      where: { order_id, customer_id: req.user.customer_id }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const latestTracking = await DeliveryTracking.findOne({
+      where: { order_id },
+      order: [['scanned_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order_id,
+        current_status: order.current_status,
+        latest_update: latestTracking,
+        last_updated: latestTracking?.scanned_at || order.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Get tracking updates error:', error);
+    res.status(500).json({ message: 'Error getting tracking updates' });
+  }
+};
