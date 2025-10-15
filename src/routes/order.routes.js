@@ -73,6 +73,13 @@ router.get('/transporter/allocated',
   orderController.getTransporterOrders
 );
 
+// Customer tracking routes - must be before /:id
+router.get('/active',
+  authenticate,
+  authorize('customer'),
+  orderController.getActiveShipments
+);
+
 // Update QR code - must be before /:id route
 router.put('/:order_id/qr-code',
   authenticate,
@@ -141,12 +148,7 @@ router.get('/:order_id/bill',
   billController.getBillUrl
 );
 
-// Customer tracking routes
-router.get('/active',
-  authenticate,
-  authorize('customer'),
-  orderController.getActiveShipments
-);
+
 
 router.get('/:order_id/track',
   authenticate,
