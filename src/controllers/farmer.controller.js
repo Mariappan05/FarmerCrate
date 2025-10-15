@@ -102,6 +102,7 @@ exports.getAcceptedOrders = async (req, res) => {
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
     const CustomerUser = require('../models/customer_user.model');
+    const { Op } = require('sequelize');
     
     const orders = await Order.findAll({
       include: [{
@@ -118,7 +119,11 @@ exports.getAcceptedOrders = async (req, res) => {
         as: 'customer',
         attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
       }],
-      where: { current_status: 'PLACED' },
+      where: {
+        current_status: {
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+        }
+      },
       order: [['created_at', 'DESC']]
     });
 
