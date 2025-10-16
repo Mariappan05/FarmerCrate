@@ -167,6 +167,39 @@ exports.getRejectedOrders = async (req, res) => {
   }
 };
 
+// Get completed orders for farmer
+exports.getCompletedOrders = async (req, res) => {
+  try {
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
+    
+    const orders = await Order.findAll({
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }, {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['name', 'mobile_number', 'email', 'address', 'image_url']
+      }],
+      where: { current_status: 'COMPLETED' },
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get completed orders error:', error);
+    res.status(500).json({ message: 'Error retrieving completed orders' });
+  }
+};
+
 // Get pending orders for farmer
 exports.getPendingOrders = async (req, res) => {
   try {

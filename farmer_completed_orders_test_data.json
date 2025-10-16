@@ -1,0 +1,146 @@
+{
+  "endpoint": "GET /api/farmers/orders/completed",
+  "description": "Get all completed orders for a farmer",
+  "authentication": "Required - Farmer JWT token",
+  "test_scenario": "Farmer with completed orders",
+  "expected_response": {
+    "success": true,
+    "data": [
+      {
+        "order_id": 95,
+        "customer_id": 3,
+        "product_id": 19,
+        "source_transporter_id": 5,
+        "destination_transporter_id": 9,
+        "delivery_person_id": 13,
+        "permanent_vehicle_id": 2,
+        "temp_vehicle_id": null,
+        "quantity": 2,
+        "total_price": "113.00",
+        "farmer_amount": "97.00",
+        "admin_commission": "3.00",
+        "transport_charge": "10.00",
+        "payment_status": "completed",
+        "current_status": "COMPLETED",
+        "qr_code": "https://res.cloudinary.com/dcwpr28uf/image/upload/v1760425140/farmer_crate/qr_code_95.png",
+        "bill_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/v1760425189/farmer_crate/bill_95.png",
+        "pickup_address": "Viraganoor Main Rd, near Teppakulam, Madurai, Tamil Nadu",
+        "delivery_address": "4RXJ+2JX CSE Block 1, Nallatinputhur, Tamil Nadu 628503, India",
+        "estimated_distance": 45.2,
+        "estimated_delivery_time": "2025-10-15T10:30:00.000Z",
+        "created_at": "2025-10-14T08:15:30.000Z",
+        "updated_at": "2025-10-15T09:45:22.000Z",
+        "product": {
+          "product_id": 19,
+          "name": "Apple",
+          "current_price": "50.00",
+          "images": [
+            {
+              "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/w_800,h_800,q_auto,f_auto/v1760332883/farmer_crate/apple_1.jpg",
+              "is_primary": true
+            },
+            {
+              "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/w_800,h_800,q_auto,f_auto/v1760332884/farmer_crate/apple_2.jpg",
+              "is_primary": false
+            },
+            {
+              "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/w_800,h_800,q_auto,f_auto/v1760332886/farmer_crate/apple_3.jpg",
+              "is_primary": false
+            }
+          ]
+        },
+        "customer": {
+          "name": "jonash",
+          "mobile_number": "6381280074",
+          "email": "jonash@example.com",
+          "address": "4RXJ+2JX CSE Block 1, Nallatinputhur, Tamil Nadu 628503",
+          "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/v1760089206/customer_profile.jpg"
+        }
+      },
+      {
+        "order_id": 92,
+        "customer_id": 5,
+        "product_id": 21,
+        "source_transporter_id": 5,
+        "destination_transporter_id": 8,
+        "delivery_person_id": 12,
+        "permanent_vehicle_id": 1,
+        "temp_vehicle_id": null,
+        "quantity": 3,
+        "total_price": "169.50",
+        "farmer_amount": "145.50",
+        "admin_commission": "4.50",
+        "transport_charge": "15.00",
+        "payment_status": "completed",
+        "current_status": "COMPLETED",
+        "qr_code": "https://res.cloudinary.com/dcwpr28uf/image/upload/v1760424508/farmer_crate/qr_code_92.png",
+        "bill_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/v1760424535/farmer_crate/bill_92.png",
+        "pickup_address": "Viraganoor Main Rd, near Teppakulam, Madurai, Tamil Nadu",
+        "delivery_address": "123 Main Street, Chennai, Tamil Nadu 600001, India",
+        "estimated_distance": 120.5,
+        "estimated_delivery_time": "2025-10-13T14:20:00.000Z",
+        "created_at": "2025-10-12T10:30:15.000Z",
+        "updated_at": "2025-10-13T13:15:45.000Z",
+        "product": {
+          "product_id": 21,
+          "name": "Carrot",
+          "current_price": "50.00",
+          "images": [
+            {
+              "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/w_800,h_800,q_auto,f_auto/v1760354113/farmer_crate/carrot_1.jpg",
+              "is_primary": true
+            },
+            {
+              "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/w_800,h_800,q_auto,f_auto/v1760354115/farmer_crate/carrot_2.jpg",
+              "is_primary": false
+            },
+            {
+              "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/w_800,h_800,q_auto,f_auto/v1760354118/farmer_crate/carrot_3.jpg",
+              "is_primary": false
+            }
+          ]
+        },
+        "customer": {
+          "name": "Priya Kumar",
+          "mobile_number": "9876543210",
+          "email": "priya.kumar@example.com",
+          "address": "123 Main Street, Chennai, Tamil Nadu 600001",
+          "image_url": "https://res.cloudinary.com/dcwpr28uf/image/upload/v1760089300/customer_priya.jpg"
+        }
+      }
+    ]
+  },
+  "empty_response": {
+    "success": true,
+    "data": []
+  },
+  "test_cases": [
+    {
+      "case": "Farmer with completed orders",
+      "farmer_id": 1,
+      "expected_count": 2,
+      "description": "Returns all orders with COMPLETED status for the farmer"
+    },
+    {
+      "case": "Farmer with no completed orders",
+      "farmer_id": 2,
+      "expected_count": 0,
+      "description": "Returns empty array when farmer has no completed orders"
+    },
+    {
+      "case": "Unauthorized access",
+      "farmer_id": null,
+      "expected_status": 403,
+      "description": "Returns error when accessed without farmer authentication"
+    }
+  ],
+  "curl_example": "curl -X GET 'http://localhost:3000/api/farmers/orders/completed' -H 'Authorization: Bearer FARMER_JWT_TOKEN'",
+  "notes": [
+    "Only returns orders with current_status = 'COMPLETED'",
+    "Includes complete product details with all images",
+    "Includes customer information for contact purposes",
+    "Orders are sorted by creation date (newest first)",
+    "Requires farmer authentication",
+    "Shows successful delivery history for the farmer"
+  ]
+}
