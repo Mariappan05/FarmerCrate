@@ -273,23 +273,53 @@ exports.acceptOrder = async (req, res) => {
     // Get farmer details
     const farmer = await FarmerUser.findByPk(req.user.farmer_id);
     const allTransporters = await TransporterUser.findAll();
+    const GoogleMapsService = require('../services/googleMaps.service');
     
-    // Transporter allocation logic
-    const farmerZone = farmer.zone?.toLowerCase();
-    const customerZone = order.delivery_address?.toLowerCase();
+    const farmerAddress = `${farmer.address}, ${farmer.zone}, ${farmer.district}, ${farmer.state}`;
     
-    const findTransportersByZone = (targetZone, transporters) => {
-      if (!targetZone) return [];
-      return transporters.filter(t => 
-        t.zone?.toLowerCase().includes(targetZone) || targetZone.includes(t.zone?.toLowerCase())
-      );
-    };
+    let sourceTransporter = null;
+    let destTransporter = null;
+    let shortestSourceDistance = Infinity;
+    let shortestDestDistance = Infinity;
     
-    const sourceTransporters = findTransportersByZone(farmerZone, allTransporters);
-    const destinationTransporters = findTransportersByZone(customerZone, allTransporters);
+    console.log('\n=== TRANSPORTER ALLOCATION WITH SHORTEST DISTANCE ===');
+    console.log('Farmer Address:', farmerAddress);
+    console.log('Customer Address:', order.delivery_address);
     
-    const sourceTransporter = sourceTransporters[0] || allTransporters[0];
-    const destTransporter = destinationTransporters[0] || allTransporters[1] || allTransporters[0];
+    try {
+      // Find closest transporter to farmer
+      for (const transporter of allTransporters) {
+        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+        const distance = await GoogleMapsService.calculateDistanceAndDuration([farmerAddress], [transporterAddress]);
+        
+        console.log(`Farmer to ${transporter.name}: ${distance.distance}km`);
+        
+        if (distance.distance < shortestSourceDistance) {
+          shortestSourceDistance = distance.distance;
+          sourceTransporter = transporter;
+        }
+      }
+      
+      // Find closest transporter to customer
+      for (const transporter of allTransporters) {
+        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+        const distance = await GoogleMapsService.calculateDistanceAndDuration([order.delivery_address], [transporterAddress]);
+        
+        console.log(`Customer to ${transporter.name}: ${distance.distance}km`);
+        
+        if (distance.distance < shortestDestDistance) {
+          shortestDestDistance = distance.distance;
+          destTransporter = transporter;
+        }
+      }
+      
+      console.log('\nSelected Source Transporter:', sourceTransporter?.name, '- Distance:', shortestSourceDistance + 'km');
+      console.log('Selected Destination Transporter:', destTransporter?.name, '- Distance:', shortestDestDistance + 'km');
+    } catch (error) {
+      console.warn('Google Maps failed, using fallback:', error.message);
+      sourceTransporter = allTransporters[0];
+      destTransporter = allTransporters[1] || allTransporters[0];
+    }
     
     console.log('\n=== ORDER ACCEPTANCE & FUND TRANSFER STARTED ===');
     console.log('Order ID:', order_id);
@@ -529,8 +559,8 @@ exports.acceptOrder = async (req, res) => {
       console.log('✅ All fund transfers completed successfully');
       console.log('✅ Transaction records created');
       console.log('✅ Notifications sent to all parties');
-      console.log('Assigned Source Transporter:', sourceTransporter?.name, '(ID:', sourceTransporter?.transporter_id, ')');
-      console.log('Assigned Destination Transporter:', destTransporter?.name, '(ID:', destTransporter?.transporter_id, ')');
+      console.log('Assigned Source Transporter:', sourceTransporter?.name, '(ID:', sourceTransporter?.transporter_id, ') - Distance:', shortestSourceDistance + 'km');
+      console.log('Assigned Destination Transporter:', destTransporter?.name, '(ID:', destTransporter?.transporter_id, ') - Distance:', shortestDestDistance + 'km');
       console.log('=== ORDER ACCEPTANCE & FUND TRANSFER COMPLETED ===\n');
     } else {
       console.log('\n--- ORDER STATUS UPDATE ---');
