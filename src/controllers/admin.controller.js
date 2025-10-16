@@ -383,7 +383,7 @@ exports.getCustomerOrders = async (req, res) => {
       include: [
         {
           model: Product,
-          attributes: ['product_id', 'name', 'current_price', 'description', 'category', 'unit'],
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category', 'quantity', 'status'],
           include: [
             {
               model: ProductImage,
