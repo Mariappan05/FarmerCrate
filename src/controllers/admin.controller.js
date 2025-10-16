@@ -211,72 +211,19 @@ exports.getAllFarmers = async (req, res) => {
   }
 };
 
-exports.getFarmersWithOrders = async (req, res) => {
-  try {
-    const farmers = await FarmerUser.findAll({
-      attributes: { exclude: ['password'] },
-      include: [{
-        model: Product,
-        as: 'products',
-        include: [{
-          model: Order,
-          include: [{
-            model: CustomerUser,
-            as: 'customer',
-            attributes: ['name', 'mobile_number', 'email']
-          }]
-        }]
-      }],
-      order: [['created_at', 'DESC']]
-    });
-
-    const farmersWithStats = farmers.map(farmer => {
-      const allOrders = farmer.products.flatMap(product => product.Orders || []);
-      const totalOrders = allOrders.length;
-      const completedOrders = allOrders.filter(order => order.current_status === 'COMPLETED').length;
-      const activeOrders = allOrders.filter(order => 
-        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY'].includes(order.current_status)
-      ).length;
-      const totalRevenue = allOrders
-        .filter(order => order.current_status === 'COMPLETED')
-        .reduce((sum, order) => sum + parseFloat(order.farmer_amount || 0), 0);
-
-      return {
-        ...farmer.toJSON(),
-        order_stats: {
-          total_orders: totalOrders,
-          completed_orders: completedOrders,
-          active_orders: activeOrders,
-          total_revenue: totalRevenue
-        }
-      };
-    });
-
-    res.json({ 
-      success: true, 
-      count: farmersWithStats.length, 
-      data: farmersWithStats 
-    });
-  } catch (error) {
-    console.error('Error fetching farmers with orders:', error);
-    res.status(500).json({ message: 'Error fetching farmers with order details' });
-  }
-};
-
 exports.getAllCustomers = async (req, res) => {
   try {
     const customers = await CustomerUser.findAll({
       attributes: { exclude: ['password'] },
       include: [{
         model: Order,
-        as: 'orders',
         attributes: ['order_id', 'current_status', 'total_price']
       }],
       order: [['created_at', 'DESC']]
     });
     
     const customersWithStats = customers.map(customer => {
-      const orders = customer.orders || [];
+      const orders = customer.Orders || [];
       const totalOrders = orders.length;
       const completedOrders = orders.filter(order => order.current_status === 'COMPLETED').length;
       const activeOrders = orders.filter(order => 
@@ -299,7 +246,6 @@ exports.getAllCustomers = async (req, res) => {
     
     res.json({ success: true, count: customersWithStats.length, data: customersWithStats });
   } catch (error) {
-    console.error('Error fetching customers:', error);
     res.status(500).json({ message: 'Error fetching customers' });
   }
 };
