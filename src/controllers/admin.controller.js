@@ -223,7 +223,7 @@ exports.getAllCustomers = async (req, res) => {
     });
     
     const customersWithStats = customers.map(customer => {
-      const orders = customer.Orders || [];
+      const orders = customer.orders || [];
       const totalOrders = orders.length;
       const completedOrders = orders.filter(order => order.current_status === 'COMPLETED').length;
       const activeOrders = orders.filter(order => 
