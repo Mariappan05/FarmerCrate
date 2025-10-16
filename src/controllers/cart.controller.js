@@ -168,3 +168,92 @@ exports.clearCart = async (req, res) => {
     res.status(500).json({ message: 'Error clearing cart' });
   }
 };
+
+exports.checkoutMultipleItems = async (req, res) => {
+  try {
+    const { cart_ids, delivery_address, customer_zone, customer_pincode } = req.body;
+    const customer_id = req.user.customer_id;
+
+    if (!cart_ids || !Array.isArray(cart_ids) || cart_ids.length === 0) {
+      return res.status(400).json({ message: 'Cart IDs array is required' });
+    }
+
+    const cartItems = await Cart.findAll({
+      where: { 
+        cart_id: cart_ids, 
+        customer_id 
+      },
+      include: [{
+        model: Product,
+        as: 'cart_product',
+        attributes: ['product_id', 'name', 'current_price', 'quantity', 'farmer_id'],
+        include: [{
+          model: FarmerUser,
+          as: 'farmer',
+          attributes: ['name', 'zone', 'district', 'state']
+        }]
+      }]
+    });
+
+    if (cartItems.length === 0) {
+      return res.status(404).json({ message: 'No cart items found' });
+    }
+
+    let totalAmount = 0;
+    let totalAdminCommission = 0;
+    let totalFarmerAmount = 0;
+    const checkoutItems = [];
+
+    for (const cartItem of cartItems) {
+      const product = cartItem.cart_product;
+      const quantity = cartItem.quantity;
+      const unitPrice = parseFloat(product.current_price);
+      const itemTotal = unitPrice * quantity;
+      const adminCommission = itemTotal * 0.03;
+      const farmerAmount = itemTotal - adminCommission;
+
+      totalAmount += itemTotal;
+      totalAdminCommission += adminCommission;
+      totalFarmerAmount += farmerAmount;
+
+      checkoutItems.push({
+        cart_id: cartItem.cart_id,
+        product_id: product.product_id,
+        product_name: product.name,
+        farmer_name: product.farmer.name,
+        quantity,
+        unit_price: unitPrice,
+        item_total: itemTotal,
+        admin_commission: adminCommission,
+        farmer_amount: farmerAmount
+      });
+    }
+
+    const transportCharge = 10.00;
+    const finalTotal = totalAmount + transportCharge;
+
+    res.json({
+      success: true,
+      message: 'Cart items ready for checkout',
+      data: {
+        items: checkoutItems,
+        summary: {
+          total_items: cartItems.length,
+          subtotal: totalAmount,
+          admin_commission: totalAdminCommission,
+          farmer_amount: totalFarmerAmount,
+          transport_charge: transportCharge,
+          final_total: finalTotal
+        },
+        delivery_details: {
+          delivery_address,
+          customer_zone,
+          customer_pincode
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Checkout multiple items error:', error);
+    res.status(500).json({ message: 'Error processing checkout' });
+  }
+};

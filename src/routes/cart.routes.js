@@ -39,4 +39,17 @@ router.delete('/item/:id',
   cartController.removeFromCart
 );
 
+// Checkout multiple items from cart
+router.post('/checkout',
+  protect,
+  authorize('customer'),
+  [
+    body('cart_ids').isArray({ min: 1 }).withMessage('Cart IDs array is required'),
+    body('delivery_address').notEmpty().withMessage('Delivery address is required'),
+    body('customer_zone').notEmpty().withMessage('Customer zone is required'),
+    body('customer_pincode').isLength({ min: 6, max: 6 }).withMessage('Valid 6-digit pincode is required')
+  ],
+  cartController.checkoutMultipleItems
+);
+
 module.exports = router; 
