@@ -65,4 +65,9 @@ router.get('/delivery-persons', authenticate, authorize('transporter'), transpor
 // Vehicles management
 router.get('/vehicles', authenticate, authorize('transporter'), transporterController.getVehicles);
 
+// Order tracking routes
+router.get('/orders/active', authenticate, authorize('transporter'), transporterController.getActiveOrders);
+router.get('/orders/:order_id/track', authenticate, authorize('transporter'), transporterController.trackOrder);
+router.get('/orders/:order_id/updates', authenticate, authorize('transporter'), transporterController.getTrackingUpdates);
+
 module.exports = router;

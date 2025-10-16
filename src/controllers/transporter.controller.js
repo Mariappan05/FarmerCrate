@@ -1,6 +1,10 @@
 const TransporterUser = require('../models/transporter_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
 const Order = require('../models/order.model');
+const Product = require('../models/product.model');
+const ProductImage = require('../models/productImage.model');
+const CustomerUser = require('../models/customer_user.model');
+const DeliveryTracking = require('../models/deliveryTracking.model');
 const PermanentVehicle = require('../models/permanentVehicle.model');
 const TemporaryVehicle = require('../models/temporaryVehicle.model');
 const GoogleMapsService = require('../services/googleMaps.service');
@@ -567,6 +571,165 @@ const getVehicles = async (req, res) => {
   }
 };
 
+// Get active orders for transporter
+const getActiveOrders = async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const orders = await Order.findAll({
+      where: {
+        [Op.or]: [
+          { source_transporter_id: req.user.transporter_id },
+          { destination_transporter_id: req.user.transporter_id }
+        ],
+        current_status: {
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+        }
+      },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          }]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: ['name', 'mobile_number', 'address']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Get active orders error:', error);
+    res.status(500).json({ message: 'Error retrieving active orders' });
+  }
+};
+
+// Track specific order for transporter
+const trackOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { Op } = require('sequelize');
+    
+    const order = await Order.findOne({
+      where: {
+        order_id,
+        [Op.or]: [
+          { source_transporter_id: req.user.transporter_id },
+          { destination_transporter_id: req.user.transporter_id }
+        ]
+      },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          }]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: ['name', 'mobile_number', 'address']
+        }
+      ]
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const trackingHistory = await DeliveryTracking.findAll({
+      where: { order_id },
+      order: [['scanned_at', 'ASC']]
+    });
+
+    const trackingSteps = [
+      { status: 'PLACED', label: 'Order Placed', icon: '✅' },
+      { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
+      { status: 'SHIPPED', label: 'Picked Up', icon: '📤' },
+      { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
+      { status: 'RECEIVED', label: 'Reached Hub', icon: '🏢' },
+      { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
+      { status: 'COMPLETED', label: 'Delivered', icon: '✅' }
+    ];
+
+    const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
+    
+    const enrichedSteps = trackingSteps.map((step, index) => {
+      const trackingEvent = trackingHistory.find(t => t.status === step.status);
+      return {
+        ...step,
+        completed: index <= currentStepIndex,
+        current: index === currentStepIndex,
+        timestamp: trackingEvent?.scanned_at,
+        location: trackingEvent?.location_address,
+        notes: trackingEvent?.notes
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order,
+        tracking_steps: enrichedSteps,
+        tracking_history: trackingHistory
+      }
+    });
+  } catch (error) {
+    console.error('Track order error:', error);
+    res.status(500).json({ message: 'Error tracking order' });
+  }
+};
+
+// Get real-time tracking updates for transporter
+const getTrackingUpdates = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { Op } = require('sequelize');
+    
+    const order = await Order.findOne({
+      where: {
+        order_id,
+        [Op.or]: [
+          { source_transporter_id: req.user.transporter_id },
+          { destination_transporter_id: req.user.transporter_id }
+        ]
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const latestTracking = await DeliveryTracking.findOne({
+      where: { order_id },
+      order: [['scanned_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order_id,
+        current_status: order.current_status,
+        latest_update: latestTracking,
+        last_updated: latestTracking?.scanned_at || order.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Get tracking updates error:', error);
+    res.status(500).json({ message: 'Error getting tracking updates' });
+  }
+};
+
 module.exports = { 
   getProfile, 
   updateProfile, 
@@ -580,5 +743,8 @@ module.exports = {
   getAssignedOrders,
   updateOrderStatus,
   getDeliveryPersons,
-  getVehicles
+  getVehicles,
+  getActiveOrders,
+  trackOrder,
+  getTrackingUpdates
 };
