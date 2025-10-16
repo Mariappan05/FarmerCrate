@@ -30,6 +30,7 @@ router.put('/transporters/:transporter_id/approve', [
 router.get('/farmers', adminController.getAllFarmers);
 router.get('/farmers-with-orders', adminController.getFarmersWithOrders);
 router.get('/customers', adminController.getAllCustomers);
+router.get('/customers/:customer_id/orders', adminController.getCustomerOrders);
 router.get('/transporters', adminController.getAllTransporters);
 router.get('/delivery-persons', adminController.getAllDeliveryPersons);
 
