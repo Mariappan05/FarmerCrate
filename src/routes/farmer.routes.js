@@ -25,6 +25,7 @@ router.get('/orders', protect, authorize('farmer'), farmerController.getAllOrder
 router.get('/orders/pending', protect, authorize('farmer'), farmerController.getPendingOrders);
 router.get('/orders/accepted', protect, authorize('farmer'), farmerController.getAcceptedOrders);
 router.get('/orders/rejected', protect, authorize('farmer'), farmerController.getRejectedOrders);
+router.get('/orders/completed', protect, authorize('farmer'), farmerController.getCompletedOrders);
 router.get('/orders/active', protect, authorize('farmer'), farmerController.getActiveShipments);
 router.get('/orders/:order_id/track', protect, authorize('farmer'), farmerController.trackOrder);
 router.get('/orders/:order_id/updates', protect, authorize('farmer'), farmerController.getTrackingUpdates);
