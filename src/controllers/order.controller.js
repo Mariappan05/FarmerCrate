@@ -870,22 +870,34 @@ exports.getActiveShipments = async (req, res) => {
       where: {
         customer_id: req.user.customer_id,
         current_status: {
-          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+          [Op.in]: ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
         }
       },
-      include: [{
-        model: Product,
-        attributes: ['product_id', 'name', 'current_price'],
-        include: [{
-          model: ProductImage,
-          as: 'images',
-          attributes: ['image_url', 'is_primary']
-        }]
-      }],
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['name', 'mobile_number', 'address']
+            }
+          ]
+        }
+      ],
       order: [['created_at', 'DESC']]
     });
 
-    res.json({ success: true, data: orders });
+    res.json({ 
+      success: true,
+      data: orders 
+    });
   } catch (error) {
     console.error('Get active shipments error:', error);
     res.status(500).json({ message: 'Error retrieving active shipments' });
