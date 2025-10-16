@@ -273,11 +273,42 @@ const getTrackingHistory = async (req, res) => {
   }
 };
 
+const updateAvailability = async (req, res) => {
+  try {
+    const { is_available } = req.body;
+    
+    if (typeof is_available !== 'boolean') {
+      return res.status(400).json({ message: 'is_available must be a boolean value' });
+    }
+    
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+    
+    await deliveryPerson.update({ is_available });
+    
+    res.json({
+      success: true,
+      message: `Availability updated to ${is_available ? 'available' : 'unavailable'}`,
+      data: {
+        delivery_person_id: deliveryPerson.delivery_person_id,
+        name: deliveryPerson.name,
+        is_available: deliveryPerson.is_available
+      }
+    });
+  } catch (error) {
+    console.error('Update availability error:', error);
+    res.status(500).json({ message: 'Error updating availability' });
+  }
+};
+
 module.exports = {
   getAssignedOrders,
   getProfile,
   updateOrderStatus,
   updateLocation,
   trackOrder,
-  getTrackingHistory
+  getTrackingHistory,
+  updateAvailability
 };
