@@ -248,6 +248,7 @@ exports.getAllCustomers = async (req, res) => {
       attributes: { exclude: ['password'] },
       include: [{
         model: Order,
+        as: 'orders',
         attributes: ['order_id', 'current_status', 'total_price']
       }],
       order: [['created_at', 'DESC']]
