@@ -505,6 +505,24 @@ exports.getOrders = async (req, res) => {
               required: false
             }
           ]
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'],
+          required: false
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'],
+          required: false
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type'],
+          required: false
         }
       ],
       order: [['created_at', 'DESC']]
