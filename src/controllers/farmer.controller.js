@@ -273,7 +273,35 @@ exports.acceptOrder = async (req, res) => {
     // Get farmer details
     const farmer = await FarmerUser.findByPk(req.user.farmer_id);
     const allTransporters = await TransporterUser.findAll();
+    const DeliveryPerson = require('../models/deliveryPerson.model');
     const GoogleMapsService = require('../services/googleMaps.service');
+    const { Op } = require('sequelize');
+    
+    // Filter transporters with available delivery persons
+    const transportersWithDelivery = [];
+    for (const transporter of allTransporters) {
+      const availableDeliveryCount = await DeliveryPerson.count({
+        where: {
+          transporter_id: transporter.transporter_id,
+          is_available: true
+        }
+      });
+      
+      if (availableDeliveryCount > 0) {
+        transportersWithDelivery.push(transporter);
+      }
+    }
+    
+    console.log('\n=== TRANSPORTER AVAILABILITY CHECK ===');
+    console.log('Total Transporters:', allTransporters.length);
+    console.log('Transporters with Available Delivery Persons:', transportersWithDelivery.length);
+    
+    if (transportersWithDelivery.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No transporters with available delivery persons found. Cannot accept order.'
+      });
+    }
     
     const farmerAddress = `${farmer.address}, ${farmer.zone}, ${farmer.district}, ${farmer.state}`;
     
@@ -287,8 +315,8 @@ exports.acceptOrder = async (req, res) => {
     console.log('Customer Address:', order.delivery_address);
     
     try {
-      // Find closest transporter to farmer
-      for (const transporter of allTransporters) {
+      // Find closest transporter to farmer (with available delivery persons)
+      for (const transporter of transportersWithDelivery) {
         const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
         const distance = await GoogleMapsService.calculateDistanceAndDuration([farmerAddress], [transporterAddress]);
         
@@ -300,8 +328,8 @@ exports.acceptOrder = async (req, res) => {
         }
       }
       
-      // Find closest transporter to customer
-      for (const transporter of allTransporters) {
+      // Find closest transporter to customer (with available delivery persons)
+      for (const transporter of transportersWithDelivery) {
         const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
         const distance = await GoogleMapsService.calculateDistanceAndDuration([order.delivery_address], [transporterAddress]);
         
@@ -317,8 +345,8 @@ exports.acceptOrder = async (req, res) => {
       console.log('Selected Destination Transporter:', destTransporter?.name, '- Distance:', shortestDestDistance + 'km');
     } catch (error) {
       console.warn('Google Maps failed, using fallback:', error.message);
-      sourceTransporter = allTransporters[0];
-      destTransporter = allTransporters[1] || allTransporters[0];
+      sourceTransporter = transportersWithDelivery[0];
+      destTransporter = transportersWithDelivery[1] || transportersWithDelivery[0];
     }
     
     console.log('\n=== ORDER ACCEPTANCE & FUND TRANSFER STARTED ===');
