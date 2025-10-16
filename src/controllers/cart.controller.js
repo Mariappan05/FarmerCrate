@@ -171,7 +171,7 @@ exports.clearCart = async (req, res) => {
 
 exports.checkoutMultipleItems = async (req, res) => {
   try {
-    const { cart_ids, delivery_address, customer_zone, customer_pincode } = req.body;
+    const { cart_ids } = req.body;
     const customer_id = req.user.customer_id;
 
     if (!cart_ids || !Array.isArray(cart_ids) || cart_ids.length === 0) {
@@ -191,6 +191,10 @@ exports.checkoutMultipleItems = async (req, res) => {
           model: FarmerUser,
           as: 'farmer',
           attributes: ['name', 'zone', 'district', 'state']
+        }, {
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
         }]
       }]
     });
@@ -199,57 +203,69 @@ exports.checkoutMultipleItems = async (req, res) => {
       return res.status(404).json({ message: 'No cart items found' });
     }
 
-    let totalAmount = 0;
-    let totalAdminCommission = 0;
-    let totalFarmerAmount = 0;
-    const checkoutItems = [];
-
+    // Group items by farmer
+    const farmerGroups = {};
+    
     for (const cartItem of cartItems) {
       const product = cartItem.cart_product;
+      const farmerId = product.farmer_id;
+      
+      if (!farmerGroups[farmerId]) {
+        farmerGroups[farmerId] = {
+          farmer_id: farmerId,
+          farmer_name: product.farmer.name,
+          items: [],
+          subtotal: 0,
+          admin_commission: 0,
+          farmer_amount: 0
+        };
+      }
+      
       const quantity = cartItem.quantity;
       const unitPrice = parseFloat(product.current_price);
       const itemTotal = unitPrice * quantity;
       const adminCommission = itemTotal * 0.03;
       const farmerAmount = itemTotal - adminCommission;
-
-      totalAmount += itemTotal;
-      totalAdminCommission += adminCommission;
-      totalFarmerAmount += farmerAmount;
-
-      checkoutItems.push({
+      
+      farmerGroups[farmerId].items.push({
         cart_id: cartItem.cart_id,
         product_id: product.product_id,
         product_name: product.name,
-        farmer_name: product.farmer.name,
         quantity,
         unit_price: unitPrice,
         item_total: itemTotal,
-        admin_commission: adminCommission,
-        farmer_amount: farmerAmount
+        images: product.images
       });
+      
+      farmerGroups[farmerId].subtotal += itemTotal;
+      farmerGroups[farmerId].admin_commission += adminCommission;
+      farmerGroups[farmerId].farmer_amount += farmerAmount;
     }
 
-    const transportCharge = 10.00;
-    const finalTotal = totalAmount + transportCharge;
+    // Create separate orders for each farmer
+    const separateOrders = Object.values(farmerGroups).map(group => {
+      const transportCharge = 5.00;
+      const totalPrice = group.subtotal + transportCharge;
+      
+      return {
+        farmer_id: group.farmer_id,
+        farmer_name: group.farmer_name,
+        items: group.items,
+        subtotal: group.subtotal,
+        admin_commission: group.admin_commission,
+        farmer_amount: group.farmer_amount,
+        transport_charge: transportCharge,
+        total_price: totalPrice
+      };
+    });
 
     res.json({
       success: true,
-      message: 'Cart items ready for checkout',
+      message: 'Orders split by farmer - pay separately',
       data: {
-        items: checkoutItems,
-        summary: {
-          total_items: cartItems.length,
-          subtotal: totalAmount,
-          admin_commission: totalAdminCommission,
-          farmer_amount: totalFarmerAmount,
-          transport_charge: transportCharge,
-          final_total: finalTotal
-        },
-        delivery_details: {
-          delivery_address,
-          customer_zone,
-          customer_pincode
-        }
+        separate_orders: separateOrders,
+        total_orders: separateOrders.length,
+        grand_total: separateOrders.reduce((sum, order) => sum + order.total_price, 0)
       }
     });
   } catch (error) {
