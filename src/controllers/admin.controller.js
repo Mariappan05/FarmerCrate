@@ -383,17 +383,17 @@ exports.getCustomerOrders = async (req, res) => {
         {
           model: TransporterUser,
           as: 'source_transporter',
-          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone']
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
         },
         {
           model: TransporterUser,
           as: 'destination_transporter',
-          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone']
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
         },
         {
           model: DeliveryPerson,
           as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type']
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
         }
       ],
       order: [['created_at', 'DESC']]
