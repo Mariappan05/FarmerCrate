@@ -269,13 +269,14 @@ exports.getAllCustomers = async (req, res) => {
       attributes: { exclude: ['password'] },
       include: [{
         model: Order,
+        as: 'orders',
         attributes: ['order_id', 'current_status', 'total_price']
       }],
       order: [['created_at', 'DESC']]
     });
     
     const customersWithStats = customers.map(customer => {
-      const orders = customer.Orders || [];
+      const orders = customer.orders || [];
       const totalOrders = orders.length;
       const completedOrders = orders.filter(order => order.current_status === 'COMPLETED').length;
       const activeOrders = orders.filter(order => 
