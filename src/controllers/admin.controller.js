@@ -203,9 +203,40 @@ exports.getAllFarmers = async (req, res) => {
   try {
     const farmers = await FarmerUser.findAll({
       attributes: { exclude: ['password'] },
+      include: [{
+        model: Product,
+        as: 'products',
+        include: [{
+          model: Order,
+          attributes: ['order_id', 'current_status', 'farmer_amount']
+        }]
+      }],
       order: [['created_at', 'DESC']]
     });
-    res.json({ success: true, count: farmers.length, data: farmers });
+    
+    const farmersWithStats = farmers.map(farmer => {
+      const allOrders = farmer.products.flatMap(product => product.Orders || []);
+      const totalOrders = allOrders.length;
+      const completedOrders = allOrders.filter(order => order.current_status === 'COMPLETED').length;
+      const activeOrders = allOrders.filter(order => 
+        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY'].includes(order.current_status)
+      ).length;
+      const totalRevenue = allOrders
+        .filter(order => order.current_status === 'COMPLETED')
+        .reduce((sum, order) => sum + parseFloat(order.farmer_amount || 0), 0);
+      
+      return {
+        ...farmer.toJSON(),
+        order_stats: {
+          total_orders: totalOrders,
+          completed_orders: completedOrders,
+          active_orders: activeOrders,
+          total_revenue: totalRevenue
+        }
+      };
+    });
+    
+    res.json({ success: true, count: farmersWithStats.length, data: farmersWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching farmers' });
   }
