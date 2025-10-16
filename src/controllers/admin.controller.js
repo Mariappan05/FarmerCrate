@@ -317,3 +317,63 @@ exports.deleteDeliveryPerson = async (req, res) => {
     res.status(500).json({ message: 'Error deleting delivery person' });
   }
 };
+
+
+exports.getCustomerOrders = async (req, res) => {
+  try {
+    const { customer_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const orders = await Order.findAll({
+      where: { customer_id },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category', 'unit'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: { exclude: ['password'] }
+            }
+          ]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone']
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone']
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    res.status(500).json({ message: 'Error fetching customer orders' });
+  }
+};
