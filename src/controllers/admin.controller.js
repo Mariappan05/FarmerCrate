@@ -215,9 +215,36 @@ exports.getAllCustomers = async (req, res) => {
   try {
     const customers = await CustomerUser.findAll({
       attributes: { exclude: ['password'] },
+      include: [{
+        model: Order,
+        attributes: ['order_id', 'current_status', 'total_price']
+      }],
       order: [['created_at', 'DESC']]
     });
-    res.json({ success: true, count: customers.length, data: customers });
+    
+    const customersWithStats = customers.map(customer => {
+      const orders = customer.Orders || [];
+      const totalOrders = orders.length;
+      const completedOrders = orders.filter(order => order.current_status === 'COMPLETED').length;
+      const activeOrders = orders.filter(order => 
+        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY'].includes(order.current_status)
+      ).length;
+      const totalSpent = orders
+        .filter(order => order.current_status === 'COMPLETED')
+        .reduce((sum, order) => sum + parseFloat(order.total_price || 0), 0);
+      
+      return {
+        ...customer.toJSON(),
+        order_stats: {
+          total_orders: totalOrders,
+          completed_orders: completedOrders,
+          active_orders: activeOrders,
+          total_spent: totalSpent
+        }
+      };
+    });
+    
+    res.json({ success: true, count: customersWithStats.length, data: customersWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching customers' });
   }
