@@ -50,4 +50,11 @@ router.get('/track/:order_id', deliveryPersonController.trackOrder);
 
 router.get('/tracking-history/:order_id', deliveryPersonController.getTrackingHistory);
 
+router.put('/availability',
+  authenticate,
+  authorize('delivery'),
+  body('is_available').isBoolean().withMessage('is_available must be a boolean'),
+  deliveryPersonController.updateAvailability
+);
+
 module.exports = router;
