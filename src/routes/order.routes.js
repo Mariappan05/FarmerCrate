@@ -76,7 +76,7 @@ router.get('/transporter/allocated',
 // Customer tracking routes - must be before /:id
 router.get('/active',
   authenticate,
-  authorize('customer'),
+  authorize(['customer', 'admin']),
   orderController.getActiveShipments
 );
 
@@ -152,14 +152,14 @@ router.get('/:order_id/bill',
 
 router.get('/:order_id/track',
   authenticate,
-  authorize('customer'),
+  authorize(['customer', 'admin']),
   param('order_id').isInt().withMessage('Valid order ID required'),
   orderController.trackOrder
 );
 
 router.get('/:order_id/updates',
   authenticate,
-  authorize('customer'),
+  authorize(['customer', 'admin']),
   param('order_id').isInt().withMessage('Valid order ID required'),
   orderController.getTrackingUpdates
 );
