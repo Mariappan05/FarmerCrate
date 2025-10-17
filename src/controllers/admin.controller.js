@@ -203,38 +203,36 @@ exports.getAllFarmers = async (req, res) => {
   try {
     const farmers = await FarmerUser.findAll({
       attributes: { exclude: ['password'] },
-      include: [{
-        model: Product,
-        as: 'products',
-        include: [{
-          model: Order,
-          attributes: ['order_id', 'current_status', 'farmer_amount']
-        }]
-      }],
       order: [['created_at', 'DESC']]
     });
     
-    const farmersWithStats = farmers.map(farmer => {
-      const allOrders = farmer.products.flatMap(product => product.Orders || []);
-      const totalOrders = allOrders.length;
-      const completedOrders = allOrders.filter(order => order.current_status === 'COMPLETED').length;
-      const activeOrders = allOrders.filter(order => 
-        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY'].includes(order.current_status)
-      ).length;
-      const totalRevenue = allOrders
+    const farmersWithStats = await Promise.all(farmers.map(async (farmer) => {
+      const productCount = await Product.count({
+        where: { farmer_id: farmer.farmer_id }
+      });
+      
+      const orders = await Order.findAll({
+        include: [{
+          model: Product,
+          where: { farmer_id: farmer.farmer_id },
+          attributes: []
+        }],
+        attributes: ['order_id', 'current_status', 'farmer_amount']
+      });
+      
+      const totalOrders = orders.length;
+      const totalEarnings = orders
         .filter(order => order.current_status === 'COMPLETED')
         .reduce((sum, order) => sum + parseFloat(order.farmer_amount || 0), 0);
       
+      const { products, ...farmerData } = farmer.toJSON();
       return {
-        ...farmer.toJSON(),
-        order_stats: {
-          total_orders: totalOrders,
-          completed_orders: completedOrders,
-          active_orders: activeOrders,
-          total_revenue: totalRevenue
-        }
+        ...farmerData,
+        product_count: productCount,
+        order_count: totalOrders,
+        total_earnings: totalEarnings
       };
-    });
+    }));
     
     res.json({ success: true, count: farmersWithStats.length, data: farmersWithStats });
   } catch (error) {
