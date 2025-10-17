@@ -463,7 +463,6 @@ exports.getCustomerOrders = async (req, res) => {
     res.json({
       success: true,
       count: orders.length,
-      created_by_transporter: createdByTransporter,
       data: orders
     });
   } catch (error) {
