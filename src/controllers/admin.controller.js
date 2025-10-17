@@ -443,3 +443,63 @@ exports.getCustomerOrders = async (req, res) => {
     res.status(500).json({ message: 'Error fetching customer orders' });
   }
 };
+
+exports.getTransporterOrders = async (req, res) => {
+  try {
+    const { transporter_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    const { Op } = require('sequelize');
+    
+    const orders = await Order.findAll({
+      where: {
+        [Op.or]: [
+          { source_transporter_id: transporter_id },
+          { destination_transporter_id: transporter_id }
+        ]
+      },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: { exclude: ['password'] }
+            }
+          ]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching transporter orders:', error);
+    res.status(500).json({ message: 'Error fetching transporter orders' });
+  }
+};

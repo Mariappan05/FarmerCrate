@@ -31,6 +31,7 @@ router.get('/farmers', adminController.getAllFarmers);
 router.get('/customers', adminController.getAllCustomers);
 router.get('/customers/:customer_id/orders', adminController.getCustomerOrders);
 router.get('/transporters', adminController.getAllTransporters);
+router.get('/transporters/:transporter_id/orders', adminController.getTransporterOrders);
 router.get('/delivery-persons', adminController.getAllDeliveryPersons);
 
 // Delete users
