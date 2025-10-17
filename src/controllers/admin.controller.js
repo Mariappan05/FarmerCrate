@@ -284,11 +284,45 @@ exports.getAllCustomers = async (req, res) => {
 
 exports.getAllTransporters = async (req, res) => {
   try {
+    const Transaction = require('../models/transaction.model');
+    const { Op } = require('sequelize');
+    
     const transporters = await TransporterUser.findAll({
       attributes: { exclude: ['password'] },
       order: [['created_at', 'DESC']]
     });
-    res.json({ success: true, count: transporters.length, data: transporters });
+    
+    const transportersWithStats = await Promise.all(transporters.map(async (transporter) => {
+      const sourceOrders = await Order.count({
+        where: { source_transporter_id: transporter.transporter_id }
+      });
+      
+      const destOrders = await Order.count({
+        where: { destination_transporter_id: transporter.transporter_id }
+      });
+      
+      const transactions = await Transaction.findAll({
+        where: {
+          user_type: 'transporter',
+          user_id: transporter.transporter_id,
+          status: 'completed'
+        }
+      });
+      
+      const totalAmount = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      return {
+        ...transporter.toJSON(),
+        order_stats: {
+          total_orders: sourceOrders + destOrders,
+          source_orders: sourceOrders,
+          destination_orders: destOrders,
+          total_amount_received: totalAmount
+        }
+      };
+    }));
+    
+    res.json({ success: true, count: transportersWithStats.length, data: transportersWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching transporters' });
   }
