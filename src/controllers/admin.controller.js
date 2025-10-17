@@ -352,6 +352,7 @@ exports.getAllDeliveryPersons = async (req, res) => {
       
       return {
         ...person.toJSON(),
+        is_available: person.is_available !== undefined ? person.is_available : true,
         order_stats: {
           total_orders: totalOrders,
           total_amount_received: totalAmount
@@ -653,5 +654,61 @@ exports.getFarmerOrders = async (req, res) => {
   } catch (error) {
     console.error('Error fetching farmer orders:', error);
     res.status(500).json({ message: 'Error fetching farmer orders' });
+  }
+};
+
+
+exports.getDashboardMetrics = async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const [farmersActiveToday, lowStockFarmers, newCustomersWeek, delayedDelivery] = await Promise.all([
+      Order.count({
+        distinct: true,
+        col: 'product.farmer_id',
+        include: [{
+          model: Product,
+          attributes: [],
+          where: { farmer_id: { [Op.ne]: null } }
+        }],
+        where: {
+          created_at: { [Op.gte]: today }
+        }
+      }),
+      Product.count({
+        where: {
+          quantity: { [Op.lte]: 10 },
+          status: 'available'
+        }
+      }),
+      CustomerUser.count({
+        where: {
+          created_at: { [Op.gte]: weekAgo }
+        }
+      }),
+      Order.count({
+        where: {
+          current_status: { [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT'] },
+          estimated_delivery_time: { [Op.lt]: new Date() }
+        }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        farmersActiveToday,
+        lowStockFarmers,
+        newCustomersWeek,
+        delayedDelivery
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard metrics:', error);
+    res.status(500).json({ message: 'Error fetching dashboard metrics' });
   }
 };

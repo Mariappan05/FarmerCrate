@@ -12,6 +12,7 @@ router.get('/profile', adminController.getAdminProfile);
 
 // Dashboard stats
 router.get('/dashboard-stats', adminController.getDashboardStats);
+router.get('/dashboard-metrics', adminController.getDashboardMetrics);
 
 // Farmer management
 router.get('/farmers/pending', adminController.getPendingFarmers);
