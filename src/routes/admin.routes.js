@@ -28,6 +28,8 @@ router.put('/transporters/:transporter_id/approve', [
 
 // Get all users
 router.get('/farmers', adminController.getAllFarmers);
+router.get('/farmers/:farmer_id/products', adminController.getFarmerProducts);
+router.get('/farmers/:farmer_id/orders', adminController.getFarmerOrders);
 router.get('/customers', adminController.getAllCustomers);
 router.get('/customers/:customer_id/orders', adminController.getCustomerOrders);
 router.get('/transporters', adminController.getAllTransporters);

@@ -577,3 +577,81 @@ exports.getDeliveryPersonOrders = async (req, res) => {
     res.status(500).json({ message: 'Error fetching delivery person orders' });
   }
 };
+
+exports.getFarmerProducts = async (req, res) => {
+  try {
+    const { farmer_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const products = await Product.findAll({
+      where: { farmer_id },
+      include: [{
+        model: ProductImage,
+        as: 'images',
+        attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: products.length,
+      data: products
+    });
+  } catch (error) {
+    console.error('Error fetching farmer products:', error);
+    res.status(500).json({ message: 'Error fetching farmer products' });
+  }
+};
+
+exports.getFarmerOrders = async (req, res) => {
+  try {
+    const { farmer_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const orders = await Order.findAll({
+      include: [
+        {
+          model: Product,
+          where: { farmer_id },
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+          }]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching farmer orders:', error);
+    res.status(500).json({ message: 'Error fetching farmer orders' });
+  }
+};
