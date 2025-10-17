@@ -33,6 +33,7 @@ router.get('/customers/:customer_id/orders', adminController.getCustomerOrders);
 router.get('/transporters', adminController.getAllTransporters);
 router.get('/transporters/:transporter_id/orders', adminController.getTransporterOrders);
 router.get('/delivery-persons', adminController.getAllDeliveryPersons);
+router.get('/delivery-persons/:delivery_person_id/orders', adminController.getDeliveryPersonOrders);
 
 // Delete users
 router.delete('/farmers/:id', adminController.deleteFarmer);

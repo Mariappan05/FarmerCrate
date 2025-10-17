@@ -330,11 +330,38 @@ exports.getAllTransporters = async (req, res) => {
 
 exports.getAllDeliveryPersons = async (req, res) => {
   try {
+    const Transaction = require('../models/transaction.model');
+    
     const deliveryPersons = await DeliveryPerson.findAll({
       attributes: { exclude: ['password'] },
       order: [['created_at', 'DESC']]
     });
-    res.json({ success: true, count: deliveryPersons.length, data: deliveryPersons });
+    
+    const deliveryPersonsWithStats = await Promise.all(deliveryPersons.map(async (person) => {
+      const totalOrders = await Order.count({
+        where: { delivery_person_id: person.delivery_person_id }
+      });
+      
+      const transactions = await Transaction.findAll({
+        where: {
+          user_type: 'delivery_person',
+          user_id: person.delivery_person_id,
+          status: 'completed'
+        }
+      });
+      
+      const totalAmount = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      return {
+        ...person.toJSON(),
+        order_stats: {
+          total_orders: totalOrders,
+          total_amount_received: totalAmount
+        }
+      };
+    }));
+    
+    res.json({ success: true, count: deliveryPersonsWithStats.length, data: deliveryPersonsWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching delivery persons' });
   }
@@ -501,5 +528,54 @@ exports.getTransporterOrders = async (req, res) => {
   } catch (error) {
     console.error('Error fetching transporter orders:', error);
     res.status(500).json({ message: 'Error fetching transporter orders' });
+  }
+};
+
+exports.getDeliveryPersonOrders = async (req, res) => {
+  try {
+    const { delivery_person_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const orders = await Order.findAll({
+      where: { delivery_person_id },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: { exclude: ['password'] }
+            }
+          ]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching delivery person orders:', error);
+    res.status(500).json({ message: 'Error fetching delivery person orders' });
   }
 };
