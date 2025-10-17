@@ -454,7 +454,7 @@ exports.getCustomerOrders = async (req, res) => {
         {
           model: DeliveryPerson,
           as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url', 'transporter_id']
         }
       ],
       order: [['created_at', 'DESC']]
