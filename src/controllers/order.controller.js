@@ -580,13 +580,22 @@ exports.getAllOrders = async (req, res) => {
         { 
           model: Product, 
           attributes: ['product_id', 'name', 'current_price'],
-          include: [{
-            model: ProductImage,
-            as: 'images',
-            attributes: ['image_url', 'is_primary']
-          }]
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'image_url']
+            }
+          ]
         },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
+        { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
+        { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
         { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
       ],
       order: [['created_at', 'DESC']]

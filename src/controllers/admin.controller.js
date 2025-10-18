@@ -203,38 +203,36 @@ exports.getAllFarmers = async (req, res) => {
   try {
     const farmers = await FarmerUser.findAll({
       attributes: { exclude: ['password'] },
-      include: [{
-        model: Product,
-        as: 'products',
-        include: [{
-          model: Order,
-          attributes: ['order_id', 'current_status', 'farmer_amount']
-        }]
-      }],
       order: [['created_at', 'DESC']]
     });
     
-    const farmersWithStats = farmers.map(farmer => {
-      const allOrders = farmer.products.flatMap(product => product.Orders || []);
-      const totalOrders = allOrders.length;
-      const completedOrders = allOrders.filter(order => order.current_status === 'COMPLETED').length;
-      const activeOrders = allOrders.filter(order => 
-        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY'].includes(order.current_status)
-      ).length;
-      const totalRevenue = allOrders
+    const farmersWithStats = await Promise.all(farmers.map(async (farmer) => {
+      const productCount = await Product.count({
+        where: { farmer_id: farmer.farmer_id }
+      });
+      
+      const orders = await Order.findAll({
+        include: [{
+          model: Product,
+          where: { farmer_id: farmer.farmer_id },
+          attributes: []
+        }],
+        attributes: ['order_id', 'current_status', 'farmer_amount']
+      });
+      
+      const totalOrders = orders.length;
+      const totalEarnings = orders
         .filter(order => order.current_status === 'COMPLETED')
         .reduce((sum, order) => sum + parseFloat(order.farmer_amount || 0), 0);
       
+      const { products, ...farmerData } = farmer.toJSON();
       return {
-        ...farmer.toJSON(),
-        order_stats: {
-          total_orders: totalOrders,
-          completed_orders: completedOrders,
-          active_orders: activeOrders,
-          total_revenue: totalRevenue
-        }
+        ...farmerData,
+        product_count: productCount,
+        order_count: totalOrders,
+        total_earnings: totalEarnings
       };
-    });
+    }));
     
     res.json({ success: true, count: farmersWithStats.length, data: farmersWithStats });
   } catch (error) {
@@ -284,11 +282,45 @@ exports.getAllCustomers = async (req, res) => {
 
 exports.getAllTransporters = async (req, res) => {
   try {
+    const Transaction = require('../models/transaction.model');
+    const { Op } = require('sequelize');
+    
     const transporters = await TransporterUser.findAll({
       attributes: { exclude: ['password'] },
       order: [['created_at', 'DESC']]
     });
-    res.json({ success: true, count: transporters.length, data: transporters });
+    
+    const transportersWithStats = await Promise.all(transporters.map(async (transporter) => {
+      const sourceOrders = await Order.count({
+        where: { source_transporter_id: transporter.transporter_id }
+      });
+      
+      const destOrders = await Order.count({
+        where: { destination_transporter_id: transporter.transporter_id }
+      });
+      
+      const transactions = await Transaction.findAll({
+        where: {
+          user_type: 'transporter',
+          user_id: transporter.transporter_id,
+          status: 'completed'
+        }
+      });
+      
+      const totalAmount = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      return {
+        ...transporter.toJSON(),
+        order_stats: {
+          total_orders: sourceOrders + destOrders,
+          source_orders: sourceOrders,
+          destination_orders: destOrders,
+          total_amount_received: totalAmount
+        }
+      };
+    }));
+    
+    res.json({ success: true, count: transportersWithStats.length, data: transportersWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching transporters' });
   }
@@ -296,11 +328,39 @@ exports.getAllTransporters = async (req, res) => {
 
 exports.getAllDeliveryPersons = async (req, res) => {
   try {
+    const Transaction = require('../models/transaction.model');
+    
     const deliveryPersons = await DeliveryPerson.findAll({
       attributes: { exclude: ['password'] },
       order: [['created_at', 'DESC']]
     });
-    res.json({ success: true, count: deliveryPersons.length, data: deliveryPersons });
+    
+    const deliveryPersonsWithStats = await Promise.all(deliveryPersons.map(async (person) => {
+      const totalOrders = await Order.count({
+        where: { delivery_person_id: person.delivery_person_id }
+      });
+      
+      const transactions = await Transaction.findAll({
+        where: {
+          user_type: 'delivery_person',
+          user_id: person.delivery_person_id,
+          status: 'completed'
+        }
+      });
+      
+      const totalAmount = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      return {
+        ...person.toJSON(),
+        is_available: person.is_available !== undefined ? person.is_available : true,
+        order_stats: {
+          total_orders: totalOrders,
+          total_amount_received: totalAmount
+        }
+      };
+    }));
+    
+    res.json({ success: true, count: deliveryPersonsWithStats.length, data: deliveryPersonsWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching delivery persons' });
   }
@@ -393,7 +453,7 @@ exports.getCustomerOrders = async (req, res) => {
         {
           model: DeliveryPerson,
           as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url', 'transporter_id']
         }
       ],
       order: [['created_at', 'DESC']]
@@ -407,5 +467,248 @@ exports.getCustomerOrders = async (req, res) => {
   } catch (error) {
     console.error('Error fetching customer orders:', error);
     res.status(500).json({ message: 'Error fetching customer orders' });
+  }
+};
+
+exports.getTransporterOrders = async (req, res) => {
+  try {
+    const { transporter_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    const { Op } = require('sequelize');
+    
+    const orders = await Order.findAll({
+      where: {
+        [Op.or]: [
+          { source_transporter_id: transporter_id },
+          { destination_transporter_id: transporter_id }
+        ]
+      },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: { exclude: ['password'] }
+            }
+          ]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching transporter orders:', error);
+    res.status(500).json({ message: 'Error fetching transporter orders' });
+  }
+};
+
+exports.getDeliveryPersonOrders = async (req, res) => {
+  try {
+    const { delivery_person_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const orders = await Order.findAll({
+      where: { delivery_person_id },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: { exclude: ['password'] }
+            }
+          ]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching delivery person orders:', error);
+    res.status(500).json({ message: 'Error fetching delivery person orders' });
+  }
+};
+
+exports.getFarmerProducts = async (req, res) => {
+  try {
+    const { farmer_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const products = await Product.findAll({
+      where: { farmer_id },
+      include: [{
+        model: ProductImage,
+        as: 'images',
+        attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: products.length,
+      data: products
+    });
+  } catch (error) {
+    console.error('Error fetching farmer products:', error);
+    res.status(500).json({ message: 'Error fetching farmer products' });
+  }
+};
+
+exports.getFarmerOrders = async (req, res) => {
+  try {
+    const { farmer_id } = req.params;
+    const ProductImage = require('../models/productImage.model');
+    
+    const orders = await Order.findAll({
+      include: [
+        {
+          model: Product,
+          where: { farmer_id },
+          attributes: ['product_id', 'name', 'current_price', 'description', 'category'],
+          include: [{
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+          }]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url']
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching farmer orders:', error);
+    res.status(500).json({ message: 'Error fetching farmer orders' });
+  }
+};
+
+
+exports.getDashboardMetrics = async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const [farmersActiveToday, lowStockFarmers, newCustomersWeek, delayedDelivery] = await Promise.all([
+      Order.count({
+        distinct: true,
+        col: 'product.farmer_id',
+        include: [{
+          model: Product,
+          attributes: [],
+          where: { farmer_id: { [Op.ne]: null } }
+        }],
+        where: {
+          created_at: { [Op.gte]: today }
+        }
+      }),
+      Product.count({
+        where: {
+          quantity: { [Op.lte]: 10 },
+          status: 'available'
+        }
+      }),
+      CustomerUser.count({
+        where: {
+          created_at: { [Op.gte]: weekAgo }
+        }
+      }),
+      Order.count({
+        where: {
+          current_status: { [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT'] },
+          estimated_delivery_time: { [Op.lt]: new Date() }
+        }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        farmersActiveToday,
+        lowStockFarmers,
+        newCustomersWeek,
+        delayedDelivery
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard metrics:', error);
+    res.status(500).json({ message: 'Error fetching dashboard metrics' });
   }
 };

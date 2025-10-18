@@ -12,6 +12,7 @@ router.get('/profile', adminController.getAdminProfile);
 
 // Dashboard stats
 router.get('/dashboard-stats', adminController.getDashboardStats);
+router.get('/dashboard-metrics', adminController.getDashboardMetrics);
 
 // Farmer management
 router.get('/farmers/pending', adminController.getPendingFarmers);
@@ -28,10 +29,14 @@ router.put('/transporters/:transporter_id/approve', [
 
 // Get all users
 router.get('/farmers', adminController.getAllFarmers);
+router.get('/farmers/:farmer_id/products', adminController.getFarmerProducts);
+router.get('/farmers/:farmer_id/orders', adminController.getFarmerOrders);
 router.get('/customers', adminController.getAllCustomers);
 router.get('/customers/:customer_id/orders', adminController.getCustomerOrders);
 router.get('/transporters', adminController.getAllTransporters);
+router.get('/transporters/:transporter_id/orders', adminController.getTransporterOrders);
 router.get('/delivery-persons', adminController.getAllDeliveryPersons);
+router.get('/delivery-persons/:delivery_person_id/orders', adminController.getDeliveryPersonOrders);
 
 // Delete users
 router.delete('/farmers/:id', adminController.deleteFarmer);
