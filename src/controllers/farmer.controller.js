@@ -888,6 +888,8 @@ exports.getActiveShipments = async (req, res) => {
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
     const CustomerUser = require('../models/customer_user.model');
+    const TransporterUser = require('../models/transporter_user.model');
+    const DeliveryPerson = require('../models/deliveryPerson.model');
     const { Op } = require('sequelize');
     
     const orders = await Order.findAll({
@@ -904,6 +906,21 @@ exports.getActiveShipments = async (req, res) => {
         model: CustomerUser,
         as: 'customer',
         attributes: ['name', 'mobile_number', 'address']
+      }, {
+        model: TransporterUser,
+        as: 'source_transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+        required: false
+      }, {
+        model: TransporterUser,
+        as: 'destination_transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+        required: false
+      }, {
+        model: DeliveryPerson,
+        as: 'delivery_person',
+        attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'],
+        required: false
       }],
       where: {
         current_status: {
