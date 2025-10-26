@@ -5,6 +5,20 @@ const FarmerUser = require('../models/farmer_user.model');
 const ProductPriceHistory = require('../models/productPriceHistory.model');
 const { Op } = require('sequelize');
 
+// Helper: accept image_urls as array or single string (also comma-separated)
+const normalizeImageUrls = (val) => {
+  if (!val) return null;
+  if (Array.isArray(val)) return val.map(i => (typeof i === 'string' ? i.trim() : i)).filter(Boolean);
+  if (typeof val === 'string') {
+    // comma-separated or single URL
+    if (val.includes(',')) {
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [val.trim()];
+  }
+  return null;
+};
+
 exports.getAllProducts = async (req, res) => {
   try {
     let whereClause = {};
@@ -140,11 +154,12 @@ exports.createProduct = async (req, res) => {
     });
 
     // Add images if provided
-    if (image_urls && Array.isArray(image_urls)) {
-      for (let i = 0; i < image_urls.length; i++) {
+    const normalized = normalizeImageUrls(image_urls);
+    if (normalized) {
+      for (let i = 0; i < normalized.length; i++) {
         await ProductImage.create({
           product_id: product.product_id,
-          image_url: image_urls[i],
+          image_url: normalized[i],
           is_primary: i === 0,
           display_order: i
         });
@@ -176,7 +191,7 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found or not owned by you' });
     }
     
-    const { name, description, current_price, quantity, category } = req.body;
+    const { name, description, current_price, quantity, category, image_urls, image_url } = req.body;
     await product.update({
       name: name || product.name,
       description: description || product.description,
@@ -184,6 +199,39 @@ exports.updateProduct = async (req, res) => {
       quantity: quantity || product.quantity,
       category: category || product.category
     });
+    
+    // Handle product images if provided in update
+    // - image_urls (array): replace existing images with provided array
+    // - image_url (string): append a single image to existing images
+    try {
+      const normalized = normalizeImageUrls(image_urls);
+      if (normalized) {
+        // remove existing images and recreate
+        await ProductImage.destroy({ where: { product_id: product.product_id } });
+        for (let i = 0; i < normalized.length; i++) {
+          await ProductImage.create({
+            product_id: product.product_id,
+            image_url: normalized[i],
+            is_primary: i === 0,
+            display_order: i
+          });
+        }
+      } else if (image_url && typeof image_url === 'string') {
+        // append single image
+        const last = await ProductImage.findOne({ where: { product_id: product.product_id }, order: [['display_order', 'DESC']] });
+        const nextOrder = last ? (last.display_order + 1) : 0;
+        await ProductImage.create({
+          product_id: product.product_id,
+          image_url: image_url,
+          is_primary: false,
+          display_order: nextOrder
+        });
+      }
+    } catch (imgErr) {
+      console.warn('Product images update warning:', imgErr.message);
+      // Don't fail the whole request for image insert/delete problems
+    }
+
     res.json({
       success: true,
       message: 'Product updated successfully',
