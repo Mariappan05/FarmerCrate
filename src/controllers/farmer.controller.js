@@ -905,21 +905,21 @@ exports.getActiveShipments = async (req, res) => {
       }, {
         model: CustomerUser,
         as: 'customer',
-        attributes: ['name', 'mobile_number', 'address']
+        attributes: ['name', 'mobile_number', 'address', 'email', 'image_url']
       }, {
         model: TransporterUser,
         as: 'source_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
         required: false
       }, {
         model: TransporterUser,
         as: 'destination_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
         required: false
       }, {
         model: DeliveryPerson,
         as: 'delivery_person',
-        attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'],
+        attributes: ['delivery_person_id', 'name', 'mobile_number', 'email', 'vehicle_type', 'vehicle_number', 'current_latitude', 'current_longitude'],
         required: false
       }],
       where: {

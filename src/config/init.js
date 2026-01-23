@@ -38,6 +38,17 @@ const initDatabase = async () => {
     await sequelize.sync({ alter: true });
     console.log('Database synchronized successfully');
 
+    // Ensure global_farmer_id column exists
+    try {
+      await sequelize.query(`
+        ALTER TABLE farmers 
+        ADD COLUMN IF NOT EXISTS global_farmer_id VARCHAR(50) UNIQUE;
+      `);
+      console.log('Verified global_farmer_id column exists');
+    } catch (err) {
+      console.log('global_farmer_id column check:', err.message);
+    }
+
     // Create default admin user if not exists
     const adminExists = await AdminUser.findOne({ where: { email: 'admin@farmercrate.com' } });
     if (!adminExists) {
