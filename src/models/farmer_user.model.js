@@ -7,10 +7,6 @@ const FarmerUser = sequelize.define('FarmerUser', {
     primaryKey: true,
     autoIncrement: true
   },
-  global_farmer_id: {
-    type: DataTypes.STRING(50),
-    unique: true
-  },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING(20), allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
