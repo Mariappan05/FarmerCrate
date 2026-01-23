@@ -205,20 +205,24 @@ exports.login = async (req, res) => {
     }
 
     // Farmer: username == global_farmer_id (case-insensitive)
-    const allFarmers = await FarmerUser.findAll();
-    let user = allFarmers.find(f => f.global_farmer_id?.toLowerCase() === username?.toLowerCase());
-    if (user && user.password === password) {
-      return res.json({
-        message: 'Login successful',
-        token: jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
-        user: {
-          id: user.farmer_id,
-          email: user.email,
-          role: 'farmer',
-          name: user.name,
-          global_farmer_id: user.global_farmer_id
-        }
-      });
+    try {
+      const allFarmers = await FarmerUser.findAll();
+      let user = allFarmers.find(f => f.global_farmer_id?.toLowerCase() === username?.toLowerCase());
+      if (user && user.password === password) {
+        return res.json({
+          message: 'Login successful',
+          token: jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
+          user: {
+            id: user.farmer_id,
+            email: user.email,
+            role: 'farmer',
+            name: user.name,
+            global_farmer_id: user.global_farmer_id
+          }
+        });
+      }
+    } catch (farmerError) {
+      console.log('Farmer login check skipped:', farmerError.message);
     }
 
     // Customer: username == name (case-insensitive)
