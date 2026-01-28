@@ -189,7 +189,7 @@ exports.login = async (req, res) => {
     }
 
     // Farmer: username == email
-    user = await FarmerUser.findOne({ where: { email: username } });
+    let user = await FarmerUser.findOne({ where: { email: username } });
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
