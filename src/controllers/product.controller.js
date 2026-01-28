@@ -140,7 +140,7 @@ exports.createProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { name, description, current_price, quantity, category, harvest_date, expiry_date, image_urls } = req.body;
+    const { name, description, current_price, quantity, category, harvest_date, expiry_date, image_urls, status } = req.body;
     const product = await Product.create({
       name,
       description,
@@ -150,7 +150,7 @@ exports.createProduct = async (req, res) => {
       harvest_date,
       expiry_date,
       farmer_id: req.user.farmer_id,
-      status: 'available'
+      status: status || 'available'
     });
 
     // Add images if provided
@@ -172,7 +172,9 @@ exports.createProduct = async (req, res) => {
     });
   } catch (error) {
     console.error('Create product error:', error);
-    res.status(500).json({ message: 'Error creating product' });
+    console.error('Error details:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ message: 'Error creating product', error: error.message });
   }
 };
 
