@@ -50,8 +50,7 @@ exports.getAllProducts = async (req, res) => {
         {
           model: ProductImage,
           as: 'images',
-          separate: true,
-          order: [['display_order', 'ASC']]
+          separate: true
         }
       ],
       order: [['created_at', 'DESC']]
@@ -83,8 +82,7 @@ exports.getProductsByFarmer = async (req, res) => {
         {
           model: ProductImage,
           as: 'images',
-          separate: true,
-          order: [['display_order', 'ASC']]
+          separate: true
         }
       ],
       order: [['created_at', 'DESC']]
@@ -111,8 +109,7 @@ exports.getProduct = async (req, res) => {
         {
           model: ProductImage,
           as: 'images',
-          separate: true,
-          order: [['display_order', 'ASC']]
+          separate: true
         }
       ]
     });
@@ -160,8 +157,7 @@ exports.createProduct = async (req, res) => {
         await ProductImage.create({
           product_id: product.product_id,
           image_url: normalized[i],
-          is_primary: i === 0,
-          display_order: i
+          is_primary: i === 0
         });
       }
     }
@@ -203,35 +199,26 @@ exports.updateProduct = async (req, res) => {
     });
     
     // Handle product images if provided in update
-    // - image_urls (array): replace existing images with provided array
-    // - image_url (string): append a single image to existing images
     try {
       const normalized = normalizeImageUrls(image_urls);
       if (normalized) {
-        // remove existing images and recreate
         await ProductImage.destroy({ where: { product_id: product.product_id } });
         for (let i = 0; i < normalized.length; i++) {
           await ProductImage.create({
             product_id: product.product_id,
             image_url: normalized[i],
-            is_primary: i === 0,
-            display_order: i
+            is_primary: i === 0
           });
         }
       } else if (image_url && typeof image_url === 'string') {
-        // append single image
-        const last = await ProductImage.findOne({ where: { product_id: product.product_id }, order: [['display_order', 'DESC']] });
-        const nextOrder = last ? (last.display_order + 1) : 0;
         await ProductImage.create({
           product_id: product.product_id,
           image_url: image_url,
-          is_primary: false,
-          display_order: nextOrder
+          is_primary: false
         });
       }
     } catch (imgErr) {
       console.warn('Product images update warning:', imgErr.message);
-      // Don't fail the whole request for image insert/delete problems
     }
 
     res.json({
@@ -295,8 +282,7 @@ exports.getRelatedProducts = async (req, res) => {
         {
           model: ProductImage,
           as: 'images',
-          separate: true,
-          order: [['display_order', 'ASC']]
+          separate: true
         }
       ],
       limit: 5,

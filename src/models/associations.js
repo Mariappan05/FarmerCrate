@@ -19,8 +19,18 @@ Product.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id', targetKey
 FarmerUser.hasMany(Product, { as: 'products', foreignKey: 'farmer_id', sourceKey: 'farmer_id', onDelete: 'CASCADE' });
 
 // Product - ProductImage relationship
-Product.hasMany(ProductImage, { as: 'images', foreignKey: 'product_id', sourceKey: 'product_id', onDelete: 'CASCADE' });
-ProductImage.belongsTo(Product, { as: 'product', foreignKey: 'product_id', targetKey: 'product_id', onDelete: 'CASCADE' });
+Product.hasMany(ProductImage, { 
+  as: 'images', 
+  foreignKey: 'product_id', 
+  sourceKey: 'product_id', 
+  onDelete: 'CASCADE'
+});
+ProductImage.belongsTo(Product, { 
+  as: 'product', 
+  foreignKey: 'product_id', 
+  targetKey: 'product_id', 
+  onDelete: 'CASCADE' 
+});
 
 // Customer - Order relationship
 Order.belongsTo(CustomerUser, { as: 'customer', foreignKey: 'customer_id', targetKey: 'customer_id', onDelete: 'CASCADE' });
