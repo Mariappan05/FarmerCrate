@@ -9,7 +9,6 @@ const CustomerUser = require('../models/customer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
 const AdminUser = require('../models/admin_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
-const GovVerificationService = require('../services/govVerification.service');
 
 // In-memory OTP storage
 const otpStore = new Map();
@@ -42,7 +41,7 @@ exports.register = async (req, res) => {
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
 
     if (role === 'farmer') {
-      const { name, email, password, mobile_number, address, zone, state, district, age, account_number, ifsc_code, image_url, global_farmer_id } = req.body;
+      const { name, email, password, mobile_number, address, zone, state, district, age, account_number, ifsc_code, image_url } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Farmer already exists' });
       const farmer = await Model.create({
@@ -57,30 +56,15 @@ exports.register = async (req, res) => {
         age,
         account_number,
         ifsc_code,
-        image_url,
-        global_farmer_id
+        image_url
       });
       
-      // Trigger government verification if global_farmer_id is provided
-      if (farmer.global_farmer_id) {
-        // Run verification in background
-        GovVerificationService.verifyFarmerWithGov(farmer.global_farmer_id, farmer.farmer_id)
-          .then(result => {
-            console.log(`Gov verification result for farmer ${farmer.farmer_id}:`, result);
-          })
-          .catch(error => {
-            console.error(`Gov verification failed for farmer ${farmer.farmer_id}:`, error);
-          });
-      }
-      
       return res.status(201).json({
-        message: 'Farmer registered successfully. Government verification initiated.',
+        message: 'Farmer registered successfully.',
         farmer: {
           id: farmer.farmer_id,
           name: farmer.name,
-          email: farmer.email,
-          is_verified_by_gov: farmer.is_verified_by_gov,
-          verification_status: farmer.global_farmer_id ? 'pending' : 'not_initiated'
+          email: farmer.email
         }
       });
     }
@@ -204,9 +188,8 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Both username and password are required.' });
     }
 
-    // Farmer: username == global_farmer_id (case-insensitive)
-    const allFarmers = await FarmerUser.findAll();
-    let user = allFarmers.find(f => f.global_farmer_id?.toLowerCase() === username?.toLowerCase());
+    // Farmer: username == email
+    user = await FarmerUser.findOne({ where: { email: username } });
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
@@ -215,15 +198,13 @@ exports.login = async (req, res) => {
           id: user.farmer_id,
           email: user.email,
           role: 'farmer',
-          name: user.name,
-          global_farmer_id: user.global_farmer_id
+          name: user.name
         }
       });
     }
 
-    // Customer: username == name (case-insensitive)
-    const allCustomers = await CustomerUser.findAll();
-    user = allCustomers.find(c => c.name?.toLowerCase() === username?.toLowerCase());
+    // Customer: username == email
+    user = await CustomerUser.findOne({ where: { email: username } });
     if (user && user.password === password) {
       // Check if this is first login
       if (!user.first_login_completed) {
@@ -271,9 +252,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Transporter: username == unique_id (case-insensitive)
-    const allTransporters = await TransporterUser.findAll();
-    user = allTransporters.find(t => t.unique_id?.toLowerCase() === username?.toLowerCase());
+    // Transporter: username == email
+    user = await TransporterUser.findOne({ where: { email: username } });
     if (user && user.password === password) {
       return res.json({
         message: 'Login successful',
@@ -282,15 +262,13 @@ exports.login = async (req, res) => {
           id: user.transporter_id,
           email: user.email,
           role: 'transporter',
-          name: user.name,
-          unique_id: user.unique_id
+          name: user.name
         }
       });
     }
 
-    // Admin: username == name (case-insensitive)
-    const allAdmins = await AdminUser.findAll();
-    user = allAdmins.find(a => a.name?.toLowerCase() === username?.toLowerCase());
+    // Admin: username == email
+    user = await AdminUser.findOne({ where: { email: username } });
     if (user && user.password === password) {
       if (!user.is_active) {
         return res.status(401).json({ message: 'Account is deactivated' });
@@ -308,9 +286,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Delivery Person: username == mobile_number (case-insensitive)
-    const allDeliveryPersons = await DeliveryPerson.findAll();
-    user = allDeliveryPersons.find(d => d.mobile_number?.toLowerCase() === username?.toLowerCase());
+    // Delivery Person: username == mobile_number
+    user = await DeliveryPerson.findOne({ where: { mobile_number: username } });
     if (user && user.password === password) {
       // Check if this is first login
       if (!user.first_login_completed) {
@@ -619,22 +596,3 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
   }
 };
 
-// Farmer code verification (unchanged)
-exports.verifyFarmerCode = async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    const farmer = await FarmerUser.findOne({ where: { email } });
-    if (!farmer) {
-      return res.status(404).json({ message: 'Farmer not found' });
-    }
-    if (farmer.unique_id !== code) {
-      return res.status(400).json({ message: 'Invalid code' });
-    }
-    farmer.verified_status = true;
-    await farmer.save();
-    res.json({ success: true, message: 'Farmer verified successfully.' });
-  } catch (error) {
-    console.error('Error verifying farmer code:', error);
-    res.status(500).json({ message: 'Error verifying farmer code' });
-  }
-};

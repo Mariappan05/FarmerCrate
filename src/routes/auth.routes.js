@@ -100,14 +100,4 @@ router.post(
   authController.changeDeliveryPersonFirstLoginPassword
 );
 
-// Farmer code verification route
-router.post(
-  '/verify-farmer-code',
-  [
-    body('email').isEmail().withMessage('Please enter a valid email'),
-    body('code').isLength({ min: 6, max: 6 }).withMessage('Code must be 6 digits')
-  ],
-  authController.verifyFarmerCode
-);
-
 module.exports = router; 
