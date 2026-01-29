@@ -108,7 +108,7 @@ exports.approveFarmer = async (req, res) => {
 exports.getPendingTransporters = async (req, res) => {
   try {
     const pendingTransporters = await TransporterUser.findAll({
-      where: { verified_status: false, rejected_at: null },
+      where: { verified_status: 'pending' },
       attributes: { exclude: ['password'] },
       order: [['created_at', 'DESC']]
     });
@@ -134,14 +134,14 @@ exports.approveTransporter = async (req, res) => {
       return res.status(404).json({ message: 'Transporter not found' });
     }
 
-    if (transporter.verified_status) {
+    if (transporter.verified_status === 'verified') {
       return res.status(400).json({ message: 'Transporter is already verified' });
     }
 
     const unique_id = generateVerificationCode();
     
     await transporter.update({
-      verified_status: true,
+      verified_status: 'verified',
       unique_id: unique_id,
       approved_at: new Date(),
       approval_notes: approval_notes || null
