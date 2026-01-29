@@ -9,6 +9,7 @@ const DeliveryPerson = sequelize.define('delivery_persons', {
   password: { type: DataTypes.STRING, allowNull: false },
   vehicle_number: { type: DataTypes.STRING(50), allowNull: false },
   license_number: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+  license_url: { type: DataTypes.STRING },
   image_url: { type: DataTypes.STRING },
   vehicle_type: { type: DataTypes.ENUM('bike', 'auto', 'van', 'truck'), allowNull: false },
   is_available: { type: DataTypes.BOOLEAN, defaultValue: true },

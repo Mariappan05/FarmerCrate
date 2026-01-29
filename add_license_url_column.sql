@@ -1,0 +1,6 @@
+ALTER TABLE delivery_persons ADD COLUMN IF NOT EXISTS license_url VARCHAR(255);
+ALTER TABLE delivery_persons ADD COLUMN IF NOT EXISTS image_url VARCHAR(255);
+ALTER TABLE delivery_persons ADD COLUMN IF NOT EXISTS current_location VARCHAR(255);
+ALTER TABLE delivery_persons ADD COLUMN IF NOT EXISTS rating DECIMAL(4,2) DEFAULT 0.00;
+ALTER TABLE delivery_persons ADD COLUMN IF NOT EXISTS total_deliveries INTEGER DEFAULT 0;
+ALTER TABLE delivery_persons ADD COLUMN IF NOT EXISTS first_login_completed BOOLEAN DEFAULT FALSE;

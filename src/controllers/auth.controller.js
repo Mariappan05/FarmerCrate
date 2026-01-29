@@ -203,8 +203,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Customer: username == email
-    user = await CustomerUser.findOne({ where: { email: username } });
+    // Customer: username == name
+    user = await CustomerUser.findOne({ where: { name: username } });
+    console.log('Customer lookup:', { username, found: !!user, passwordMatch: user ? user.password === password : false });
     if (user && user.password === password) {
       // Check if this is first login
       if (!user.first_login_completed) {
