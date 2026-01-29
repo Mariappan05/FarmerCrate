@@ -269,7 +269,7 @@ exports.login = async (req, res) => {
     }
 
     // Admin: username == email
-    user = await AdminUser.findOne({ where: { email: username } });
+    user = await AdminUser.findOne({ where: { name: username } });
     if (user && user.password === password) {
       if (!user.is_active) {
         return res.status(401).json({ message: 'Account is deactivated' });
