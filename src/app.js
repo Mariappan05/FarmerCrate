@@ -33,6 +33,7 @@ const deliveryPersonRoutes = require('./routes/deliveryPerson.routes');
 const wishlistRoutes = require('./routes/wishlist.routes');
 const vehicleRoutes = require('./routes/vehicle.routes');
 const govVerificationRoutes = require('./routes/govVerification.routes');
+const locationRoutes = require('./routes/location.routes');
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -50,6 +51,7 @@ app.use('/api/delivery-persons', deliveryPersonRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/gov-verification', govVerificationRoutes);
+app.use('/api/location', locationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
