@@ -100,4 +100,14 @@ router.post(
   authController.changeDeliveryPersonFirstLoginPassword
 );
 
+// Google Sign-In route
+router.post(
+  '/google-signin',
+  [
+    body('idToken').notEmpty().withMessage('Google ID token is required'),
+    body('role').isIn(['customer', 'farmer', 'transporter', 'admin']).withMessage('Valid role required')
+  ],
+  authController.googleSignIn
+);
+
 module.exports = router; 

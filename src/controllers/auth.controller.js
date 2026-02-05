@@ -608,3 +608,153 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
   }
 };
 
+
+// Google Sign-In
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+exports.googleSignIn = async (req, res) => {
+  try {
+    const { idToken, role } = req.body;
+    
+    if (!idToken) {
+      return res.status(400).json({ message: 'Google ID token is required' });
+    }
+    
+    if (!role || !['customer', 'farmer', 'transporter'].includes(role)) {
+      return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' });
+    }
+    
+    // Verify Google token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+    
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+    
+    // Select model based on role
+    const Model = getModelByRole(role);
+    if (!Model) {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+    
+    // Check if user exists
+    let user = await Model.findOne({ where: { email } });
+    
+    if (!user) {
+      // Create new user
+      const userData = {
+        email,
+        name,
+        image_url: picture,
+        google_id: googleId,
+        password: Math.random().toString(36).slice(-8) // Random password
+      };
+      
+      if (role === 'customer') {
+        userData.first_login_completed = true;
+        user = await CustomerUser.create(userData);
+        
+        const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+        
+        return res.json({
+          message: 'Google Sign-In successful',
+          token,
+          user: {
+            id: user.customer_id,
+            email: user.email,
+            name: user.name,
+            role: 'customer'
+          }
+        });
+      } else if (role === 'farmer') {
+        userData.unique_id = generateVerificationCode();
+        userData.verification_status = 'pending';
+        user = await FarmerUser.create(userData);
+        
+        return res.json({
+          message: 'Farmer account created. Awaiting admin verification.',
+          user: {
+            id: user.farmer_id,
+            email: user.email,
+            name: user.name,
+            role: 'farmer',
+            verification_status: 'pending'
+          }
+        });
+      } else if (role === 'transporter') {
+        userData.verified_status = 'pending';
+        user = await TransporterUser.create(userData);
+        
+        return res.json({
+          message: 'Transporter account created. Awaiting admin verification.',
+          user: {
+            id: user.transporter_id,
+            email: user.email,
+            name: user.name,
+            role: 'transporter',
+            verified_status: 'pending'
+          }
+        });
+      }
+    }
+    
+    // User exists - login
+    if (role === 'customer') {
+      const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+      
+      return res.json({
+        message: 'Google Sign-In successful',
+        token,
+        user: {
+          id: user.customer_id,
+          email: user.email,
+          name: user.name,
+          role: 'customer'
+        }
+      });
+    } else if (role === 'farmer') {
+      if (user.verification_status === 'pending') {
+        return res.status(403).json({ message: 'Your account is pending admin verification' });
+      }
+      if (user.verification_status === 'rejected') {
+        return res.status(403).json({ message: 'Your account has been rejected' });
+      }
+      
+      const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+      
+      return res.json({
+        message: 'Google Sign-In successful',
+        token,
+        user: {
+          id: user.farmer_id,
+          email: user.email,
+          name: user.name,
+          role: 'farmer'
+        }
+      });
+    } else if (role === 'transporter') {
+      if (user.verified_status === 'pending') {
+        return res.status(403).json({ message: 'Your account is pending admin verification' });
+      }
+      
+      const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+      
+      return res.json({
+        message: 'Google Sign-In successful',
+        token,
+        user: {
+          id: user.transporter_id,
+          email: user.email,
+          name: user.name,
+          role: 'transporter'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Google Sign-In error:', error);
+    res.status(500).json({ message: 'Error with Google Sign-In', error: error.message });
+  }
+};
