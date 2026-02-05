@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "migrate": "node migrations/migrate.js"
+    "migrate": "node migrations/migrate.js",
+    "migrate:google-oauth": "node migrations/run_google_oauth_migration.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",

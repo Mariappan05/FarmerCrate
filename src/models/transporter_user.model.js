@@ -16,7 +16,7 @@ const TransporterUser = sequelize.define('transporters', {
   password: { type: DataTypes.STRING, allowNull: false },
   verified_status: { type: DataTypes.STRING(50), defaultValue: 'pending' },
   image_url: { type: DataTypes.TEXT },
-  google_id: { type: DataTypes.STRING, unique: true },
+  google_id: { type: DataTypes.STRING(255), unique: true },
   aadhar_url: { type: DataTypes.TEXT },
   pan_url: { type: DataTypes.TEXT },
   voter_id_url: { type: DataTypes.TEXT },

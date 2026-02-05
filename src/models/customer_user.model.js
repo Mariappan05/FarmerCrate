@@ -13,7 +13,7 @@ const CustomerUser = sequelize.define('customer_users', {
   password: { type: DataTypes.STRING, allowNull: false },
   age: { type: DataTypes.INTEGER },
   image_url: { type: DataTypes.STRING },
-  google_id: { type: DataTypes.STRING, unique: true },
+  google_id: { type: DataTypes.STRING(255), unique: true },
   first_login_completed: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, {
   tableName: 'customer_users',
