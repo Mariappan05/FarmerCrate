@@ -12,7 +12,7 @@ const FarmerUser = sequelize.define('FarmerUser', {
     unique: true 
   },
   name: { type: DataTypes.STRING, allowNull: false },
-  mobile_number: { type: DataTypes.STRING(20), allowNull: false },
+  mobile_number: { type: DataTypes.STRING(20), allowNull: true },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
   address: { type: DataTypes.STRING },
   zone: { type: DataTypes.STRING },

@@ -5,7 +5,7 @@ const TransporterUser = sequelize.define('transporters', {
   transporter_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   unique_id: { type: DataTypes.STRING(50), allowNull: true },
   name: { type: DataTypes.STRING, allowNull: false },
-  mobile_number: { type: DataTypes.STRING, allowNull: false },
+  mobile_number: { type: DataTypes.STRING, allowNull: true },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
   age: { type: DataTypes.INTEGER },
   address: { type: DataTypes.TEXT },
