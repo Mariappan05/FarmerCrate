@@ -7,6 +7,10 @@ const FarmerUser = sequelize.define('FarmerUser', {
     primaryKey: true,
     autoIncrement: true
   },
+  unique_id: { 
+    type: DataTypes.STRING(50), 
+    unique: true 
+  },
   name: { type: DataTypes.STRING, allowNull: false },
   mobile_number: { type: DataTypes.STRING(20), allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -20,6 +24,7 @@ const FarmerUser = sequelize.define('FarmerUser', {
   ifsc_code: { type: DataTypes.STRING(20) },
   image_url: { type: DataTypes.STRING },
   is_verified_by_gov: { type: DataTypes.BOOLEAN, defaultValue: false },
+  verification_status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
   verification_request_sent: { type: DataTypes.DATE },
   verification_completed_at: { type: DataTypes.DATE },
   verification_notes: { type: DataTypes.TEXT }

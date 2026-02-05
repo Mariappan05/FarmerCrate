@@ -80,10 +80,13 @@ exports.approveFarmer = async (req, res) => {
     }
 
     const global_farmer_id = generateVerificationCode();
+    const unique_id = generateVerificationCode();
     
     await farmer.update({
       is_verified_by_gov: true,
+      unique_id: unique_id,
       global_farmer_id: global_farmer_id,
+      verification_status: 'approved',
       verification_completed_at: new Date(),
       verification_notes: verification_notes || null
     });
@@ -96,7 +99,8 @@ exports.approveFarmer = async (req, res) => {
         name: farmer.name,
         email: farmer.email,
         mobile_number: farmer.mobile_number,
-        global_farmer_id: global_farmer_id
+        global_farmer_id: global_farmer_id,
+        unique_id: unique_id
       }
     });
   } catch (error) {

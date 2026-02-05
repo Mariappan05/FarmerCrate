@@ -1,7 +1,7 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { sendOTPSMS } = require('../utils/sms.util');
+const { sendOTPSMS, generateVerificationCode } = require('../utils/sms.util');
 const sequelize = require('../config/database').sequelize;
 const { Sequelize } = require('sequelize');
 const FarmerUser = require('../models/farmer_user.model');
@@ -44,6 +44,7 @@ exports.register = async (req, res) => {
       const { name, email, password, mobile_number, address, zone, state, district, age, account_number, ifsc_code, image_url } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Farmer already exists' });
+      const unique_id = generateVerificationCode();
       const farmer = await Model.create({
         name,
         email,
@@ -56,15 +57,18 @@ exports.register = async (req, res) => {
         age,
         account_number,
         ifsc_code,
-        image_url
+        image_url,
+        unique_id,
+        verification_status: 'pending'
       });
       
       return res.status(201).json({
-        message: 'Farmer registered successfully.',
+        message: 'Farmer registered successfully. Awaiting admin verification.',
         farmer: {
-          id: farmer.farmer_id,
           name: farmer.name,
-          email: farmer.email
+          email: farmer.email,
+          unique_id: farmer.unique_id,
+          verification_status: 'pending'
         }
       });
     }
@@ -188,9 +192,15 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Both username and password are required.' });
     }
 
-    // Farmer: username == email
-    let user = await FarmerUser.findOne({ where: { email: username } });
+    // Farmer: username == unique_id
+    let user = await FarmerUser.findOne({ where: { unique_id: username } });
     if (user && user.password === password) {
+      if (user.verification_status === 'pending') {
+        return res.status(403).json({ message: 'Your account is pending admin verification. Please wait for approval.' });
+      }
+      if (user.verification_status === 'rejected') {
+        return res.status(403).json({ message: 'Your account has been rejected. Please contact support.' });
+      }
       return res.json({
         message: 'Login successful',
         token: jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
@@ -198,7 +208,8 @@ exports.login = async (req, res) => {
           id: user.farmer_id,
           email: user.email,
           role: 'farmer',
-          name: user.name
+          name: user.name,
+          unique_id: user.unique_id
         }
       });
     }
