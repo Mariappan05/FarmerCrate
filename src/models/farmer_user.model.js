@@ -23,6 +23,7 @@ const FarmerUser = sequelize.define('FarmerUser', {
   account_number: { type: DataTypes.STRING(50) },
   ifsc_code: { type: DataTypes.STRING(20) },
   image_url: { type: DataTypes.STRING },
+  google_id: { type: DataTypes.STRING, unique: true },
   is_verified_by_gov: { type: DataTypes.BOOLEAN, defaultValue: false },
   verification_status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
   verification_request_sent: { type: DataTypes.DATE },
