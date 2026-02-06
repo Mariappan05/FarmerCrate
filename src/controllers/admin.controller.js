@@ -370,6 +370,27 @@ exports.getAllDeliveryPersons = async (req, res) => {
   }
 };
 
+exports.getFarmerById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const farmer = await FarmerUser.findByPk(id, {
+      attributes: { exclude: ['password'] }
+    });
+    
+    if (!farmer) {
+      return res.status(404).json({ message: 'Farmer not found' });
+    }
+
+    res.json({
+      success: true,
+      data: farmer
+    });
+  } catch (error) {
+    console.error('Error fetching farmer:', error);
+    res.status(500).json({ message: 'Error fetching farmer' });
+  }
+};
+
 exports.deleteFarmer = async (req, res) => {
   try {
     const { id } = req.params;
@@ -430,7 +451,7 @@ exports.getCustomerOrders = async (req, res) => {
             {
               model: ProductImage,
               as: 'images',
-              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+              attributes: ['image_id', 'image_url', 'is_primary']
             },
             {
               model: FarmerUser,
@@ -495,7 +516,7 @@ exports.getTransporterOrders = async (req, res) => {
             {
               model: ProductImage,
               as: 'images',
-              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+              attributes: ['image_id', 'image_url', 'is_primary']
             },
             {
               model: FarmerUser,
@@ -549,7 +570,7 @@ exports.getDeliveryPersonOrders = async (req, res) => {
             {
               model: ProductImage,
               as: 'images',
-              attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+              attributes: ['image_id', 'image_url', 'is_primary']
             },
             {
               model: FarmerUser,
@@ -593,7 +614,7 @@ exports.getFarmerProducts = async (req, res) => {
       include: [{
         model: ProductImage,
         as: 'images',
-        attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+        attributes: ['image_id', 'image_url', 'is_primary']
       }],
       order: [['created_at', 'DESC']]
     });
@@ -623,7 +644,7 @@ exports.getFarmerOrders = async (req, res) => {
           include: [{
             model: ProductImage,
             as: 'images',
-            attributes: ['image_id', 'image_url', 'is_primary', 'display_order']
+            attributes: ['image_id', 'image_url', 'is_primary']
           }]
         },
         {
