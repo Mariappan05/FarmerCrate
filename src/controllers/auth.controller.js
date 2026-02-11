@@ -27,6 +27,28 @@ const getModelByRole = (role) => {
   return null;
 };
 
+// Check if email or mobile exists in any role
+const checkExistingUser = async (email, mobile_number) => {
+  const checks = [
+    { model: FarmerUser, role: 'farmer' },
+    { model: CustomerUser, role: 'customer' },
+    { model: TransporterUser, role: 'transporter' },
+    { model: AdminUser, role: 'admin' }
+  ];
+  
+  for (const { model, role } of checks) {
+    if (email) {
+      const userByEmail = await model.findOne({ where: { email } });
+      if (userByEmail) return { exists: true, role, field: 'email' };
+    }
+    if (mobile_number) {
+      const userByMobile = await model.findOne({ where: { mobile_number } });
+      if (userByMobile) return { exists: true, role, field: 'mobile_number' };
+    }
+  }
+  return { exists: false };
+};
+
 // Register new user
 exports.register = async (req, res) => {
   try {
@@ -35,8 +57,19 @@ exports.register = async (req, res) => {
       {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { role } = req.body;
+    const { role, email, mobile_number } = req.body;
     if (!role) return res.status(400).json({ message: 'Role is required.' });
+    
+    // Check if user already exists in any role
+    const existingUser = await checkExistingUser(email, mobile_number);
+    if (existingUser.exists) {
+      return res.status(400).json({ 
+        message: `User with this ${existingUser.field} already registered as ${existingUser.role}`,
+        existingRole: existingUser.role,
+        field: existingUser.field
+      });
+    }
+    
     const Model = getModelByRole(role);
     if (!Model) return res.status(400).json({ message: 'Invalid role specified.' });
 
@@ -759,7 +792,8 @@ exports.googleSignIn = async (req, res) => {
   }
 };
 
-exports.googleCompleteProfile = async (req, res) => { try { console.log('[GOOGLE PROFILE] Request body:', req.body); const { email, name, googleId, role, mobile_number, address, zone, state, district, age, account_number, ifsc_code } = req.body; if (!role || !['customer', 'farmer', 'transporter'].includes(role)) { return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' }); } const Model = getModelByRole(role); console.log('[GOOGLE PROFILE] Searching for user with email:', email); let user = await Model.findOne({ where: { email } }); console.log('[GOOGLE PROFILE] User found:', !!user); if (!user) { console.log('[GOOGLE PROFILE] Creating new user'); const userData = { email, name, google_id: googleId, password: Math.random().toString(36).slice(-8) }; if (mobile_number) userData.mobile_number = mobile_number; if (address) userData.address = address; if (zone) userData.zone = zone; if (state) userData.state = state; if (district) userData.district = district; if (age) userData.age = age; if (role === 'farmer') { userData.unique_id = generateVerificationCode(); userData.verification_status = 'verified'; if (account_number) userData.account_number = account_number; if (ifsc_code) userData.ifsc_code = ifsc_code; user = await FarmerUser.create(userData); const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Farmer profile created successfully', token, user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' } }); } else if (role === 'customer') { userData.first_login_completed = true; user = await CustomerUser.create(userData); const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Customer profile created successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } }); } else if (role === 'transporter') { userData.verified_status = 'verified'; user = await TransporterUser.create(userData); const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Transporter profile created successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } }); } } else { console.log('[GOOGLE PROFILE] Updating existing user'); if (mobile_number) user.mobile_number = mobile_number; if (address) user.address = address; if (zone) user.zone = zone; if (state) user.state = state; if (district) user.district = district; if (age) user.age = age; if (googleId) user.google_id = googleId; if (role === 'farmer') { if (account_number) user.account_number = account_number; if (ifsc_code) user.ifsc_code = ifsc_code; await user.save(); const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Farmer profile updated successfully', token, user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' } }); } else if (role === 'customer') { user.first_login_completed = true; await user.save(); const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Customer profile updated successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } }); } else if (role === 'transporter') { await user.save(); const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Transporter profile updated successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } }); } } console.log('[GOOGLE PROFILE] Reached end without return - Invalid role'); return res.status(400).json({ message: 'Invalid role' }); } catch (error) { console.error('[GOOGLE PROFILE ERROR]', error); console.error('Stack:', error.stack); res.status(500).json({ message: 'Error completing profile', error: error.message }); } };
+exports.googleCompleteProfile = async (req, res) => { try { console.log('[GOOGLE PROFILE] Request body:', req.body); const { email, name, googleId, role, mobile_number, address, zone, state, district, age, account_number, ifsc_code } = req.body; if (!role || !['customer', 'farmer', 'transporter'].includes(role)) { return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' }); } const existingUser = await checkExistingUser(email, mobile_number); if (existingUser.exists) { return res.status(400).json({ message: `User with this ${existingUser.field} already registered as ${existingUser.role}`, existingRole: existingUser.role, field: existingUser.field }); } const Model = getModelByRole(role); console.log('[GOOGLE PROFILE] Searching for user with email:', email); let user = await Model.findOne({ where: { email } }); console.log('[GOOGLE PROFILE] User found:', !!user); if (!user) { console.log('[GOOGLE PROFILE] Creating new user'); const userData = { email, name, google_id: googleId, password: Math.random().toString(36).slice(-8) }; if (mobile_number) userData.mobile_number = mobile_number; if (address) userData.address = address; if (zone) userData.zone = zone; if (state) userData.state = state; if (district) userData.district = district; if (age) userData.age = age; if (role === 'farmer') { userData.unique_id = generateVerificationCode(); userData.verification_status = 'verified'; if (account_number) userData.account_number = account_number; if (ifsc_code) userData.ifsc_code = ifsc_code; user = await FarmerUser.create(userData); const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Farmer profile created successfully', token, user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' } }); } else if (role === 'customer') { userData.first_login_completed = true; user = await CustomerUser.create(userData); const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Customer profile created successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } }); } else if (role === 'transporter') { userData.verified_status = 'verified'; user = await TransporterUser.create(userData); const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Transporter profile created successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } }); } } else { console.log('[GOOGLE PROFILE] Updating existing user'); if (mobile_number) user.mobile_number = mobile_number; if (address) user.address = address; if (zone) user.zone = zone; if (state) user.state = state; if (district) user.district = district; if (age) user.age = age; if (googleId) user.google_id = googleId; if (role === 'farmer') { if (account_number) user.account_number = account_number; if (ifsc_code) user.ifsc_code = ifsc_code; await user.save(); const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Farmer profile updated successfully', token, user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' } }); } else if (role === 'customer') { user.first_login_completed = true; await user.save(); const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Customer profile updated successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } }); } else if (role === 'transporter') { await user.save(); const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }); return res.json({ message: 'Transporter profile updated successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } }); } } console.log('[GOOGLE PROFILE] Reached end without return - Invalid role'); return res.status(400).json({ message: 'Invalid role' }); } catch (error) { console.error('[GOOGLE PROFILE ERROR]', error); console.error('Stack:', error.stack); res.status(500).json({ message: 'Error completing profile', error: error.message }); } };
+
 
 
 
