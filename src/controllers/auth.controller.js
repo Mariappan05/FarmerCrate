@@ -816,9 +816,10 @@ exports.googleCompleteProfile = async (req, res) => {
       }
     }
     
-    return res.status(400).json({ message: 'User already exists' });
+    return res.status(400).json({ message: 'Invalid role' });
   } catch (error) {
     console.error('Google complete profile error:', error);
     res.status(500).json({ message: 'Error completing profile', error: error.message });
   }
 };
+
