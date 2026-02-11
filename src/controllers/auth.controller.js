@@ -667,6 +667,20 @@ exports.googleSignIn = async (req, res) => {
     const payload = ticket.getPayload();
     const { email, name, picture, sub: googleId } = payload;
     
+    console.log('[GOOGLE SIGNIN] Email from Google:', email);
+    console.log('[GOOGLE SIGNIN] Requested role:', role);
+    
+    // Check if email exists in OTHER roles
+    const existingUser = await checkExistingUser(email, null);
+    if (existingUser.exists && existingUser.role !== role) {
+      console.log('[GOOGLE SIGNIN] Email exists in different role:', existingUser.role);
+      return res.status(400).json({ 
+        message: `User with this email already registered as ${existingUser.role}`,
+        existingRole: existingUser.role,
+        field: 'email'
+      });
+    }
+    
     // Select model based on role
     const Model = getModelByRole(role);
     if (!Model) {
