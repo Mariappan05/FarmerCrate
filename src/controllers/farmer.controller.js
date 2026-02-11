@@ -47,23 +47,6 @@ exports.updateMe = async (req, res) => {
   }
 };
 
-exports.getAllUsers = async (req, res) => {
-  try {
-    const farmers = await FarmerUser.findAll({
-      attributes: { exclude: ['password'] },
-      order: [['created_at', 'DESC']]
-    });
-
-    res.json({ 
-      success: true, 
-      data: farmers
-    });
-  } catch (error) {
-    console.error('Get all farmers error:', error);
-    res.status(500).json({ message: 'Error retrieving farmers' });
-  }
-};
-
 // Get all orders for farmer (order history)
 exports.getAllOrders = async (req, res) => {
   try {

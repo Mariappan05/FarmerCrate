@@ -18,8 +18,6 @@ router.put('/me',
   farmerController.updateMe
 );
 
-router.get('/all', farmerController.getAllUsers);
-
 // Order management routes
 router.get('/orders', protect, authorize('farmer'), farmerController.getAllOrders);
 router.get('/orders/pending', protect, authorize('farmer'), farmerController.getPendingOrders);

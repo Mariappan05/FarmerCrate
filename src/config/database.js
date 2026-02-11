@@ -49,12 +49,12 @@ const initializeDatabase = async () => {
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
     
-    // Sync all models with database - simple sync for new database
+    // Sync all models with database - force sync to add new columns
     try {
       await sequelize.sync({ 
         force: false,
-        alter: false, // Disable alter to avoid schema issues
-        logging: false
+        alter: true, // Enable alter to add missing columns
+        logging: console.log
       });
     } catch (syncError) {
       console.log('Sync warning (tables may already exist):', syncError.message);
