@@ -21,6 +21,9 @@ const normalizeImageUrls = (val) => {
 
 exports.getAllProducts = async (req, res) => {
   try {
+    console.log('[PRODUCTS] User:', req.user);
+    console.log('[PRODUCTS] Role:', req.role);
+    
     let whereClause = {};
     
     if (!req.user || (req.role !== 'admin' && req.role !== 'farmer')) {
@@ -63,7 +66,8 @@ exports.getAllProducts = async (req, res) => {
     });
   } catch (error) {
     console.error('Get all products error:', error);
-    res.status(500).json({ message: 'Error fetching products' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ message: 'Error fetching products', error: error.message });
   }
 };
 
