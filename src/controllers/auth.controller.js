@@ -758,3 +758,67 @@ exports.googleSignIn = async (req, res) => {
     res.status(500).json({ message: 'Error with Google Sign-In', error: error.message });
   }
 };
+
+exports.googleCompleteProfile = async (req, res) => {
+  try {
+    const { email, name, googleId, role, mobile_number, address, zone, state, district, age, account_number, ifsc_code } = req.body;
+    
+    if (!role || !['customer', 'farmer', 'transporter'].includes(role)) {
+      return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' });
+    }
+    
+    const Model = getModelByRole(role);
+    let user = await Model.findOne({ where: { email } });
+    
+    if (!user) {
+      const userData = { email, name, google_id: googleId, password: Math.random().toString(36).slice(-8) };
+      
+      if (mobile_number) userData.mobile_number = mobile_number;
+      if (address) userData.address = address;
+      if (zone) userData.zone = zone;
+      if (state) userData.state = state;
+      if (district) userData.district = district;
+      if (age) userData.age = age;
+      
+      if (role === 'farmer') {
+        userData.unique_id = generateVerificationCode();
+        userData.verification_status = 'verified';
+        if (account_number) userData.account_number = account_number;
+        if (ifsc_code) userData.ifsc_code = ifsc_code;
+        user = await FarmerUser.create(userData);
+        
+        const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+        return res.json({
+          message: 'Farmer profile created successfully',
+          token,
+          user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' }
+        });
+      } else if (role === 'customer') {
+        userData.first_login_completed = true;
+        user = await CustomerUser.create(userData);
+        
+        const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+        return res.json({
+          message: 'Customer profile created successfully',
+          token,
+          user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' }
+        });
+      } else if (role === 'transporter') {
+        userData.verified_status = 'verified';
+        user = await TransporterUser.create(userData);
+        
+        const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+        return res.json({
+          message: 'Transporter profile created successfully',
+          token,
+          user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' }
+        });
+      }
+    }
+    
+    return res.status(400).json({ message: 'User already exists' });
+  } catch (error) {
+    console.error('Google complete profile error:', error);
+    res.status(500).json({ message: 'Error completing profile', error: error.message });
+  }
+};
