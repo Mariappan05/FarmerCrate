@@ -637,7 +637,7 @@ exports.googleSignIn = async (req, res) => {
     // Select model based on role
     const Model = getModelByRole(role);
     if (!Model) {
-      return res.status(400).json({ message: 'Invalid role' });
+      return res.status(400).json({ message: 'Profile operation failed' });
     }
     
     // Check if user exists
@@ -816,10 +816,12 @@ exports.googleCompleteProfile = async (req, res) => {
       }
     }
     
-    return res.status(400).json({ message: 'Invalid role' });
+    return res.status(400).json({ message: 'Profile operation failed' });
   } catch (error) {
     console.error('Google complete profile error:', error);
     res.status(500).json({ message: 'Error completing profile', error: error.message });
   }
 };
+
+
 
