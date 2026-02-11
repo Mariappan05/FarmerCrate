@@ -701,14 +701,11 @@ exports.googleSignIn = async (req, res) => {
       };
       
       if (role === 'customer') {
-        userData.first_login_completed = true;
         user = await CustomerUser.create(userData);
         
-        const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
-        
         return res.json({
-          message: 'Google Sign-In successful',
-          token,
+          message: 'Customer account created. Please complete your profile.',
+          requiresProfileCompletion: true,
           user: {
             id: user.customer_id,
             email: user.email,
@@ -718,31 +715,29 @@ exports.googleSignIn = async (req, res) => {
         });
       } else if (role === 'farmer') {
         userData.unique_id = generateVerificationCode();
-        userData.verification_status = 'pending';
         user = await FarmerUser.create(userData);
         
         return res.json({
-          message: 'Farmer account created. Awaiting admin verification.',
+          message: 'Farmer account created. Please complete your profile.',
+          requiresProfileCompletion: true,
           user: {
             id: user.farmer_id,
             email: user.email,
             name: user.name,
-            role: 'farmer',
-            verification_status: 'pending'
+            role: 'farmer'
           }
         });
       } else if (role === 'transporter') {
-        userData.verified_status = 'pending';
         user = await TransporterUser.create(userData);
         
         return res.json({
-          message: 'Transporter account created. Awaiting admin verification.',
+          message: 'Transporter account created. Please complete your profile.',
+          requiresProfileCompletion: true,
           user: {
             id: user.transporter_id,
             email: user.email,
             name: user.name,
-            role: 'transporter',
-            verified_status: 'pending'
+            role: 'transporter'
           }
         });
       }
