@@ -122,4 +122,15 @@ router.post(
   authController.googleCompleteProfile
 );
 
+// Google Update Profile route
+router.put(
+  '/google-complete-profile',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('googleId').notEmpty().withMessage('Google ID is required'),
+    body('role').isIn(['customer', 'farmer', 'transporter']).withMessage('Valid role required')
+  ],
+  authController.googleCompleteProfile
+);
+
 module.exports = router; 
