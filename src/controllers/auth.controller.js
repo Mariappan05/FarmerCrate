@@ -644,7 +644,8 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
 
 // Google Sign-In
 const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const clientWeb = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_WEB);
+const clientAndroid = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_ANDROID);
 
 exports.googleSignIn = async (req, res) => {
   try {
@@ -658,11 +659,23 @@ exports.googleSignIn = async (req, res) => {
       return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' });
     }
     
-    // Verify Google token
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID
-    });
+    // Verify Google token with both clients
+    let ticket;
+    try {
+      ticket = await clientAndroid.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID_ANDROID
+      });
+    } catch (androidError) {
+      try {
+        ticket = await clientWeb.verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID_WEB
+        });
+      } catch (webError) {
+        return res.status(401).json({ message: 'Invalid Google token' });
+      }
+    }
     
     const payload = ticket.getPayload();
     const { email, name, picture, sub: googleId } = payload;
