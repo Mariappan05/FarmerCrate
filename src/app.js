@@ -77,7 +77,7 @@ const startServer = async () => {
 
     const PORT = process.env.PORT || 3000;
     
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
       console.log('Available routes:');
       console.log('- GET /api/farmers/all');
@@ -92,10 +92,10 @@ const startServer = async () => {
 
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        console.log(`Port ${PORT} is busy, trying ${PORT + 1}`);
+        console.log(`Port ${PORT} is busy, trying random port`);
         server.close();
-        app.listen(PORT + 1, () => {
-          console.log(`Server is running on port ${PORT + 1}`);
+        app.listen(0, '0.0.0.0', () => {
+          console.log(`Server is running on random port ${server.address().port}`);
         });
       }
     });
