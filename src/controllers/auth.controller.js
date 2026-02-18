@@ -137,6 +137,7 @@ exports.register = async (req, res) => {
         account_number, ifsc_code } = req.body;
       const existing = await Model.findOne({ where: { email } });
       if (existing) return res.status(400).json({ message: 'Transporter already exists' });
+      const unique_id = generateVerificationCode();
       const transporter = await Model.create({
         name,
         mobile_number: mobileNumber,
@@ -158,7 +159,8 @@ exports.register = async (req, res) => {
         voter_id_number,
         license_number,
         account_number,
-        ifsc_code
+        ifsc_code,
+        unique_id
       });
       return res.status(201).json({
         message: 'Transporter registered successfully. Await admin approval.',
@@ -166,6 +168,7 @@ exports.register = async (req, res) => {
           id: transporter.transporter_id,
           name: transporter.name,
           email: transporter.email,
+          unique_id: transporter.unique_id,
           verified_status: transporter.verified_status
         }
       });
@@ -297,9 +300,15 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Transporter: username == email
-    user = await TransporterUser.findOne({ where: { email: username } });
+    // Transporter: username == email OR unique_id
+    user = await TransporterUser.findOne({ where: { [Sequelize.Op.or]: [{ email: username }, { unique_id: username }] } });
     if (user && user.password === password) {
+      if (user.verified_status === 'pending') {
+        return res.status(403).json({ message: 'Your account is pending admin verification. Please wait for approval.' });
+      }
+      if (user.verified_status === 'rejected') {
+        return res.status(403).json({ message: 'Your account has been rejected. Please contact support.' });
+      }
       return res.json({
         message: 'Login successful',
         token: jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN }),
@@ -307,7 +316,8 @@ exports.login = async (req, res) => {
           id: user.transporter_id,
           email: user.email,
           role: 'transporter',
-          name: user.name
+          name: user.name,
+          unique_id: user.unique_id
         }
       });
     }
@@ -750,7 +760,8 @@ exports.googleSignIn = async (req, res) => {
             id: user.transporter_id,
             email: user.email,
             name: user.name,
-            role: 'transporter'
+            role: 'transporter',
+            unique_id: user.unique_id
           }
         });
       }
@@ -864,6 +875,7 @@ exports.googleCompleteProfile = async (req, res) => {
         const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
         return res.json({ message: 'Customer profile created successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } });
       } else if (role === 'transporter') {
+        userData.unique_id = generateVerificationCode();
         userData.verified_status = 'verified';
         if (pincode) userData.pincode = pincode;
         if (aadhar_number) userData.aadhar_number = aadhar_number;
