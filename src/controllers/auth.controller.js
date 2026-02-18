@@ -817,7 +817,9 @@ exports.googleSignIn = async (req, res) => {
 exports.googleCompleteProfile = async (req, res) => {
   try {
     console.log('[GOOGLE PROFILE] Request body:', req.body);
-    const { email, name, googleId, role, mobile_number, address, zone, state, district, age, account_number, ifsc_code, image_url } = req.body;
+    const { email, name, googleId, role, mobile_number, address, zone, state, district, age, account_number, ifsc_code, image_url, 
+            pincode, aadhar_number, pan_number, voter_id_number, license_number, 
+            aadhar_url, pan_url, voter_id_url, license_url } = req.body;
     
     if (!role || !['customer', 'farmer', 'transporter'].includes(role)) {
       return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' });
@@ -863,6 +865,17 @@ exports.googleCompleteProfile = async (req, res) => {
         return res.json({ message: 'Customer profile created successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } });
       } else if (role === 'transporter') {
         userData.verified_status = 'verified';
+        if (pincode) userData.pincode = pincode;
+        if (aadhar_number) userData.aadhar_number = aadhar_number;
+        if (pan_number) userData.pan_number = pan_number;
+        if (voter_id_number) userData.voter_id_number = voter_id_number;
+        if (license_number) userData.license_number = license_number;
+        if (aadhar_url) userData.aadhar_url = aadhar_url;
+        if (pan_url) userData.pan_url = pan_url;
+        if (voter_id_url) userData.voter_id_url = voter_id_url;
+        if (license_url) userData.license_url = license_url;
+        if (account_number) userData.account_number = account_number;
+        if (ifsc_code) userData.ifsc_code = ifsc_code;
         user = await TransporterUser.create(userData);
         const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
         return res.json({ message: 'Transporter profile created successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } });
@@ -890,6 +903,17 @@ exports.googleCompleteProfile = async (req, res) => {
         const token = jwt.sign({ customer_id: user.customer_id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
         return res.json({ message: 'Customer profile updated successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } });
       } else if (role === 'transporter') {
+        if (pincode) user.pincode = pincode;
+        if (aadhar_number) user.aadhar_number = aadhar_number;
+        if (pan_number) user.pan_number = pan_number;
+        if (voter_id_number) user.voter_id_number = voter_id_number;
+        if (license_number) user.license_number = license_number;
+        if (aadhar_url) user.aadhar_url = aadhar_url;
+        if (pan_url) user.pan_url = pan_url;
+        if (voter_id_url) user.voter_id_url = voter_id_url;
+        if (license_url) user.license_url = license_url;
+        if (account_number) user.account_number = account_number;
+        if (ifsc_code) user.ifsc_code = ifsc_code;
         await user.save();
         const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
         return res.json({ message: 'Transporter profile updated successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } });
