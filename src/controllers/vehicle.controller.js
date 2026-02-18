@@ -12,11 +12,6 @@ class VehicleController {
       
       const permanentVehicles = await PermanentVehicle.findAll({
         where: { transporter_id },
-        include: [{
-          model: PermanentVehicleDocument,
-          as: 'documents',
-          required: false
-        }],
         order: [['created_at', 'DESC']]
       });
       
@@ -52,61 +47,35 @@ class VehicleController {
   }
   
   static async addPermanentVehicle(req, res) {
-    const transaction = await sequelize.transaction();
-    
     try {
       const { transporter_id } = req.user;
-      
-      const { 
-        vehicle_number, vehicle_type, capacity,
-        ...documentData 
-      } = req.body;
-      
-      const vehicleData = {
-        vehicle_number, vehicle_type, capacity,
-        transporter_id
-      };
+      const { vehicle_number, vehicle_type, capacity } = req.body;
       
       const existingVehicle = await PermanentVehicle.findOne({
         where: { vehicle_number }
       });
       
       if (existingVehicle) {
-        await transaction.rollback();
         return res.status(400).json({
           success: false,
           message: 'Vehicle with this number already exists'
         });
       }
       
-      const vehicle = await PermanentVehicle.create(vehicleData, { transaction });
-      
-      if (Object.keys(documentData).length > 0) {
-        await PermanentVehicleDocument.create({
-          vehicle_id: vehicle.vehicle_id,
-          ...documentData
-        }, { transaction });
-      }
-      
-      await transaction.commit();
-      
-      // Fetch complete vehicle with documents
-      const completeVehicle = await PermanentVehicle.findByPk(vehicle.vehicle_id, {
-        include: [{
-          model: PermanentVehicleDocument,
-          as: 'documents',
-          required: false
-        }]
+      const vehicle = await PermanentVehicle.create({
+        vehicle_number,
+        vehicle_type,
+        capacity,
+        transporter_id
       });
       
       res.status(201).json({
         success: true,
         message: 'Permanent vehicle added successfully',
-        data: completeVehicle
+        data: vehicle
       });
       
     } catch (error) {
-      await transaction.rollback();
       console.error('Error adding permanent vehicle:', error);
       res.status(500).json({
         success: false,
