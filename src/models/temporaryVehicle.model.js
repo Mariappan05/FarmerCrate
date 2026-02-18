@@ -36,10 +36,6 @@ const TemporaryVehicle = sequelize.define('temporary_vehicles', {
   capacity: {
     type: DataTypes.INTEGER
   },
-  is_available: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
   rc_book_number: {
     type: DataTypes.STRING(100)
   },

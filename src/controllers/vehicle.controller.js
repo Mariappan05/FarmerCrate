@@ -28,11 +28,7 @@ class VehicleController {
       const fleetStats = {
         total_vehicles: permanentVehicles.length + temporaryVehicles.length,
         permanent_count: permanentVehicles.length,
-        temporary_count: temporaryVehicles.length,
-        available_count: [
-          ...permanentVehicles.filter(v => v.is_available),
-          ...temporaryVehicles.filter(v => v.is_available)
-        ].length
+        temporary_count: temporaryVehicles.length
       };
       
       res.status(200).json({
@@ -68,8 +64,7 @@ class VehicleController {
       
       const vehicleData = {
         vehicle_number, vehicle_type, capacity, rc_url, insurance_url, permit_url,
-        transporter_id,
-        is_available: true
+        transporter_id
       };
       
       const existingVehicle = await PermanentVehicle.findOne({
@@ -144,8 +139,7 @@ class VehicleController {
       const vehicle = await TemporaryVehicle.create({
         vehicle_number, vehicle_type, rental_start_date, rental_end_date,
         capacity, rc_book_number, rc_book_url, insurance_number, insurance_url,
-        transporter_id,
-        is_available: true
+        transporter_id
       });
       
       res.status(201).json({
@@ -167,33 +161,12 @@ class VehicleController {
   static async updateVehicleAvailability(req, res) {
     try {
       const { vehicle_id } = req.params;
-      const { vehicle_type, is_available } = req.body;
+      const { vehicle_type } = req.body;
       const { transporter_id } = req.user;
       
-      let vehicle;
-      if (vehicle_type === 'permanent') {
-        vehicle = await PermanentVehicle.findOne({
-          where: { vehicle_id, transporter_id }
-        });
-      } else {
-        vehicle = await TemporaryVehicle.findOne({
-          where: { vehicle_id, transporter_id }
-        });
-      }
-      
-      if (!vehicle) {
-        return res.status(404).json({
-          success: false,
-          message: 'Vehicle not found or not owned by you'
-        });
-      }
-      
-      await vehicle.update({ is_available });
-      
-      res.status(200).json({
-        success: true,
-        message: 'Vehicle availability updated successfully',
-        data: vehicle
+      return res.status(400).json({
+        success: false,
+        message: 'Vehicle availability feature not available'
       });
       
     } catch (error) {

@@ -28,10 +28,6 @@ const PermanentVehicle = sequelize.define('permanent_vehicles', {
   capacity: {
     type: DataTypes.INTEGER
   },
-  is_available: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
   rc_url: {
     type: DataTypes.STRING(255)
   },
