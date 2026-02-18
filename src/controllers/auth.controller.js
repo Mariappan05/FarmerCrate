@@ -836,7 +836,7 @@ exports.googleCompleteProfile = async (req, res) => {
     
     const Model = getModelByRole(role);
     console.log('[GOOGLE PROFILE] Searching for user with email:', email);
-    let user = await Model.findOne({ where: { email } });
+    let user = await Model.findOne({ where: { [Sequelize.Op.or]: [{ email }, { google_id: googleId }] } });
     console.log('[GOOGLE PROFILE] User found:', !!user);
     
     if (!user) {
