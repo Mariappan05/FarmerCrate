@@ -58,12 +58,12 @@ class VehicleController {
       const { transporter_id } = req.user;
       
       const { 
-        vehicle_number, vehicle_type, capacity, rc_url, insurance_url, permit_url,
+        vehicle_number, vehicle_type, capacity,
         ...documentData 
       } = req.body;
       
       const vehicleData = {
-        vehicle_number, vehicle_type, capacity, rc_url, insurance_url, permit_url,
+        vehicle_number, vehicle_type, capacity,
         transporter_id
       };
       

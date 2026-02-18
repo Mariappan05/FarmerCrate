@@ -27,15 +27,6 @@ const PermanentVehicle = sequelize.define('permanent_vehicles', {
   },
   capacity: {
     type: DataTypes.INTEGER
-  },
-  rc_url: {
-    type: DataTypes.STRING(255)
-  },
-  insurance_url: {
-    type: DataTypes.STRING(255)
-  },
-  permit_url: {
-    type: DataTypes.STRING(255)
   }
 }, {
   tableName: 'permanent_vehicles',
