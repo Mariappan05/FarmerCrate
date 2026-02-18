@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const PermanentVehicleDocument = sequelize.define('permanent_vehicle_documents', {
-  perm_doc_id: {
+  doc_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true

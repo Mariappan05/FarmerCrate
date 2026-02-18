@@ -49,7 +49,7 @@ class VehicleController {
   static async addPermanentVehicle(req, res) {
     try {
       const { transporter_id } = req.user;
-      const { vehicle_number, vehicle_type, capacity } = req.body;
+      const { vehicle_number, vehicle_type, capacity, rc_url, insurance_url, permit_url } = req.body;
       
       const existingVehicle = await PermanentVehicle.findOne({
         where: { vehicle_number }
@@ -68,6 +68,16 @@ class VehicleController {
         capacity,
         transporter_id
       });
+      
+      // Create document record if URLs provided
+      if (rc_url || insurance_url || permit_url) {
+        await PermanentVehicleDocument.create({
+          vehicle_id: vehicle.vehicle_id,
+          rc_book_url: rc_url,
+          insurance_url: insurance_url,
+          permit_url: permit_url
+        });
+      }
       
       res.status(201).json({
         success: true,
