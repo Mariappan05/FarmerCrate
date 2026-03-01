@@ -38,6 +38,27 @@ const initDatabase = async () => {
     await sequelize.sync({ alter: true });
     console.log('Database synchronized successfully');
 
+    // Safety migration: ensure new columns exist even if sync missed them
+    try {
+      await sequelize.query(`
+        ALTER TABLE orders
+          ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'COD',
+          ADD COLUMN IF NOT EXISTS items_json TEXT,
+          ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS qr_image_url VARCHAR(255)
+      `);
+      await sequelize.query(`
+        ALTER TABLE products
+          ADD COLUMN IF NOT EXISTS unit VARCHAR(20) DEFAULT 'kg',
+          ADD COLUMN IF NOT EXISTS harvest_date DATE,
+          ADD COLUMN IF NOT EXISTS expiry_date DATE
+      `);
+      console.log('Safety column migration completed');
+    } catch (migrationError) {
+      console.log('Column migration note (non-fatal):', migrationError.message);
+    }
+
     // Create default admin user if not exists
     const adminExists = await AdminUser.findOne({ where: { email: 'admin@farmercrate.com' } });
     if (!adminExists) {
