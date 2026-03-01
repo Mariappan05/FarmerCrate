@@ -62,6 +62,11 @@ const Order = sequelize.define('orders', {
     ), 
     defaultValue: 'PENDING' 
   },
+  // Virtual alias so all controller responses include "status" alongside "current_status"
+  status: {
+    type: DataTypes.VIRTUAL,
+    get() { return this.current_status; }
+  },
   payment_method: { type: DataTypes.STRING(20), defaultValue: 'COD' },
   items_json: { type: DataTypes.TEXT, allowNull: true },
   razorpay_order_id: { type: DataTypes.STRING, allowNull: true },
