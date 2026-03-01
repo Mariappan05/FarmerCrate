@@ -34,11 +34,7 @@ const initDatabase = async () => {
     initAssociations();
     console.log('Model associations initialized');
 
-    // Sync all models with database
-    await sequelize.sync({ alter: true });
-    console.log('Database synchronized successfully');
-
-    // Safety migration: ensure new columns exist even if sync missed them
+    // Safety migration FIRST (before sync, so it always runs even if sync fails)
     try {
       await sequelize.query(`
         ALTER TABLE orders
@@ -57,6 +53,14 @@ const initDatabase = async () => {
       console.log('Safety column migration completed');
     } catch (migrationError) {
       console.log('Column migration note (non-fatal):', migrationError.message);
+    }
+
+    // Sync models (wrapped so a partial failure does not abort startup)
+    try {
+      await sequelize.sync({ alter: true });
+      console.log('Database synchronized successfully');
+    } catch (syncError) {
+      console.log('Sync warning (non-fatal, columns already migrated above):', syncError.message);
     }
 
     // Create default admin user if not exists
