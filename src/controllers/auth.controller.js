@@ -653,42 +653,37 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
 
 
 // Google Sign-In
-const { OAuth2Client } = require('google-auth-library');
-const clientWeb = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_WEB);
-const clientAndroid = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_ANDROID);
-
 exports.googleSignIn = async (req, res) => {
   try {
-    const { idToken, role } = req.body;
+    const { accessToken, role } = req.body;
     
-    if (!idToken) {
-      return res.status(400).json({ message: 'Google ID token is required' });
+    if (!accessToken) {
+      return res.status(400).json({ message: 'Google access token is required' });
     }
     
     if (!role || !['customer', 'farmer', 'transporter'].includes(role)) {
       return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' });
     }
     
-    // Verify Google token with both clients
-    let ticket;
+    // Verify access token and get user info from Google userinfo endpoint
+    let googleUser;
     try {
-      ticket = await clientAndroid.verifyIdToken({
-        idToken,
-        audience: process.env.GOOGLE_CLIENT_ID_ANDROID
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
-    } catch (androidError) {
-      try {
-        ticket = await clientWeb.verifyIdToken({
-          idToken,
-          audience: process.env.GOOGLE_CLIENT_ID_WEB
-        });
-      } catch (webError) {
-        return res.status(401).json({ message: 'Invalid Google token' });
+      if (!userInfoResponse.ok) {
+        return res.status(401).json({ message: 'Invalid Google access token' });
       }
+      googleUser = await userInfoResponse.json();
+    } catch (fetchError) {
+      return res.status(401).json({ message: 'Failed to verify Google token' });
     }
     
-    const payload = ticket.getPayload();
-    const { email, name, picture, sub: googleId } = payload;
+    const { email, name, picture, id: googleId } = googleUser;
+    
+    if (!email) {
+      return res.status(401).json({ message: 'Could not retrieve email from Google' });
+    }
     
     console.log('[GOOGLE SIGNIN] Email from Google:', email);
     console.log('[GOOGLE SIGNIN] Requested role:', role);
