@@ -19,17 +19,16 @@ const authorize = (roles) => {
   };
 };
 
-// Validation middleware
+// Flexible validation — supports both old single-product and new multi-item formats
 const orderValidation = [
-  body('product_id').isInt().withMessage('Valid product ID is required'),
-  body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-  body('delivery_address').notEmpty().withMessage('Delivery address required'),
-  body('customer_zone').notEmpty().withMessage('Customer zone required'),
-  body('customer_pincode').isLength({ min: 6, max: 6 }).withMessage('Valid 6-digit pincode is required'),
-  body('total_price').isDecimal().withMessage('Valid total price is required'),
-  body('farmer_amount').isDecimal().withMessage('Valid farmer amount is required'),
-  body('admin_commission').isDecimal().withMessage('Valid admin commission is required'),
-  body('transport_charge').isDecimal().withMessage('Valid transport charge is required')
+  body('delivery_address').optional(),
+  body('payment_method').optional().isIn(['COD', 'ONLINE', 'cod', 'online']).withMessage('Invalid payment method'),
+  body('total_amount').optional().isFloat({ min: 0 }).withMessage('Valid total amount required'),
+  body('total_price').optional().isFloat({ min: 0 }).withMessage('Valid total price required'),
+  body('items').optional().isArray().withMessage('Items must be an array'),
+  // Legacy single-product fields (optional so new format passes)
+  body('product_id').optional().isInt(),
+  body('quantity').optional().isInt({ min: 1 })
 ];
 
 // Protected routes

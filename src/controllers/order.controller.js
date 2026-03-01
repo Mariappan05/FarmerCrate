@@ -23,217 +23,147 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { 
-      product_id, 
-      quantity, 
+    // Support new multi-item format AND legacy single-product format
+    const {
+      items,
       delivery_address,
+      payment_method = 'ONLINE',
+      total_amount,
+      subtotal,
+      admin_commission,
+      delivery_charges,
+      qr_code,
+      qr_image_url,
+      // Legacy fields
+      product_id,
+      quantity,
       customer_zone,
       customer_pincode,
       total_price,
       farmer_amount,
-      admin_commission,
       transport_charge
     } = req.body;
-    
-    // Create Razorpay order for payment
-    const receipt = `order_${Date.now()}`;
-    const razorpayOrder = await RazorpayService.createOrder(total_price, 'INR', receipt);
-    
-    // Return payment details for frontend to process
-    return res.json({
-      success: true,
-      message: 'Payment order created. Complete payment to place order.',
-      payment_details: {
-        razorpay_order_id: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        key_id: process.env.RAZORPAY_KEY_ID
-      },
-      order_data: {
-        product_id,
-        quantity,
-        delivery_address,
-        customer_zone,
-        customer_pincode,
-        total_price,
-        farmer_amount,
-        admin_commission,
-        transport_charge
-      }
-    });
-    
-    // Check if transporters are available for the customer's pincode (case-insensitive)
-    const allTransportersForPincode = await TransporterUser.findAll();
-    const availableTransporters = allTransportersForPincode.filter(t => 
-      t.pincode?.toLowerCase() === customer_pincode?.toLowerCase()
-    );
-    
-    if (availableTransporters.length === 0) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Delivery not available in your area. No transporters found for pincode: ' + customer_pincode,
-        pincode: customer_pincode
+
+    // Normalise total
+    const total = parseFloat(total_amount || total_price || 0);
+
+    // ── ONLINE payment path ─────────────────────────────────────
+    const method = (payment_method || 'ONLINE').toUpperCase();
+    if (method === 'ONLINE') {
+      const receipt = `order_${Date.now()}`;
+      const razorpayOrder = await RazorpayService.createOrder(total, 'INR', receipt);
+
+      return res.json({
+        success: true,
+        message: 'Payment order created. Complete payment to place order.',
+        data: {
+          payment_details: {
+            razorpay_order_id: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            key_id: process.env.RAZORPAY_KEY_ID
+          },
+          order_data: {
+            items: items || (product_id ? [{ product_id, quantity, price: total_price / quantity }] : []),
+            delivery_address,
+            payment_method: 'ONLINE',
+            total_amount: total,
+            subtotal: subtotal || total,
+            admin_commission: admin_commission || 0,
+            delivery_charges: delivery_charges || transport_charge || 0,
+            qr_code,
+            qr_image_url,
+            // Legacy
+            customer_zone,
+            customer_pincode
+          }
+        }
       });
     }
-    
-    // Get product details with farmer info
-    const product = await Product.findByPk(product_id, {
-      include: [{ model: FarmerUser, as: 'farmer' }]
-    });
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+
+    // ── COD payment path ─────────────────────────────────────────
+    const customer_id = req.user.customer_id;
+    const ordersToCreate = items && items.length > 0
+      ? items
+      : product_id ? [{ product_id, quantity, price: total_price }] : [];
+
+    if (ordersToCreate.length === 0) {
+      return res.status(400).json({ success: false, message: 'No items provided for order' });
     }
 
-    if (product.quantity < quantity) {
-      return res.status(400).json({ message: 'Insufficient product quantity' });
-    }
+    const createdOrders = [];
+    const perItemDelivery = (parseFloat(delivery_charges || transport_charge || 0)) / ordersToCreate.length;
+    const perItemCommission = parseFloat(admin_commission || 0) / ordersToCreate.length;
 
-    // Get all transporters and filter by zone with case-insensitive comparison
-    const allTransporters = await TransporterUser.findAll();
-    
-    const farmerZone = product.farmer.zone?.toLowerCase();
-    const customerZoneLower = customer_zone?.toLowerCase();
-    
-    // Helper function to find matching transporters by zone similarity
-    const findTransportersByZone = (targetZone, transporters) => {
-      if (!targetZone) return [];
-      
-      // First try exact match
-      let matches = transporters.filter(t => 
-        t.zone?.toLowerCase() === targetZone.toLowerCase()
-      );
-      
-      if (matches.length > 0) return matches;
-      
-      // Then try partial matches - split zone into words and find overlaps
-      const targetWords = targetZone.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      
-      return transporters.filter(t => {
-        if (!t.zone) return false;
-        const transporterWords = t.zone.toLowerCase().split(/\s+/);
-        return targetWords.some(word => 
-          transporterWords.some(tWord => 
-            tWord.includes(word) || word.includes(tWord)
-          )
-        );
+    for (const item of ordersToCreate) {
+      const product = await Product.findByPk(item.product_id, {
+        include: [{ model: FarmerUser, as: 'farmer' }]
       });
-    };
-    
-    const sourceTransporters = findTransportersByZone(farmerZone, allTransporters);
-    const destinationTransporters = findTransportersByZone(customerZoneLower, allTransporters);
+      if (!product) { console.warn(`Product ${item.product_id} not found, skipping`); continue; }
 
-    console.log(`Found ${sourceTransporters.length} source transporters in zone: ${product.farmer.zone}`);
-    console.log(`Found ${destinationTransporters.length} destination transporters in zone: ${customer_zone}`);
-    console.log('All transporter zones:', allTransporters.map(t => t.zone));
+      const itemPrice = parseFloat(item.price || product.current_price || 0);
+      const itemTotal = itemPrice * item.quantity;
+      const itemCommission = perItemCommission || itemTotal * 0.03;
+      const itemTransport = perItemDelivery || 0;
+      const farmerAmt = itemTotal - itemCommission;
 
-    const pickupAddress = `${product.farmer.address}, ${product.farmer.zone}, ${product.farmer.district}, ${product.farmer.state}`;
-    
-    let selectedSourceTransporter = null;
-    let selectedDestinationTransporter = null;
-    let shortestDistance = Infinity;
-    let routeData = null;
+      const pickupAddress = product.farmer
+        ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
+        : '';
 
-    console.log('\n=== TRANSPORTER ALLOCATION PROCESS ===');
-    console.log('Customer Zone:', customer_zone);
-    console.log('Farmer Zone:', product.farmer.zone);
-    console.log('Customer Address:', delivery_address);
-    console.log('Farmer Address:', pickupAddress);
-    
-    let shortestFarmerDistance = Infinity;
-    let shortestCustomerDistance = Infinity;
-    let shortestOverallDistance = Infinity;
-    let transporterToTransporterDistance = 0;
-    
+      const order = await Order.create({
+        customer_id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        delivery_address: typeof delivery_address === 'object' ? JSON.stringify(delivery_address) : (delivery_address || ''),
+        total_price: itemTotal,
+        farmer_amount: farmerAmt,
+        admin_commission: itemCommission,
+        transport_charge: itemTransport,
+        payment_method: 'COD',
+        payment_status: 'pending',
+        current_status: 'PLACED',
+        pickup_address: pickupAddress,
+        qr_code: qr_code || null,
+        qr_image_url: qr_image_url || null,
+        items_json: JSON.stringify(ordersToCreate)
+      });
+
+      // Reduce stock
+      const newQty = Math.max(0, product.quantity - item.quantity);
+      await product.update({ quantity: newQty });
+      createdOrders.push(order);
+    }
+
+    // Clear cart
     try {
-      // Find shortest distance from farmer address to farmer zone transporters
-      console.log('\n=== FARMER TO SOURCE TRANSPORTER DISTANCES ===');
-      for (const transporter of sourceTransporters) {
-        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
-        const distance = await GoogleMapsService.calculateDistanceAndDuration(
-          [pickupAddress],
-          [transporterAddress]
-        );
-        
-        console.log(`Farmer to ${transporter.name}: ${distance.distance}km`);
-        
-        if (distance.distance < shortestFarmerDistance) {
-          shortestFarmerDistance = distance.distance;
-          selectedSourceTransporter = transporter;
-        }
-      }
-      
-      // Find shortest distance from customer address to customer zone transporters
-      console.log('\n=== CUSTOMER TO DESTINATION TRANSPORTER DISTANCES ===');
-      for (const transporter of destinationTransporters) {
-        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
-        const distance = await GoogleMapsService.calculateDistanceAndDuration(
-          [delivery_address],
-          [transporterAddress]
-        );
-        
-        console.log(`Customer to ${transporter.name}: ${distance.distance}km`);
-        
-        if (distance.distance < shortestCustomerDistance) {
-          shortestCustomerDistance = distance.distance;
-          selectedDestinationTransporter = transporter;
-        }
-      }
-      
-      // Calculate distance between selected transporters
-      if (selectedSourceTransporter && selectedDestinationTransporter) {
-        console.log('\n=== SOURCE TO DESTINATION TRANSPORTER DISTANCE ===');
-        const sourceAddress = `${selectedSourceTransporter.address}, ${selectedSourceTransporter.zone}, ${selectedSourceTransporter.district}, ${selectedSourceTransporter.state}`;
-        const destAddress = `${selectedDestinationTransporter.address}, ${selectedDestinationTransporter.zone}, ${selectedDestinationTransporter.district}, ${selectedDestinationTransporter.state}`;
-        
-        const distance = await GoogleMapsService.calculateDistanceAndDuration(
-          [sourceAddress],
-          [destAddress]
-        );
-        
-        transporterToTransporterDistance = distance.distance;
-        routeData = distance;
-        shortestOverallDistance = shortestFarmerDistance + transporterToTransporterDistance + shortestCustomerDistance;
-        
-        console.log(`${selectedSourceTransporter.name} to ${selectedDestinationTransporter.name}: ${distance.distance}km`);
-      }
-    } catch (error) {
-      console.warn('Google Maps API failed, using first available transporters:', error.message);
-      selectedSourceTransporter = sourceTransporters[0] || null;
-      selectedDestinationTransporter = destinationTransporters[0] || null;
+      const Cart = require('../models/cart.model');
+      await Cart.destroy({ where: { customer_id } });
+    } catch (cartErr) {
+      console.warn('Could not clear cart:', cartErr.message);
     }
 
-    console.log('\n=== FINAL ALLOCATION RESULTS ===');
-    console.log('Selected Source Transporter ID:', selectedSourceTransporter?.transporter_id);
-    console.log('Selected Source Transporter:', selectedSourceTransporter?.name);
-    console.log('Selected Destination Transporter ID:', selectedDestinationTransporter?.transporter_id);
-    console.log('Selected Destination Transporter:', selectedDestinationTransporter?.name);
-    console.log('Farmer to Source Distance:', shortestFarmerDistance + 'km');
-    console.log('Source to Destination Distance:', transporterToTransporterDistance + 'km');
-    console.log('Destination to Customer Distance:', shortestCustomerDistance + 'km');
-    console.log('Total Overall Distance:', shortestOverallDistance + 'km');
-    
-    if (!selectedSourceTransporter || !selectedDestinationTransporter) {
-      console.log('No transporters found:', {
-        sourceTransporters: sourceTransporters.length,
-        destinationTransporters: destinationTransporters.length,
-        farmerZone: product.farmer.zone,
-        customerZone: customer_zone
-      });
-    }
-
-    // Calculate estimated delivery time
-    const estimatedDeliveryTime = routeData 
-      ? new Date(Date.now() + (routeData.duration * 60 * 1000))
-      : null;
+    return res.status(201).json({
+      success: true,
+      message: 'COD order placed successfully',
+      data: {
+        order_id: createdOrders[0]?.order_id,
+        orders: createdOrders.map(o => ({ order_id: o.order_id, current_status: o.current_status })),
+        payment_method: 'COD',
+        total_amount: total
+      }
+    });
 
   } catch (error) {
-    console.error('Create payment order error:', error);
-    res.status(500).json({ 
+    console.error('Create order error:', error);
+    res.status(500).json({
       success: false,
-      message: 'Error creating payment order: ' + error.message 
+      message: 'Error creating order: ' + error.message
     });
   }
 };
+    
+
 
 // Complete order after payment (step 2)
 exports.completeOrder = async (req, res) => {
@@ -269,203 +199,105 @@ exports.completeOrder = async (req, res) => {
     console.log('✅ Payment verified successfully - Proceeding with order creation');
     
     const { 
-      product_id, 
-      quantity, 
+      product_id: legacy_product_id, 
+      quantity: legacy_quantity, 
       delivery_address,
       customer_zone,
       customer_pincode,
       total_price,
       farmer_amount,
       admin_commission,
-      transport_charge
-    } = order_data;
-    
-    // Get product with farmer details
-    const product = await Product.findByPk(product_id, {
-      include: [{ model: FarmerUser, as: 'farmer' }]
-    });
-    
-    if (!product || product.quantity < quantity) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Product not available or insufficient quantity' 
-      });
-    }
-    
-    // Check transporter availability for pincode
-    const allTransportersForPincode = await TransporterUser.findAll();
-    const availableTransporters = allTransportersForPincode.filter(t => 
-      t.pincode?.toLowerCase() === customer_pincode?.toLowerCase()
-    );
-    
-    if (availableTransporters.length === 0) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Delivery not available in your area. No transporters found for pincode: ' + customer_pincode,
-        pincode: customer_pincode
-      });
-    }
-    
-    // Advanced transporter allocation
-    const allTransporters = await TransporterUser.findAll();
-    const farmerZone = product.farmer.zone?.toLowerCase();
-    const customerZoneLower = customer_zone?.toLowerCase();
-    
-    // Helper function to find matching transporters by zone
-    const findTransportersByZone = (targetZone, transporters) => {
-      if (!targetZone) return [];
-      
-      // First try exact match
-      let matches = transporters.filter(t => 
-        t.zone?.toLowerCase() === targetZone.toLowerCase()
-      );
-      
-      if (matches.length > 0) return matches;
-      
-      // Then try partial matches
-      const targetWords = targetZone.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      
-      return transporters.filter(t => {
-        if (!t.zone) return false;
-        const transporterWords = t.zone.toLowerCase().split(/\s+/);
-        return targetWords.some(word => 
-          transporterWords.some(tWord => 
-            tWord.includes(word) || word.includes(tWord)
-          )
-        );
-      });
-    };
-    
-    const sourceTransporters = findTransportersByZone(farmerZone, allTransporters);
-    const destinationTransporters = findTransportersByZone(customerZoneLower, allTransporters);
-    
-    const pickupAddress = `${product.farmer.address}, ${product.farmer.zone}, ${product.farmer.district}, ${product.farmer.state}`;
-    
-    let selectedSourceTransporter = null;
-    let selectedDestinationTransporter = null;
-    
-    // Advanced transporter allocation with Google Maps optimization
-    let shortestFarmerDistance = Infinity;
-    let shortestCustomerDistance = Infinity;
-    let transporterToTransporterDistance = 0;
-    let routeData = null;
-    
-    console.log('\n=== TRANSPORTER ALLOCATION PROCESS ===');
-    console.log('Farmer Zone:', product.farmer.zone);
-    console.log('Customer Zone:', customer_zone);
-    console.log('Available Source Transporters:', sourceTransporters.length);
-    console.log('Available Destination Transporters:', destinationTransporters.length);
-    
-    try {
-      // Find optimal source transporter (closest to farmer)
-      console.log('\n=== FARMER TO SOURCE TRANSPORTER DISTANCES ===');
-      for (const transporter of sourceTransporters) {
-        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
-        const distance = await GoogleMapsService.calculateDistanceAndDuration(
-          [pickupAddress],
-          [transporterAddress]
-        );
-        
-        console.log(`Farmer to ${transporter.name}: ${distance.distance}km`);
-        
-        if (distance.distance < shortestFarmerDistance) {
-          shortestFarmerDistance = distance.distance;
-          selectedSourceTransporter = transporter;
-        }
-      }
-      
-      // Find optimal destination transporter (closest to customer)
-      console.log('\n=== CUSTOMER TO DESTINATION TRANSPORTER DISTANCES ===');
-      for (const transporter of destinationTransporters) {
-        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
-        const distance = await GoogleMapsService.calculateDistanceAndDuration(
-          [delivery_address],
-          [transporterAddress]
-        );
-        
-        console.log(`Customer to ${transporter.name}: ${distance.distance}km`);
-        
-        if (distance.distance < shortestCustomerDistance) {
-          shortestCustomerDistance = distance.distance;
-          selectedDestinationTransporter = transporter;
-        }
-      }
-      
-      // Calculate inter-transporter distance
-      if (selectedSourceTransporter && selectedDestinationTransporter) {
-        const sourceAddress = `${selectedSourceTransporter.address}, ${selectedSourceTransporter.zone}`;
-        const destAddress = `${selectedDestinationTransporter.address}, ${selectedDestinationTransporter.zone}`;
-        
-        const interDistance = await GoogleMapsService.calculateDistanceAndDuration(
-          [sourceAddress],
-          [destAddress]
-        );
-        
-        transporterToTransporterDistance = interDistance.distance;
-        routeData = interDistance;
-        
-        console.log(`\n=== INTER-TRANSPORTER DISTANCE ===`);
-        console.log(`${selectedSourceTransporter.name} to ${selectedDestinationTransporter.name}: ${interDistance.distance}km`);
-      }
-    } catch (error) {
-      console.warn('Google Maps API failed, using zone-based selection:', error.message);
-    }
-    
-    console.log('\n=== FINAL ALLOCATION RESULTS ===');
-    console.log('Selected Source Transporter:', selectedSourceTransporter?.name || 'None');
-    console.log('Selected Destination Transporter:', selectedDestinationTransporter?.name || 'None');
-    console.log('Farmer to Source Distance:', shortestFarmerDistance !== Infinity ? shortestFarmerDistance + 'km' : 'N/A');
-    console.log('Source to Destination Distance:', transporterToTransporterDistance + 'km');
-    console.log('Destination to Customer Distance:', shortestCustomerDistance !== Infinity ? shortestCustomerDistance + 'km' : 'N/A');
-    console.log('Total Route Distance:', (shortestFarmerDistance + transporterToTransporterDistance + shortestCustomerDistance) + 'km');
-    
-    // Fallback to first available if no optimal found
-    const sourceTransporter = selectedSourceTransporter || sourceTransporters[0] || allTransporters[0];
-    const destTransporter = selectedDestinationTransporter || destinationTransporters[0] || allTransporters[1] || allTransporters[0];
-    
-    // Create order in PENDING status for farmer verification
-    const order = await Order.create({
-      customer_id: req.user.customer_id,
-      product_id,
-      quantity,
-      delivery_address,
-      total_price,
-      farmer_amount,
-      admin_commission,
       transport_charge,
-      current_status: 'PENDING',
-      payment_status: 'completed',
-      pickup_address: pickupAddress
-    });
-    
-    console.log('✅ Order created successfully:', order.order_id);
-    console.log('Order Details:', {
-      order_id: order.order_id,
-      customer_id: order.customer_id,
-      product_id: order.product_id,
-      quantity: order.quantity,
-      total_price: order.total_price,
-      farmer_amount: order.farmer_amount,
-      admin_commission: order.admin_commission,
-      transport_charge: order.transport_charge,
-      status: order.current_status,
-      payment_status: order.payment_status
-    });
-    
-    // Update product quantity
-    await product.update({ quantity: product.quantity - quantity });
-    
+      // New format
+      items,
+      total_amount,
+      delivery_charges,
+      payment_method,
+      qr_code,
+      qr_image_url
+    } = order_data;
+
+    // Normalise items list (supports both old and new format)
+    const ordersToCreate = (items && items.length > 0)
+      ? items
+      : legacy_product_id ? [{ product_id: legacy_product_id, quantity: legacy_quantity, price: total_price }] : [];
+
+    if (ordersToCreate.length === 0) {
+      return res.status(400).json({ success: false, message: 'No items in order_data' });
+    }
+
+    const total = parseFloat(total_amount || total_price || 0);
+    const perItemDelivery = parseFloat(delivery_charges || transport_charge || 0) / ordersToCreate.length;
+    const perItemCommission = parseFloat(admin_commission || 0) / ordersToCreate.length;
+    const customer_id = req.user.customer_id;
+    const createdOrders = [];
+
+    for (const item of ordersToCreate) {
+      const product = await Product.findByPk(item.product_id, {
+        include: [{ model: FarmerUser, as: 'farmer' }]
+      });
+
+      if (!product || product.quantity < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Product ${item.product_id} not available or insufficient quantity`
+        });
+      }
+
+      const itemPrice = parseFloat(item.price || product.current_price || 0);
+      const itemTotal = itemPrice * item.quantity;
+      const itemCommission = perItemCommission || itemTotal * 0.03;
+      const itemTransport = perItemDelivery || 0;
+      const farmerAmt = itemTotal - itemCommission;
+
+      const pickupAddress = product.farmer
+        ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
+        : '';
+
+      const order = await Order.create({
+        customer_id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        delivery_address: typeof delivery_address === 'object' ? JSON.stringify(delivery_address) : (delivery_address || ''),
+        total_price: itemTotal,
+        farmer_amount: farmerAmt,
+        admin_commission: itemCommission,
+        transport_charge: itemTransport,
+        payment_method: 'ONLINE',
+        payment_status: 'completed',
+        current_status: 'PLACED',
+        pickup_address: pickupAddress,
+        qr_code: qr_code || null,
+        qr_image_url: qr_image_url || null,
+        razorpay_order_id: razorpay_order_id || null,
+        razorpay_payment_id: razorpay_payment_id || null,
+        items_json: JSON.stringify(ordersToCreate)
+      });
+
+      // Reduce stock
+      await product.update({ quantity: Math.max(0, product.quantity - item.quantity) });
+      createdOrders.push(order);
+    }
+
+    // Clear cart
+    try {
+      const Cart = require('../models/cart.model');
+      await Cart.destroy({ where: { customer_id } });
+    } catch (cartErr) {
+      console.warn('Could not clear cart:', cartErr.message);
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Payment verified and order created. Waiting for farmer acceptance.',
+      message: 'Payment verified and order(s) created.',
       data: {
-        order_id: order.order_id,
+        order_id: createdOrders[0]?.order_id,
+        orders: createdOrders.map(o => ({ order_id: o.order_id, current_status: o.current_status })),
         payment_status: 'completed',
-        current_status: 'PENDING',
-        message: 'Order sent to farmer for verification'
+        total_amount: total
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Complete order error:', error);
     console.error('Error stack:', error.stack);

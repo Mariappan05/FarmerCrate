@@ -62,7 +62,12 @@ const Order = sequelize.define('orders', {
     ), 
     defaultValue: 'PENDING' 
   },
+  payment_method: { type: DataTypes.STRING(20), defaultValue: 'COD' },
+  items_json: { type: DataTypes.TEXT, allowNull: true },
+  razorpay_order_id: { type: DataTypes.STRING, allowNull: true },
+  razorpay_payment_id: { type: DataTypes.STRING, allowNull: true },
   qr_code: { type: DataTypes.STRING },
+  qr_image_url: { type: DataTypes.STRING, allowNull: true },
   bill_url: { type: DataTypes.STRING },
   pickup_address: { type: DataTypes.TEXT },
   delivery_address: { type: DataTypes.TEXT },

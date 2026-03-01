@@ -24,7 +24,7 @@ router.get('/',
   cartController.getCart
 );
 
-// Update cart item quantity
+// Update cart item quantity (supports /item/:id and /:id)
 router.put('/item/:id',
   protect,
   authorize('customer'),
@@ -32,8 +32,30 @@ router.put('/item/:id',
   cartController.updateCartItem
 );
 
-// Remove item from cart
+// Alias: PUT /cart/:id  (frontend fallback)
+router.put('/:id',
+  protect,
+  authorize('customer'),
+  body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+  cartController.updateCartItem
+);
+
+// Remove item from cart  (supports /item/:id and /:id)
 router.delete('/item/:id',
+  protect,
+  authorize('customer'),
+  cartController.removeFromCart
+);
+
+// Clear cart endpoint
+router.delete('/clear',
+  protect,
+  authorize('customer'),
+  cartController.clearCart
+);
+
+// Alias: DELETE /cart/:id  (frontend fallback)
+router.delete('/:id',
   protect,
   authorize('customer'),
   cartController.removeFromCart

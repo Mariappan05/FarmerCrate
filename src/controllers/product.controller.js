@@ -6,11 +6,17 @@ const ProductPriceHistory = require('../models/productPriceHistory.model');
 const { Op } = require('sequelize');
 
 // Helper: accept image_urls as array or single string (also comma-separated)
+// Also handles [{url, is_primary}] format from frontend
 const normalizeImageUrls = (val) => {
   if (!val) return null;
-  if (Array.isArray(val)) return val.map(i => (typeof i === 'string' ? i.trim() : i)).filter(Boolean);
+  if (Array.isArray(val)) {
+    return val.map(i => {
+      if (typeof i === 'string') return i.trim();
+      if (i && typeof i === 'object') return i.url || i.image_url || null;
+      return null;
+    }).filter(Boolean);
+  }
   if (typeof val === 'string') {
-    // comma-separated or single URL
     if (val.includes(',')) {
       return val.split(',').map(s => s.trim()).filter(Boolean);
     }
@@ -141,22 +147,35 @@ exports.createProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { name, description, current_price, quantity, category, harvest_date, expiry_date, image_urls, status } = req.body;
+    const {
+      name, description, quantity, category, harvest_date, expiry_date,
+      image_urls, images, image_url, status, unit, variety,
+    } = req.body;
+
+    // Accept 'price' OR 'current_price'
+    const current_price = req.body.current_price ?? req.body.price;
+
+    if (!current_price && current_price !== 0) {
+      return res.status(400).json({ message: 'Price is required (send as price or current_price)' });
+    }
+
     const product = await Product.create({
       name,
       description,
       current_price,
       quantity,
+      unit: unit || 'kg',
       category,
-      harvest_date,
-      expiry_date,
+      harvest_date: harvest_date || null,
+      expiry_date: expiry_date || null,
       farmer_id: req.user.farmer_id,
       status: status || 'available'
     });
 
-    // Add images if provided
-    const normalized = normalizeImageUrls(image_urls);
-    if (normalized) {
+    // Handle images: prefer images[] array of objects, then image_urls[], then image_url string
+    const rawImages = images || image_urls || (image_url ? [image_url] : null);
+    const normalized = normalizeImageUrls(rawImages);
+    if (normalized && normalized.length > 0) {
       for (let i = 0; i < normalized.length; i++) {
         await ProductImage.create({
           product_id: product.product_id,

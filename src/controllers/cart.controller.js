@@ -67,12 +67,12 @@ exports.getCart = async (req, res) => {
       include: [{
         model: Product,
         as: 'cart_product',
-        attributes: ['product_id', 'name', 'description', 'current_price'],
+        attributes: ['product_id', 'name', 'description', 'current_price', 'quantity', 'unit', 'category', 'status'],
         include: [
           {
             model: FarmerUser,
             as: 'farmer',
-            attributes: ['name', 'mobile_number']
+            attributes: ['farmer_id', 'name', 'mobile_number', 'zone', 'district', 'state']
           },
           {
             model: ProductImage,
@@ -83,9 +83,33 @@ exports.getCart = async (req, res) => {
       }]
     });
 
+    // Map cart_product -> product so frontend can access item.product directly
+    const mapped = cartItems.map(item => {
+      const d = item.toJSON();
+      const prod = d.cart_product || {};
+      return {
+        ...d,
+        product: {
+          ...prod,
+          price: prod.current_price,          // alias
+          stock: prod.quantity,               // alias: stock = product quantity
+          farmer_name: prod.farmer?.name || null,
+          farmer_phone: prod.farmer?.mobile_number || null,
+          user: prod.farmer || null,          // frontend uses .user for farmer info
+        },
+        // top-level aliases for fallback
+        price: prod.current_price,
+        name: prod.name,
+        unit: prod.unit || 'kg',
+        stock: prod.quantity,
+        image_url: prod.images?.[0]?.image_url || null,
+        cart_product: undefined,              // remove duplicate
+      };
+    });
+
     res.json({
       success: true,
-      data: cartItems
+      data: mapped
     });
   } catch (error) {
     console.error('Get cart error:', error);

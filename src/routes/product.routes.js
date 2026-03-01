@@ -8,15 +8,16 @@ const { protect, authorize } = require('../middleware/auth.middleware');
 const productValidation = [
   body('name').trim().notEmpty().withMessage('Product name is required'),
   body('description').trim().notEmpty().withMessage('Product description is required'),
-  body('current_price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+  body('current_price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+  body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('quantity').isInt({ min: 0 }).withMessage('Quantity must be a positive number'),
   body('category').optional().trim()
 ];
 
 const productCreateValidation = [
   ...productValidation,
-  body('harvest_date').trim().notEmpty().withMessage('Harvest date is required'),
-  body('expiry_date').trim().notEmpty().withMessage('Expiry date is required')
+  body('harvest_date').optional().trim(),
+  body('expiry_date').optional().trim()
 ];
 
 const priceUpdateValidation = [
