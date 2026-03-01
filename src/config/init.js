@@ -1,26 +1,9 @@
 const { sequelize } = require('./database');
-const FarmerUser = require('../models/farmer_user.model');
-const CustomerUser = require('../models/customer_user.model');
-const TransporterUser = require('../models/transporter_user.model');
 const AdminUser = require('../models/admin_user.model');
-const Product = require('../models/product.model');
-const Order = require('../models/order.model');
-const Transaction = require('../models/transaction.model');
 
-// Define model associations
+// Load all model associations from the canonical associations file
 const initAssociations = () => {
-  // Farmer associations
-  FarmerUser.hasMany(Product, { foreignKey: 'farmerId' });
-  FarmerUser.hasMany(Order, { foreignKey: 'farmerId' });
-  
-  // Customer associations
-  CustomerUser.hasMany(Order, { foreignKey: 'customerId' });
-  
-  // Product associations
-  Product.hasMany(Order, { foreignKey: 'productId' });
-
-  // Order associations
-  Order.hasMany(Transaction, { foreignKey: 'orderId' });
+  require('../models/associations');
 };
 
 // Initialize database

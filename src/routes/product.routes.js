@@ -14,6 +14,16 @@ const productValidation = [
   body('category').optional().trim()
 ];
 
+// Update validation — all fields optional so partial edits (price-only, qty-only) pass through
+const productUpdateValidation = [
+  body('name').optional().trim(),
+  body('description').optional().trim(),
+  body('current_price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+  body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+  body('quantity').optional().isInt({ min: 0 }).withMessage('Quantity must be a non-negative number'),
+  body('category').optional().trim()
+];
+
 const productCreateValidation = [
   ...productValidation,
   body('harvest_date').optional().trim(),
@@ -41,7 +51,7 @@ router.post('/',
 router.put('/:id', 
   protect, 
   authorize('farmer'), 
-  productValidation, 
+  productUpdateValidation, 
   productController.updateProduct
 );
 
