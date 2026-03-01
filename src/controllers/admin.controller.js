@@ -683,6 +683,48 @@ exports.getFarmerOrders = async (req, res) => {
 };
 
 
+exports.getCustomerById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const customer = await CustomerUser.findByPk(id, {
+      attributes: { exclude: ['password'] }
+    });
+    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    res.json({ success: true, data: customer });
+  } catch (error) {
+    console.error('Error fetching customer:', error);
+    res.status(500).json({ message: 'Error fetching customer' });
+  }
+};
+
+exports.getTransporterById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const transporter = await TransporterUser.findByPk(id, {
+      attributes: { exclude: ['password'] }
+    });
+    if (!transporter) return res.status(404).json({ message: 'Transporter not found' });
+    res.json({ success: true, data: transporter });
+  } catch (error) {
+    console.error('Error fetching transporter:', error);
+    res.status(500).json({ message: 'Error fetching transporter' });
+  }
+};
+
+exports.getDeliveryPersonById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const person = await DeliveryPerson.findByPk(id, {
+      attributes: { exclude: ['password'] }
+    });
+    if (!person) return res.status(404).json({ message: 'Delivery person not found' });
+    res.json({ success: true, data: person });
+  } catch (error) {
+    console.error('Error fetching delivery person:', error);
+    res.status(500).json({ message: 'Error fetching delivery person' });
+  }
+};
+
 exports.getDashboardMetrics = async (req, res) => {
   try {
     const { Op } = require('sequelize');
