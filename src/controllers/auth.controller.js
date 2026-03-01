@@ -653,30 +653,41 @@ exports.changeDeliveryPersonFirstLoginPassword = async (req, res) => {
 
 
 // Google Sign-In
+const { OAuth2Client } = require('google-auth-library');
+
 exports.googleSignIn = async (req, res) => {
   try {
-    const { accessToken, role } = req.body;
+    const { idToken, role } = req.body;
     
-    if (!accessToken) {
-      return res.status(400).json({ message: 'Google access token is required' });
+    if (!idToken) {
+      return res.status(400).json({ message: 'Google ID token is required' });
     }
     
     if (!role || !['customer', 'farmer', 'transporter'].includes(role)) {
       return res.status(400).json({ message: 'Valid role (customer/farmer/transporter) is required' });
     }
     
-    // Verify access token and get user info from Google userinfo endpoint
+    // Verify idToken — native Google Sign-In sends a proper JWT verifiable by google-auth-library
     let googleUser;
     try {
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` }
+      const client = new OAuth2Client();
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: [
+          process.env.GOOGLE_CLIENT_ID_WEB,
+          process.env.GOOGLE_CLIENT_ID_ANDROID,
+        ],
       });
-      if (!userInfoResponse.ok) {
-        return res.status(401).json({ message: 'Invalid Google access token' });
-      }
-      googleUser = await userInfoResponse.json();
-    } catch (fetchError) {
-      return res.status(401).json({ message: 'Failed to verify Google token' });
+      const payload = ticket.getPayload();
+      googleUser = {
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+        id: payload.sub,
+      };
+    } catch (verifyError) {
+      console.error('[GOOGLE SIGNIN] Token verification failed:', verifyError.message);
+      return res.status(401).json({ message: 'Invalid Google token' });
     }
     
     const { email, name, picture, id: googleId } = googleUser;
