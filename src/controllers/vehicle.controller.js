@@ -69,7 +69,7 @@ class VehicleController {
         transporter_id
       });
       
-      // Create document record if URLs provided
+      // Create document record with URLs
       if (rc_url || insurance_url || permit_url) {
         await PermanentVehicleDocument.create({
           vehicle_id: vehicle.vehicle_id,
