@@ -918,9 +918,14 @@ exports.googleCompleteProfile = async (req, res) => {
       if (role === 'farmer') {
         if (account_number) user.account_number = account_number;
         if (ifsc_code) user.ifsc_code = ifsc_code;
+        // Always set pending on profile completion — admin must approve before access
+        user.verification_status = 'pending';
         await user.save();
-        const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
-        return res.json({ message: 'Farmer profile updated successfully', token, user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' } });
+        return res.json({
+          message: 'Farmer profile updated. Your account is under review by our admin team. You will be notified once approved.',
+          requiresVerification: true,
+          user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer', verification_status: 'pending' }
+        });
       } else if (role === 'customer') {
         user.first_login_completed = true;
         await user.save();
@@ -938,9 +943,14 @@ exports.googleCompleteProfile = async (req, res) => {
         if (license_url) user.license_url = license_url;
         if (account_number) user.account_number = account_number;
         if (ifsc_code) user.ifsc_code = ifsc_code;
+        // Always set pending on profile completion — admin must approve before access
+        user.verified_status = 'pending';
         await user.save();
-        const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
-        return res.json({ message: 'Transporter profile updated successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } });
+        return res.json({
+          message: 'Transporter profile updated. Your account is under review by our admin team. You will be notified once approved.',
+          requiresVerification: true,
+          user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter', verified_status: 'pending' }
+        });
       }
     }
     
