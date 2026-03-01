@@ -22,7 +22,7 @@ const TemporaryVehicle = sequelize.define('temporary_vehicles', {
     unique: true
   },
   vehicle_type: {
-    type: DataTypes.ENUM('bike', 'auto', 'van', 'truck'),
+    type: DataTypes.STRING(50),
     allowNull: false
   },
   rental_start_date: {

@@ -22,7 +22,7 @@ const PermanentVehicle = sequelize.define('permanent_vehicles', {
     unique: true
   },
   vehicle_type: {
-    type: DataTypes.ENUM('bike', 'auto', 'van', 'truck'),
+    type: DataTypes.STRING(50),
     allowNull: false
   },
   capacity: {
