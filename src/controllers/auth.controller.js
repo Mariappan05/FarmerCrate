@@ -869,12 +869,15 @@ exports.googleCompleteProfile = async (req, res) => {
       
       if (role === 'farmer') {
         userData.unique_id = generateVerificationCode();
-        userData.verification_status = 'verified';
+        userData.verification_status = 'pending'; // admin must verify before access
         if (account_number) userData.account_number = account_number;
         if (ifsc_code) userData.ifsc_code = ifsc_code;
         user = await FarmerUser.create(userData);
-        const token = jwt.sign({ farmer_id: user.farmer_id, role: 'farmer' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
-        return res.json({ message: 'Farmer profile created successfully', token, user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer' } });
+        return res.json({
+          message: 'Farmer profile created. Your account is under review by our admin team. You will be notified once approved.',
+          requiresVerification: true,
+          user: { id: user.farmer_id, email: user.email, name: user.name, role: 'farmer', verification_status: 'pending' }
+        });
       } else if (role === 'customer') {
         userData.first_login_completed = true;
         user = await CustomerUser.create(userData);
@@ -882,7 +885,7 @@ exports.googleCompleteProfile = async (req, res) => {
         return res.json({ message: 'Customer profile created successfully', token, user: { id: user.customer_id, email: user.email, name: user.name, role: 'customer' } });
       } else if (role === 'transporter') {
         userData.unique_id = generateVerificationCode();
-        userData.verified_status = 'verified';
+        userData.verified_status = 'pending'; // admin must verify before access
         if (pincode) userData.pincode = pincode;
         if (aadhar_number) userData.aadhar_number = aadhar_number;
         if (pan_number) userData.pan_number = pan_number;
@@ -895,8 +898,11 @@ exports.googleCompleteProfile = async (req, res) => {
         if (account_number) userData.account_number = account_number;
         if (ifsc_code) userData.ifsc_code = ifsc_code;
         user = await TransporterUser.create(userData);
-        const token = jwt.sign({ transporter_id: user.transporter_id, role: 'transporter' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
-        return res.json({ message: 'Transporter profile created successfully', token, user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter' } });
+        return res.json({
+          message: 'Transporter profile created. Your account is under review by our admin team. You will be notified once approved.',
+          requiresVerification: true,
+          user: { id: user.transporter_id, email: user.email, name: user.name, role: 'transporter', verified_status: 'pending' }
+        });
       }
     } else {
       console.log('[GOOGLE PROFILE] Updating existing user');
