@@ -101,6 +101,15 @@ def recommend():
     body = request.get_json(force=True, silent=True) or {}
     district = body.get("district", "").strip()
     category_filter = body.get("category", None)
+    period = body.get("period", "all")  # weekly / monthly / yearly / all
+    # Crop cycle classification
+    CROP_CYCLES = {
+        'weekly':  {'Coriander', 'Garlic', 'Chilli'},
+        'monthly': {'Ginger', 'Turmeric', 'Sweet Potato', 'Tobacco'},
+        'yearly':  {'Tapioca', 'Sugarcane', 'Banana', 'Coconut',
+                    'Arecanut', 'Black Pepper', 'Cardamom', 'Cashewnut'},
+    }
+    period_set = CROP_CYCLES.get(period, None)  # None = no filter
 
     if not district:
         return jsonify({"success": False, "message": "district is required"}), 400
@@ -116,12 +125,8 @@ def recommend():
 
         # Get district production stats
         district_prod = system.raw_data[system.raw_data["District"] == district]
-        rice_production = (
-            float(district_prod["Production_Tonnes"].values[0])
-            if len(district_prod) > 0 else 0
-        )
-        avg_production = float(system.raw_data["Production_Tonnes"].mean())
-        production_ratio = rice_production / avg_production if avg_production > 0 else 1.0
+        # Per-crop averages for accurate market status and price calculation
+        crop_avg_map = system.raw_data.groupby('Product_Type')['Production_Tonnes'].mean()
 
         # Fetch weather
         weather = system.fetch_weather_data(district, years=5)
@@ -168,7 +173,12 @@ def recommend():
                 })
                 continue
 
-            # Market status
+            # Per-crop production → correct market status and price per product
+            prod_row       = district_prod[district_prod['Product_Type'] == product]
+            crop_production = float(prod_row['Production_Tonnes'].values[0]) if len(prod_row) > 0 else 0
+            crop_avg        = float(crop_avg_map.get(product, 0))
+            production_ratio = crop_production / crop_avg if crop_avg > 0 else 1.0
+
             if production_ratio > 1.3:
                 market_status, market_opportunity = "Oversupplied", 0.7
             elif production_ratio > 1.0:
@@ -181,8 +191,7 @@ def recommend():
             overall = ((env_suit + temp_suit + soil_temp_suit + weather_score) / 4) * market_opportunity
             base_price = 2500
             estimated_price = (
-                base_price * (avg_production / rice_production)
-                if rice_production > 0 else base_price
+                base_price * (crop_avg / crop_production) if crop_production > 0 else base_price
             )
 
             grade = (
@@ -204,17 +213,48 @@ def recommend():
                 "estimated_price_per_quintal": round(estimated_price, 2)
             })
 
+        # Supplement: if period filter yields < 3 results, add top all-period crops
+        if period_set is not None and len(recommended) < 3:
+            existing = {r["product"] for r in recommended}
+            for product in system.available_products:
+                if product in period_set or product in existing:
+                    continue
+                if product not in system.product_conditions_matrix:
+                    continue
+                info = system.product_conditions_matrix[product]
+                env_s  = system._calculate_env_suitability(product, soil_type)
+                tmp_s  = system._calculate_temp_suitability(product, weather["Avg_Temp"])
+                stt_s  = system._calculate_soil_temp_suitability(product, weather["Soil_Temperature"])
+                wth_s  = system._calculate_weather_suitability(product, weather)
+                if not (env_s >= 0.7 and tmp_s >= 0.7 and wth_s >= 0.6):
+                    continue
+                prod_row       = district_prod[district_prod['Product_Type'] == product]
+                crop_production = float(prod_row['Production_Tonnes'].values[0]) if len(prod_row) > 0 else 0
+                crop_avg        = float(crop_avg_map.get(product, 0))
+                prod_ratio      = crop_production / crop_avg if crop_avg > 0 else 1.0
+                if prod_ratio > 1.3:   mkt, opp = "Oversupplied", 0.7
+                elif prod_ratio > 1.0: mkt, opp = "High Supply",  0.85
+                elif prod_ratio < 0.7: mkt, opp = "High Demand",  1.3
+                else:                  mkt, opp = "Balanced",      1.0
+                ov  = ((env_s + tmp_s + stt_s + wth_s) / 4) * opp
+                ep  = 2500 * (crop_avg / crop_production) if crop_production > 0 else 2500
+                grd = "Excellent" if ov >= 0.9 else ("Good" if ov >= 0.7 else "Fair")
+                recommended.append({
+                    "product": product, "category": info["category"],
+                    "overall_score": round(ov, 4), "grade": grd,
+                    "env_suitability": round(env_s, 3), "temp_suitability": round(tmp_s, 3),
+                    "soil_temp_suitability": round(stt_s, 3), "weather_score": round(wth_s, 3),
+                    "market_status": mkt, "estimated_price_per_quintal": round(ep, 0)
+                })
+
         recommended.sort(key=lambda x: x["overall_score"], reverse=True)
 
         return jsonify({
             "success": True,
             "district": district,
             "soil_type": soil_type,
-            "production": {
-                "rice_tonnes": round(rice_production, 2),
-                "avg_tonnes": round(avg_production, 2),
-                "production_ratio": round(production_ratio, 3)
-            },
+            "period": period,
+            "production": {},
             "weather": {
                 "avg_temp_max": round(weather["Avg_Temp_Max"], 1),
                 "avg_temp_min": round(weather["Avg_Temp_Min"], 1),

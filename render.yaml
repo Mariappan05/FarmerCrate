@@ -20,7 +20,7 @@ services:
     rootDir: ml
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn recommendation_server:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1
-    plan: standard           # standard plan – CatBoost needs enough RAM (>=512MB)
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -36,7 +36,7 @@ services:
     runtime: node
     buildCommand: npm install
     startCommand: npm start
-    plan: starter
+    plan: free
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
