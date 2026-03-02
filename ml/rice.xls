@@ -1,0 +1,401 @@
+ <table border="2px" id="apyreport" class="table table-hover table-bordered text-center">
+      <thead>
+        <tr>
+          <th colspan="4"><p class=""><strong>Crop: <span id="selcrop">Rice</span></strong></p></th>
+        </tr>
+        <tr>
+          <th rowspan="2">S.No.</th>
+          <th rowspan="2">State</th>
+          <th rowspan="2">District</th>
+                    <th rowspan="">2022 - 2023</th>
+        
+        </tr>
+        <tr>
+                    <th rowspan="">Production             (Tonnes)           </th>
+                </tr>
+      </thead>
+
+      <tbody>
+                    <tr>
+
+              <td>1</td>
+              <td>Tamil Nadu</td>
+
+              <td>Thanjavur</td>
+                            <td>
+                837,607
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>2</td>
+              <td>Tamil Nadu</td>
+
+              <td>Thiruvarur</td>
+                            <td>
+                737,493
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>3</td>
+              <td>Tamil Nadu</td>
+
+              <td>Tiruvannamalai</td>
+                            <td>
+                646,058
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>4</td>
+              <td>Tamil Nadu</td>
+
+              <td>Cuddalore</td>
+                            <td>
+                501,580
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>5</td>
+              <td>Tamil Nadu</td>
+
+              <td>Thiruvallur</td>
+                            <td>
+                384,279
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>6</td>
+              <td>Tamil Nadu</td>
+
+              <td>Villupuram</td>
+                            <td>
+                384,233
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>7</td>
+              <td>Tamil Nadu</td>
+
+              <td>Pudukkottai</td>
+                            <td>
+                354,955
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>8</td>
+              <td>Tamil Nadu</td>
+
+              <td>Mayiladuthurai</td>
+                            <td>
+                343,053
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>9</td>
+              <td>Tamil Nadu</td>
+
+              <td>Nagapattinam</td>
+                            <td>
+                271,882
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>10</td>
+              <td>Tamil Nadu</td>
+
+              <td>Tiruchirappalli</td>
+                            <td>
+                254,475
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>11</td>
+              <td>Tamil Nadu</td>
+
+              <td>Chengalpattu</td>
+                            <td>
+                241,435
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>12</td>
+              <td>Tamil Nadu</td>
+
+              <td>Kallakurichi</td>
+                            <td>
+                234,359
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>13</td>
+              <td>Tamil Nadu</td>
+
+              <td>Madurai</td>
+                            <td>
+                229,021
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>14</td>
+              <td>Tamil Nadu</td>
+
+              <td>Sivaganga</td>
+                            <td>
+                213,835
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>15</td>
+              <td>Tamil Nadu</td>
+
+              <td>Kanchipuram</td>
+                            <td>
+                193,683
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>16</td>
+              <td>Tamil Nadu</td>
+
+              <td>Ranipet</td>
+                            <td>
+                179,239
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>17</td>
+              <td>Tamil Nadu</td>
+
+              <td>Tirunelveli</td>
+                            <td>
+                142,984
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>18</td>
+              <td>Tamil Nadu</td>
+
+              <td>Thenkasi</td>
+                            <td>
+                133,878
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>19</td>
+              <td>Tamil Nadu</td>
+
+              <td>Krishnagiri</td>
+                            <td>
+                133,006
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>20</td>
+              <td>Tamil Nadu</td>
+
+              <td>Erode</td>
+                            <td>
+                131,717
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>21</td>
+              <td>Tamil Nadu</td>
+
+              <td>Dharmapuri</td>
+                            <td>
+                119,738
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>22</td>
+              <td>Tamil Nadu</td>
+
+              <td>Ramanathapuram</td>
+                            <td>
+                117,722
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>23</td>
+              <td>Tamil Nadu</td>
+
+              <td>Ariyalur</td>
+                            <td>
+                104,212
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>24</td>
+              <td>Tamil Nadu</td>
+
+              <td>Salem</td>
+                            <td>
+                99,983
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>25</td>
+              <td>Tamil Nadu</td>
+
+              <td>Virudhunagar</td>
+                            <td>
+                93,991
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>26</td>
+              <td>Tamil Nadu</td>
+
+              <td>Karur</td>
+                            <td>
+                57,681
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>27</td>
+              <td>Tamil Nadu</td>
+
+              <td>Dindigul</td>
+                            <td>
+                57,541
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>28</td>
+              <td>Tamil Nadu</td>
+
+              <td>Namakkal</td>
+                            <td>
+                53,652
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>29</td>
+              <td>Tamil Nadu</td>
+
+              <td>Thoothukudi</td>
+                            <td>
+                53,193
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>30</td>
+              <td>Tamil Nadu</td>
+
+              <td>Theni</td>
+                            <td>
+                48,555
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>31</td>
+              <td>Tamil Nadu</td>
+
+              <td>Tiruppur</td>
+                            <td>
+                45,462
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>32</td>
+              <td>Tamil Nadu</td>
+
+              <td>Tirupathur</td>
+                            <td>
+                42,420
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>33</td>
+              <td>Tamil Nadu</td>
+
+              <td>Kanniyakumari</td>
+                            <td>
+                41,503
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>34</td>
+              <td>Tamil Nadu</td>
+
+              <td>Vellore</td>
+                            <td>
+                36,653
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>35</td>
+              <td>Tamil Nadu</td>
+
+              <td>Perambalur</td>
+                            <td>
+                30,178
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>36</td>
+              <td>Tamil Nadu</td>
+
+              <td>Coimbatore</td>
+                            <td>
+                4,606
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>37</td>
+              <td>Tamil Nadu</td>
+
+              <td>Chennai</td>
+                            <td>
+                356
+              </td>
+                        </tr>
+                        <tr>
+
+              <td>38</td>
+              <td>Tamil Nadu</td>
+
+              <td>The nilgiris</td>
+                            <td>
+                349
+              </td>
+                        </tr>
+            
+      </tbody>
+    </table>

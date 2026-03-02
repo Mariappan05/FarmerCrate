@@ -1,0 +1,44 @@
+Product,Category,Suitable_Conditions,Temperature_Min,Temperature_Max,Temperature_Optimal
+Rice,Crop,Alluvial|Red Soil|Black Soil,20,35,25
+Wheat,Crop,Alluvial|Black Soil|Red Loamy Soil,15,25,20
+Maize,Crop,Red Soil|Black Soil|Alluvial,18,32,25
+Cotton,Crop,Black Soil|Red Soil|Alluvial,21,35,28
+Sugarcane,Crop,Alluvial|Red Soil|Black Soil,20,35,30
+Groundnut,Crop,Red Soil|Sandy Loam|Alluvial,20,30,25
+Pulses,Crop,Black Soil|Red Soil|Loamy,15,30,22
+Ragi,Crop,Red Soil|Laterite Soil|Sandy Loam,20,32,26
+Jowar,Crop,Black Soil|Red Soil|Loamy,20,35,28
+Bajra,Crop,Sandy Loam|Red Soil|Black Soil,25,35,30
+Banana,Crop,Alluvial|Red Loamy Soil|Sandy Loam,15,35,27
+Coconut,Crop,Sandy Loam|Laterite Soil|Alluvial,20,32,27
+Chilli,Crop,Red Soil|Black Soil|Loamy,20,30,25
+Potato,Crop,Red Soil|Sandy Loam|Loamy,15,25,20
+Mango,Crop,Red Soil|Laterite Soil|Alluvial,24,35,27
+Turmeric,Crop,Red Soil|Laterite Soil|Loamy,20,35,25
+Onion,Crop,Red Soil|Black Soil|Loamy,13,24,18
+Tomato,Crop,Red Soil|Black Soil|Loamy,18,27,22
+Dairy Cattle,Livestock,Moderate Climate|Good Water,10,30,20
+Beef Cattle,Livestock,Moderate Climate|Grassland,5,35,22
+Buffalo,Livestock,Humid Climate|Water Bodies,15,35,25
+Goat,Livestock,Dry Climate|Rocky Terrain,10,40,25
+Sheep,Livestock,Dry Climate|Grassland,5,35,20
+Pig,Livestock,Moderate Climate|Shelter,10,30,22
+Cow Milk,Dairy,Moderate Climate|Good Water,10,30,20
+Buffalo Milk,Dairy,Humid Climate|Water Bodies,15,35,25
+Goat Milk,Dairy,Dry Climate|Rocky Terrain,10,40,25
+Broiler Chicken,Poultry,Controlled Environment,18,28,24
+Layer Chicken,Poultry,Controlled Environment,18,28,24
+Duck,Poultry,Water Bodies|Humid Climate,15,32,25
+Quail,Poultry,Controlled Environment,20,30,25
+Turkey,Poultry,Moderate Climate|Shelter,15,28,22
+Eggs,Poultry,Controlled Environment,18,28,24
+Tilapia,Fishery,Freshwater|Warm Water,20,35,28
+Catfish,Fishery,Freshwater|Moderate Water,15,32,25
+Carp,Fishery,Freshwater|Cool Water,10,30,22
+Shrimp,Fishery,Brackish Water|Coastal,20,35,28
+Prawn,Fishery,Freshwater|Brackish Water,18,32,26
+Honey,Apiculture,Flowering Plants|Moderate Climate,15,35,25
+Beeswax,Apiculture,Flowering Plants|Moderate Climate,15,35,25
+Mushroom,Horticulture,Controlled Environment|High Humidity,15,25,20
+Flowers,Horticulture,Moderate Climate|Good Soil,15,30,22
+Silk,Sericulture,Mulberry Trees|Moderate Climate,20,30,25

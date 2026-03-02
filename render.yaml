@@ -1,0 +1,83 @@
+## render.yaml — Render Blueprint for FarmerCrate
+## Deploys two services:
+##   1. farmercrate-backend  — Node.js Express API
+##   2. farmercrate-ml       — Python Flask CatBoost Recommendation Server
+##
+## How to use:
+##   1. Push this file to your GitHub repo root.
+##   2. In Render Dashboard → New → Blueprint → connect your repo.
+##   3. Render auto-creates both services.
+##   4. ML_SERVER_URL in the backend is auto-wired to the Python service URL.
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 1. Python Flask ML Server   (CatBoost Recommendation Engine)
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: farmercrate-ml
+    runtime: python
+    rootDir: ml
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn recommendation_server:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1
+    plan: standard           # standard plan – CatBoost needs enough RAM (>=512MB)
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ML_PORT
+        value: 5001
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 2. Node.js Express Backend
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: farmercrate-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+
+      # Auto-wire ML server URL from the farmercrate-ml service
+      - key: ML_SERVER_URL
+        fromService:
+          name: farmercrate-ml
+          type: web
+          property: host
+          # Render prepends https:// automatically, so we use the host property
+
+      # ── Copy your existing secrets below ──────────────────────────────
+      - key: DATABASE_URL
+        sync: false           # Set in Render dashboard (not committed to git)
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID_WEB
+        sync: false
+      - key: GOOGLE_CLIENT_ID_ANDROID
+        sync: false

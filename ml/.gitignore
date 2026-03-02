@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+catboost_info/
+*.cbm
+.env

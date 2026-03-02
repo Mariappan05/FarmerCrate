@@ -34,6 +34,7 @@ const wishlistRoutes = require('./routes/wishlist.routes');
 const vehicleRoutes = require('./routes/vehicle.routes');
 const govVerificationRoutes = require('./routes/govVerification.routes');
 const locationRoutes = require('./routes/location.routes');
+const recommendationRoutes = require('./routes/recommendation.routes');
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -52,6 +53,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/gov-verification', govVerificationRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -88,6 +90,10 @@ const startServer = async () => {
       console.log('- GET /api/vehicles (Vehicle Management - Authentication Required)');
       console.log('- POST /api/vehicles/permanent (Add Permanent Vehicle)');
       console.log('- POST /api/vehicles/temporary (Add Temporary Vehicle)');
+      console.log('- POST /api/recommendations (CatBoost Product Recommendations)');
+      console.log('- GET  /api/recommendations/districts (Tamil Nadu Districts)');
+      console.log('- GET  /api/recommendations/all (All Districts Overview)');
+      console.log('- GET  /api/recommendations/health (ML Server Health)');
     });
 
     server.on('error', (err) => {
