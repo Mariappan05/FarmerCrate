@@ -177,7 +177,11 @@ exports.completeOrder = async (req, res) => {
     
     console.log('\n=== ORDER COMPLETION STARTED ===');
     console.log('Request Data:', { razorpay_order_id, razorpay_payment_id, razorpay_signature });
-    console.log('Order Data:', order_data);
+    console.log('Order Data (full):', JSON.stringify(order_data, null, 2));
+    console.log('Order Data items:', order_data?.items);
+    console.log('Order Data items length:', order_data?.items?.length);
+    console.log('Type of order_data:', typeof order_data);
+    console.log('Keys in order_data:', order_data ? Object.keys(order_data) : 'N/A');
     
     // Verify payment
     const isPaymentValid = await RazorpayService.verifyPayment(
