@@ -15,21 +15,17 @@ const ML_SERVER_URL = _raw.startsWith('http') ? _raw : `https://${_raw}`;
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Static fallback data (Tamil Nadu district â†’ soil â†’ products)
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Exact copy of Python's _infer_soil_type soil_map — all other districts default to 'Loamy'
 const DISTRICT_SOIL = {
-  Thanjavur:'Alluvial', Thiruvarur:'Alluvial', Nagapattinam:'Alluvial',
+  Thanjavur:'Alluvial',     Thiruvarur:'Alluvial',      Nagapattinam:'Alluvial',
   Mayiladuthurai:'Alluvial', Tiruvarur:'Alluvial',
-  Cuddalore:'Red Soil', Villupuram:'Red Soil', Tiruvannamalai:'Red Soil',
-  Dharmapuri:'Red Soil', Salem:'Red Soil', Krishnagiri:'Red Soil',
-  Madurai:'Black Soil', Sivaganga:'Black Soil', Virudhunagar:'Black Soil',
+  Cuddalore:'Red Soil',     Villupuram:'Red Soil',      Tiruvannamalai:'Red Soil',
+  Dharmapuri:'Red Soil',    Salem:'Red Soil',           Krishnagiri:'Red Soil',
+  Madurai:'Black Soil',     Sivaganga:'Black Soil',     Virudhunagar:'Black Soil',
   Coimbatore:'Red Loamy Soil', Erode:'Red Loamy Soil', Namakkal:'Red Loamy Soil',
   Kanniyakumari:'Sandy Loam', Thoothukudi:'Sandy Loam',
-  Nilgiris:'Laterite Soil', Theni:'Laterite Soil', Dindigul:'Laterite Soil',
-  Chennai:'Alluvial', Vellore:'Red Soil', Tiruppur:'Red Loamy Soil',
-  Karur:'Red Loamy Soil', Ariyalur:'Alluvial', Perambalur:'Red Soil',
-  Pudukkottai:'Black Soil', Ramanathapuram:'Sandy Loam',
-  Tirunelveli:'Black Soil', Tenkasi:'Laterite Soil',
-  Ranipet:'Red Soil', Tirupathur:'Red Soil', Kallakurichi:'Red Soil',
-  Chengalpattu:'Red Soil',
+  Nilgiris:'Laterite Soil', Theni:'Laterite Soil',     Dindigul:'Laterite Soil',
+  // All other districts (Tenkasi, Chennai, Vellore, Ariyalur, etc.) → 'Loamy' default
 };
 
 
@@ -165,12 +161,12 @@ function _calcWeatherSuit(product, rainfall) {
   if      (b === 'HIGH_WATER') return Math.min(0.5 + (rainfall / 2000) * 0.5, 1.0);
   else if (b === 'MODERATE')   return Math.min(0.6 + (rainfall / 1500) * 0.4, 1.0);
   else if (b === 'LOW')        return Math.min(0.8 + (rainfall / 3000) * 0.2, 1.0);
-  else if (b === 'DRAINED')    return rainfall >= 1000 && rainfall <= 2500 ? 0.85 : rainfall >= 600 ? 0.70 : 0.60;
+  else if (b === 'DRAINED')    return rainfall >= 1000 && rainfall <= 2500 ? 0.85 : (rainfall >= 600 && rainfall < 1000) ? 0.70 : 0.60;
   return Math.min(0.7 + (rainfall / 1000) * 0.3, 1.0);
 }
 
 function getStaticRecommendations(district, myProductNames, period = 'weekly') {
-  const soilType   = DISTRICT_SOIL[district] || 'Red Soil';
+  const soilType   = DISTRICT_SOIL[district] || 'Loamy';
   const wx         = DISTRICT_WEATHER[district] || { t: 27.0, r: 5000 };
   const distProd   = DISTRICT_PRODUCTION[district] || {};
   const cycleCrops = CROP_CYCLE[period] || CROP_CYCLE.weekly;
@@ -186,7 +182,7 @@ function getStaticRecommendations(district, myProductNames, period = 'weekly') {
 
     const cropProd  = distProd[product] || 0;
     const cropAvg   = CROP_AVG_PROD[product] || 1;
-    const prodRatio = cropProd > 0 ? cropProd / cropAvg : 1.0;
+    const prodRatio = cropAvg > 0 ? cropProd / cropAvg : 1.0;  // 0 production → 0.0 ratio → High Demand
     let mktStatus, mktOpp;
     if      (prodRatio > 1.3) { mktStatus = 'Oversupplied'; mktOpp = 0.7;  }
     else if (prodRatio > 1.0) { mktStatus = 'High Supply';  mktOpp = 0.85; }
