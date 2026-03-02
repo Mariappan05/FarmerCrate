@@ -32,175 +32,190 @@ const DISTRICT_SOIL = {
   Chengalpattu:'Red Soil',
 };
 
-// ── WEEKLY: Quick-turn vegetable & short-cycle crops (15–60 days) ────────────
-const SOIL_PRODUCTS_WEEKLY = {
-  'Alluvial':      [
-    { product:'Tomato',     category:'Vegetable',    grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'High Demand', estimated_price_per_quintal:1200 },
-    { product:'Spinach',    category:'Vegetable',    grade:'Excellent', env_suitability:0.88, temp_suitability:0.87, weather_score:0.86, overall_score:0.87, market_status:'High Demand', estimated_price_per_quintal:900  },
-    { product:'Beans',      category:'Vegetable',    grade:'Good',      env_suitability:0.85, temp_suitability:0.84, weather_score:0.83, overall_score:0.84, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Brinjal',    category:'Vegetable',    grade:'Good',      env_suitability:0.82, temp_suitability:0.81, weather_score:0.80, overall_score:0.81, market_status:'Balanced',    estimated_price_per_quintal:1100 },
-    { product:'Coriander',  category:'Herb',         grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:3500 },
-    { product:'Radish',     category:'Vegetable',    grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:800  },
-  ],
-  'Red Soil':      [
-    { product:'Tomato',     category:'Vegetable',    grade:'Excellent', env_suitability:0.90, temp_suitability:0.89, weather_score:0.88, overall_score:0.89, market_status:'High Demand', estimated_price_per_quintal:1200 },
-    { product:'Beans',      category:'Vegetable',    grade:'Excellent', env_suitability:0.87, temp_suitability:0.86, weather_score:0.85, overall_score:0.86, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Radish',     category:'Vegetable',    grade:'Good',      env_suitability:0.84, temp_suitability:0.83, weather_score:0.82, overall_score:0.83, market_status:'Balanced',    estimated_price_per_quintal:800  },
-    { product:'Spinach',    category:'Vegetable',    grade:'Good',      env_suitability:0.81, temp_suitability:0.80, weather_score:0.79, overall_score:0.80, market_status:'High Demand', estimated_price_per_quintal:900  },
-    { product:'Coriander',  category:'Herb',         grade:'Good',      env_suitability:0.78, temp_suitability:0.77, weather_score:0.76, overall_score:0.77, market_status:'Balanced',    estimated_price_per_quintal:3500 },
-    { product:'Brinjal',    category:'Vegetable',    grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:1100 },
-  ],
-  'Black Soil':    [
-    { product:'Brinjal',    category:'Vegetable',    grade:'Excellent', env_suitability:0.90, temp_suitability:0.89, weather_score:0.88, overall_score:0.89, market_status:'High Demand', estimated_price_per_quintal:1100 },
-    { product:'Tomato',     category:'Vegetable',    grade:'Excellent', env_suitability:0.88, temp_suitability:0.87, weather_score:0.86, overall_score:0.87, market_status:'High Demand', estimated_price_per_quintal:1200 },
-    { product:'Beans',      category:'Vegetable',    grade:'Good',      env_suitability:0.85, temp_suitability:0.84, weather_score:0.83, overall_score:0.84, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Coriander',  category:'Herb',         grade:'Good',      env_suitability:0.82, temp_suitability:0.81, weather_score:0.80, overall_score:0.81, market_status:'Balanced',    estimated_price_per_quintal:3500 },
-    { product:'Spinach',    category:'Vegetable',    grade:'Good',      env_suitability:0.79, temp_suitability:0.78, weather_score:0.77, overall_score:0.78, market_status:'Balanced',    estimated_price_per_quintal:900  },
-    { product:'Radish',     category:'Vegetable',    grade:'Fair',      env_suitability:0.71, temp_suitability:0.70, weather_score:0.69, overall_score:0.70, market_status:'Balanced',    estimated_price_per_quintal:800  },
-  ],
-  'Red Loamy Soil':[
-    { product:'Tomato',     category:'Vegetable',    grade:'Excellent', env_suitability:0.89, temp_suitability:0.88, weather_score:0.87, overall_score:0.88, market_status:'High Demand', estimated_price_per_quintal:1200 },
-    { product:'Beans',      category:'Vegetable',    grade:'Excellent', env_suitability:0.87, temp_suitability:0.86, weather_score:0.85, overall_score:0.86, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Brinjal',    category:'Vegetable',    grade:'Good',      env_suitability:0.84, temp_suitability:0.83, weather_score:0.82, overall_score:0.83, market_status:'Balanced',    estimated_price_per_quintal:1100 },
-    { product:'Coriander',  category:'Herb',         grade:'Good',      env_suitability:0.81, temp_suitability:0.80, weather_score:0.79, overall_score:0.80, market_status:'Balanced',    estimated_price_per_quintal:3500 },
-    { product:'Radish',     category:'Vegetable',    grade:'Good',      env_suitability:0.78, temp_suitability:0.77, weather_score:0.76, overall_score:0.77, market_status:'Balanced',    estimated_price_per_quintal:800  },
-    { product:'Spinach',    category:'Vegetable',    grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:900  },
-  ],
-  'Sandy Loam':    [
-    { product:'Radish',     category:'Vegetable',    grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'Balanced',    estimated_price_per_quintal:800  },
-    { product:'Beans',      category:'Vegetable',    grade:'Excellent', env_suitability:0.88, temp_suitability:0.87, weather_score:0.86, overall_score:0.87, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Tomato',     category:'Vegetable',    grade:'Good',      env_suitability:0.85, temp_suitability:0.84, weather_score:0.83, overall_score:0.84, market_status:'High Demand', estimated_price_per_quintal:1200 },
-    { product:'Coriander',  category:'Herb',         grade:'Good',      env_suitability:0.82, temp_suitability:0.81, weather_score:0.80, overall_score:0.81, market_status:'Balanced',    estimated_price_per_quintal:3500 },
-    { product:'Spinach',    category:'Vegetable',    grade:'Good',      env_suitability:0.79, temp_suitability:0.78, weather_score:0.77, overall_score:0.78, market_status:'Balanced',    estimated_price_per_quintal:900  },
-    { product:'Brinjal',    category:'Vegetable',    grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:1100 },
-  ],
-  'Laterite Soil': [
-    { product:'Beans',      category:'Vegetable',    grade:'Excellent', env_suitability:0.89, temp_suitability:0.88, weather_score:0.87, overall_score:0.88, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Tomato',     category:'Vegetable',    grade:'Excellent', env_suitability:0.87, temp_suitability:0.86, weather_score:0.85, overall_score:0.86, market_status:'High Demand', estimated_price_per_quintal:1200 },
-    { product:'Brinjal',    category:'Vegetable',    grade:'Good',      env_suitability:0.84, temp_suitability:0.83, weather_score:0.82, overall_score:0.83, market_status:'Balanced',    estimated_price_per_quintal:1100 },
-    { product:'Spinach',    category:'Vegetable',    grade:'Good',      env_suitability:0.81, temp_suitability:0.80, weather_score:0.79, overall_score:0.80, market_status:'Balanced',    estimated_price_per_quintal:900  },
-    { product:'Coriander',  category:'Herb',         grade:'Good',      env_suitability:0.78, temp_suitability:0.77, weather_score:0.76, overall_score:0.77, market_status:'Balanced',    estimated_price_per_quintal:3500 },
-    { product:'Radish',     category:'Vegetable',    grade:'Fair',      env_suitability:0.71, temp_suitability:0.70, weather_score:0.69, overall_score:0.70, market_status:'Balanced',    estimated_price_per_quintal:800  },
-  ],
+
+// â”€â”€ CatBoost algorithm replication (fallback when ML server is sleeping) â”€â”€â”€â”€â”€
+// Crops with explicit soil/temp conditions from agriculture_products_dataset.csv
+const CROP_CONDITIONS = {
+  'Sugarcane':{ conds:['Alluvial','Red Soil','Black Soil'],         tMin:20,tMax:35,tOpt:30 },
+  'Banana':   { conds:['Alluvial','Red Loamy Soil','Sandy Loam'],   tMin:15,tMax:35,tOpt:27 },
+  'Coconut':  { conds:['Sandy Loam','Laterite Soil','Alluvial'],    tMin:20,tMax:32,tOpt:27 },
+  'Chilli':   { conds:['Red Soil','Black Soil','Loamy'],            tMin:20,tMax:30,tOpt:25 },
+  'Turmeric': { conds:['Red Soil','Laterite Soil','Loamy'],         tMin:20,tMax:35,tOpt:25 },
+};
+const CROP_WEATHER_BUCKET = {
+  'Banana':'HIGH_WATER','Sugarcane':'HIGH_WATER','Tapioca':'HIGH_WATER',
+  'Coconut':'MODERATE',  'Ginger':'MODERATE',    'Turmeric':'MODERATE','Coriander':'MODERATE',
+  'Chilli':'LOW',        'Garlic':'LOW',          'Tobacco':'LOW',
+  'Black Pepper':'DRAINED','Cardamom':'DRAINED',  'Arecanut':'DRAINED',
+  'Cashewnut':'DRAINED', 'Sweet Potato':'DRAINED',
+};
+const CROP_CYCLE = {
+  weekly:  new Set(['Coriander','Garlic','Chilli']),
+  monthly: new Set(['Ginger','Turmeric','Sweet Potato','Tobacco']),
+  yearly:  new Set(['Tapioca','Sugarcane','Banana','Coconut','Arecanut','Black Pepper','Cardamom','Cashewnut']),
+};
+const CROP_CATEGORY = {
+  'Arecanut':'Horticulture','Banana':'Horticulture','Black Pepper':'Spice',
+  'Cardamom':'Spice',       'Cashewnut':'Horticulture','Chilli':'Spice',
+  'Coconut':'Horticulture', 'Coriander':'Herb',        'Garlic':'Vegetable',
+  'Ginger':'Spice',         'Sugarcane':'Crop',        'Sweet Potato':'Vegetable',
+  'Tapioca':'Crop',         'Tobacco':'Crop',          'Turmeric':'Spice',
+};
+const CROP_AVG_PROD = {
+  'Arecanut':841.9,'Banana':113261,'Black Pepper':96.6,'Cardamom':31.9,'Cashewnut':781.9,
+  'Chilli':722.6,'Coconut':178918421,'Coriander':118,'Garlic':1463.9,'Ginger':478.3,
+  'Sugarcane':490502.5,'Sweet Potato':476.9,'Tapioca':100917.4,'Tobacco':354.9,'Turmeric':4132.4,
+};
+const DISTRICT_WEATHER = {
+  'Ariyalur':      {t:27.0,r:900},   'Chengalpattu':  {t:28.6,r:7624},
+  'Chennai':       {t:28.5,r:8129},  'Coimbatore':    {t:26.5,r:6574},
+  'Cuddalore':     {t:28.2,r:7665},  'Dharmapuri':    {t:27.0,r:900},
+  'Dindigul':      {t:27.0,r:900},   'Erode':         {t:27.0,r:900},
+  'Kallakurichi':  {t:28.5,r:6893},  'Kanchipuram':   {t:28.6,r:6968},
+  'Kanniyakumari': {t:27.9,r:6354},  'Karur':         {t:27.0,r:900},
+  'Krishnagiri':   {t:27.0,r:900},   'Madurai':       {t:29.3,r:6721},
+  'Mayiladuthurai':{t:28.6,r:7842},  'Nagapattinam':  {t:28.5,r:8783},
+  'Namakkal':      {t:27.0,r:900},   'Nilgiris':      {t:15.4,r:9324},
+  'Perambalur':    {t:28.9,r:6811},  'Pudukkottai':   {t:28.9,r:6986},
+  'Ramanathapuram':{t:27.0,r:900},   'Ranipet':       {t:28.4,r:6684},
+  'Salem':         {t:27.9,r:5675},  'Sivaganga':     {t:29.2,r:7245},
+  'Tenkasi':       {t:27.0,r:7414},  'Thanjavur':     {t:28.8,r:7539},
+  'Theni':         {t:28.2,r:4973},  'Thiruvallur':   {t:29.1,r:5482},
+  'Thoothukudi':   {t:28.6,r:6224},  'Tiruchirappalli':{t:29.2,r:6445},
+  'Tirunelveli':   {t:27.0,r:900},   'Tirupathur':    {t:26.8,r:5669},
+  'Tiruppur':      {t:27.9,r:5254},  'Tiruvannamalai':{t:28.2,r:6902},
+  'Tiruvarur':     {t:28.6,r:8538},  'Vellore':       {t:27.9,r:6509},
+  'Villupuram':    {t:28.7,r:7550},  'Virudhunagar':  {t:27.0,r:900},
+};
+const DISTRICT_PRODUCTION = {
+  'Ariyalur':    {'Arecanut':9,'Banana':7044,'Cashewnut':9052,'Coconut':3500000,'Coriander':4,'Chilli':168,'Sugarcane':329437,'Sweet Potato':61,'Tapioca':8412,'Turmeric':66},
+  'Chengalpattu':{'Banana':11019,'Cashewnut':79,'Coconut':10900000,'Coriander':1,'Chilli':139,'Sugarcane':72303,'Tapioca':188,'Turmeric':33},
+  'Chennai':     {'Banana':315,'Cashewnut':3,'Coconut':1300000,'Chilli':1},
+  'Coimbatore':  {'Arecanut':3880,'Banana':405878,'Black Pepper':32,'Cardamom':66,'Cashewnut':8,'Coconut':1425200000,'Coriander':29,'Chilli':176,'Ginger':347,'Sugarcane':42344,'Sweet Potato':19,'Tapioca':34025,'Tobacco':27,'Turmeric':1846},
+  'Cuddalore':   {'Banana':314089,'Black Pepper':3,'Cashewnut':7920,'Coconut':15700000,'Coriander':2,'Chilli':205,'Sugarcane':2009847,'Sweet Potato':325,'Tapioca':120589,'Tobacco':326,'Turmeric':1609},
+  'Dharmapuri':  {'Arecanut':2290,'Banana':45847,'Black Pepper':16,'Coconut':68900000,'Coriander':92,'Chilli':851,'Sugarcane':543959,'Sweet Potato':953,'Tapioca':405052,'Tobacco':26,'Turmeric':36188},
+  'Dindigul':    {'Arecanut':85,'Banana':78983,'Black Pepper':478,'Cardamom':30,'Cashewnut':89,'Coconut':454800000,'Coriander':15,'Chilli':1255,'Garlic':5565,'Ginger':120,'Sugarcane':224469,'Sweet Potato':252,'Tapioca':21556,'Tobacco':685,'Turmeric':61},
+  'Erode':       {'Arecanut':2985,'Banana':710750,'Black Pepper':11,'Cardamom':1,'Cashewnut':3,'Coconut':258700000,'Chilli':156,'Garlic':474,'Ginger':459,'Sugarcane':2266259,'Sweet Potato':254,'Tapioca':190318,'Tobacco':1748,'Turmeric':27821},
+  'Kallakurichi':{'Arecanut':478,'Banana':21211,'Black Pepper':17,'Cashewnut':379,'Coconut':25600000,'Chilli':340,'Sugarcane':2885636,'Sweet Potato':648,'Tapioca':779691,'Turmeric':8564},
+  'Kanchipuram': {'Banana':5234,'Cashewnut':19,'Coconut':4000000,'Chilli':54,'Sugarcane':59187,'Turmeric':6},
+  'Kanniyakumari':{'Arecanut':112,'Banana':122363,'Black Pepper':53,'Cardamom':2,'Cashewnut':65,'Coconut':188700000,'Ginger':48,'Sugarcane':11,'Tapioca':31372},
+  'Karur':       {'Arecanut':14,'Banana':122478,'Cashewnut':3,'Coconut':89500000,'Coriander':3,'Chilli':284,'Sugarcane':181736,'Sweet Potato':2021,'Tapioca':32942,'Turmeric':634},
+  'Krishnagiri': {'Arecanut':15,'Banana':30381,'Cashewnut':2,'Coconut':206800000,'Coriander':29,'Chilli':373,'Ginger':48,'Sugarcane':46546,'Tapioca':6947,'Turmeric':4818},
+  'Madurai':     {'Arecanut':2,'Banana':114083,'Cashewnut':36,'Coconut':252200000,'Coriander':18,'Chilli':948,'Sugarcane':115891,'Sweet Potato':192,'Tapioca':1427,'Turmeric':22},
+  'Mayiladuthurai':{'Arecanut':2,'Banana':21408,'Cashewnut':215,'Coconut':11100000,'Chilli':4,'Sugarcane':46880,'Tapioca':3117,'Turmeric':6},
+  'Nagapattinam':{'Banana':4171,'Cashewnut':366,'Coconut':24400000,'Chilli':13,'Sugarcane':294,'Tobacco':119},
+  'Namakkal':    {'Arecanut':3650,'Banana':104401,'Black Pepper':484,'Cardamom':9,'Cashewnut':5,'Coconut':165000000,'Coriander':2,'Chilli':176,'Garlic':143,'Sugarcane':1274579,'Sweet Potato':93,'Tapioca':656937,'Tobacco':2,'Turmeric':13404},
+  'Nilgiris':    {'Arecanut':392,'Banana':25068,'Black Pepper':184,'Cardamom':83,'Coconut':600000,'Garlic':4001,'Ginger':3928,'Tapioca':1352,'Turmeric':33},
+  'Perambalur':  {'Arecanut':73,'Banana':10468,'Cashewnut':1,'Coconut':2900000,'Coriander':4,'Chilli':114,'Sugarcane':402764,'Tapioca':75722,'Turmeric':4186},
+  'Pudukkottai': {'Arecanut':12,'Banana':131901,'Black Pepper':2,'Cashewnut':1837,'Coconut':184300000,'Chilli':162,'Garlic':6,'Sugarcane':215352,'Sweet Potato':411,'Tapioca':22006,'Turmeric':72},
+  'Ramanathapuram':{'Banana':6966,'Cashewnut':31,'Coconut':66400000,'Coriander':275,'Chilli':3987,'Sugarcane':16207,'Turmeric':17},
+  'Ranipet':     {'Banana':42363,'Cashewnut':3,'Coconut':14600000,'Chilli':260,'Sugarcane':133552,'Sweet Potato':64,'Tapioca':150,'Turmeric':1157},
+  'Salem':       {'Arecanut':7169,'Banana':107902,'Black Pepper':280,'Cardamom':4,'Cashewnut':30,'Coconut':187500000,'Coriander':16,'Chilli':755,'Garlic':40,'Ginger':263,'Sugarcane':698179,'Sweet Potato':75,'Tapioca':538936,'Tobacco':72,'Turmeric':28810},
+  'Sivaganga':   {'Banana':42150,'Cashewnut':57,'Coconut':175100000,'Chilli':1828,'Sugarcane':286140,'Sweet Potato':33,'Tapioca':3230,'Turmeric':11},
+  'Tenkasi':     {'Arecanut':26,'Banana':78124,'Black Pepper':10,'Cardamom':6,'Cashewnut':83,'Coconut':107000000,'Chilli':148,'Ginger':24,'Sugarcane':160111,'Tapioca':2403},
+  'Thanjavur':   {'Arecanut':20,'Banana':171137,'Black Pepper':1,'Cashewnut':944,'Coconut':820000000,'Coriander':5,'Chilli':75,'Garlic':18,'Ginger':311,'Sugarcane':443753,'Tapioca':22419,'Turmeric':94},
+  'Theni':       {'Arecanut':52,'Banana':317037,'Black Pepper':42,'Cardamom':143,'Cashewnut':280,'Coconut':355800000,'Coriander':5,'Ginger':72,'Sugarcane':257492,'Sweet Potato':19,'Tapioca':3793,'Turmeric':22},
+  'Thiruvallur': {'Banana':26367,'Cashewnut':49,'Coconut':11800000,'Chilli':448,'Sugarcane':489958,'Sweet Potato':3554,'Tapioca':939,'Turmeric':83},
+  'Thoothukudi': {'Banana':427569,'Cashewnut':131,'Coconut':44600000,'Coriander':655,'Chilli':5454,'Sugarcane':434,'Sweet Potato':262,'Turmeric':17},
+  'Tiruchirappalli':{'Arecanut':191,'Banana':262683,'Black Pepper':5,'Cashewnut':285,'Coconut':88300000,'Coriander':4,'Chilli':295,'Sugarcane':122112,'Sweet Potato':94,'Tapioca':166685,'Turmeric':1488},
+  'Tirunelveli': {'Arecanut':3,'Banana':140755,'Cardamom':10,'Cashewnut':63,'Coconut':55100000,'Coriander':1,'Chilli':58,'Sugarcane':2776,'Sweet Potato':762,'Tapioca':638,'Turmeric':28},
+  'Tirupathur':  {'Arecanut':9,'Banana':27938,'Black Pepper':1,'Coconut':170800000,'Coriander':114,'Chilli':264,'Sugarcane':84066,'Sweet Potato':69,'Tapioca':1352,'Turmeric':435},
+  'Tiruppur':    {'Arecanut':288,'Banana':126318,'Cashewnut':15,'Coconut':977300000,'Coriander':182,'Chilli':917,'Ginger':48,'Sugarcane':423802,'Tapioca':29930,'Tobacco':189,'Turmeric':1488},
+  'Tiruvannamalai':{'Arecanut':50,'Banana':74076,'Black Pepper':23,'Cashewnut':6,'Coconut':16000000,'Coriander':10,'Chilli':3464,'Sugarcane':1719352,'Sweet Potato':1724,'Tapioca':131695,'Turmeric':2188},
+  'Tiruvarur':   {'Arecanut':80,'Banana':15387,'Cashewnut':4,'Coconut':47600000,'Chilli':30,'Sugarcane':12775,'Sweet Potato':355,'Tapioca':6572,'Turmeric':22},
+  'Vellore':     {'Banana':76814,'Coconut':96600000,'Coriander':13,'Chilli':390,'Ginger':72,'Sugarcane':148427,'Tapioca':338,'Turmeric':1113},
+  'Villupuram':  {'Banana':21184,'Cashewnut':4516,'Coconut':26800000,'Chilli':227,'Sugarcane':1834634,'Sweet Potato':117,'Tapioca':28941,'Turmeric':28},
+  'Virudhunagar':{'Arecanut':2,'Banana':52056,'Cardamom':29,'Cashewnut':7,'Coconut':143500000,'Coriander':1234,'Chilli':1273,'Sugarcane':106826,'Sweet Potato':518,'Tapioca':601},
 };
 
-// ── MONTHLY: Medium-cycle crops (60–120 days) ─────────────────────────────────
-const SOIL_PRODUCTS_MONTHLY = {
-  'Alluvial':      [
-    { product:'Maize',      category:'Crop',         grade:'Excellent', env_suitability:0.92, temp_suitability:0.91, weather_score:0.90, overall_score:0.91, market_status:'High Demand', estimated_price_per_quintal:2000 },
-    { product:'Onion',      category:'Vegetable',    grade:'Excellent', env_suitability:0.89, temp_suitability:0.88, weather_score:0.87, overall_score:0.88, market_status:'Balanced',    estimated_price_per_quintal:1500 },
-    { product:'Cauliflower',category:'Vegetable',    grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'High Demand', estimated_price_per_quintal:1600 },
-    { product:'Chilli',     category:'Spice',        grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'Balanced',    estimated_price_per_quintal:9000 },
-    { product:'Cabbage',    category:'Vegetable',    grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:1200 },
-    { product:'Groundnut',  category:'Oilseed',      grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:5500 },
-  ],
-  'Red Soil':      [
-    { product:'Groundnut',  category:'Oilseed',      grade:'Excellent', env_suitability:0.92, temp_suitability:0.91, weather_score:0.90, overall_score:0.91, market_status:'High Demand', estimated_price_per_quintal:5500 },
-    { product:'Sunflower',  category:'Oilseed',      grade:'Excellent', env_suitability:0.89, temp_suitability:0.88, weather_score:0.87, overall_score:0.88, market_status:'Balanced',    estimated_price_per_quintal:4800 },
-    { product:'Maize',      category:'Crop',         grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'High Demand', estimated_price_per_quintal:2000 },
-    { product:'Onion',      category:'Vegetable',    grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'Balanced',    estimated_price_per_quintal:1500 },
-    { product:'Chilli',     category:'Spice',        grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:9000 },
-    { product:'Soybean',    category:'Oilseed',      grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:3700 },
-  ],
-  'Black Soil':    [
-    { product:'Jowar',      category:'Crop',         grade:'Excellent', env_suitability:0.92, temp_suitability:0.91, weather_score:0.90, overall_score:0.91, market_status:'Balanced',    estimated_price_per_quintal:2800 },
-    { product:'Bajra',      category:'Crop',         grade:'Excellent', env_suitability:0.90, temp_suitability:0.89, weather_score:0.88, overall_score:0.89, market_status:'Balanced',    estimated_price_per_quintal:2200 },
-    { product:'Maize',      category:'Crop',         grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'High Demand', estimated_price_per_quintal:2000 },
-    { product:'Onion',      category:'Vegetable',    grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'Balanced',    estimated_price_per_quintal:1500 },
-    { product:'Chilli',     category:'Spice',        grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:9000 },
-    { product:'Soybean',    category:'Oilseed',      grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:3700 },
-  ],
-  'Red Loamy Soil':[
-    { product:'Groundnut',  category:'Oilseed',      grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'Balanced',    estimated_price_per_quintal:5500 },
-    { product:'Maize',      category:'Crop',         grade:'Excellent', env_suitability:0.88, temp_suitability:0.87, weather_score:0.86, overall_score:0.87, market_status:'High Demand', estimated_price_per_quintal:2000 },
-    { product:'Onion',      category:'Vegetable',    grade:'Good',      env_suitability:0.85, temp_suitability:0.84, weather_score:0.83, overall_score:0.84, market_status:'Balanced',    estimated_price_per_quintal:1500 },
-    { product:'Chilli',     category:'Spice',        grade:'Good',      env_suitability:0.82, temp_suitability:0.81, weather_score:0.80, overall_score:0.81, market_status:'Balanced',    estimated_price_per_quintal:9000 },
-    { product:'Watermelon', category:'Fruit',        grade:'Good',      env_suitability:0.79, temp_suitability:0.78, weather_score:0.77, overall_score:0.78, market_status:'High Demand', estimated_price_per_quintal:1800 },
-    { product:'Cabbage',    category:'Vegetable',    grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:1200 },
-  ],
-  'Sandy Loam':    [
-    { product:'Groundnut',  category:'Oilseed',      grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'Balanced',    estimated_price_per_quintal:5500 },
-    { product:'Watermelon', category:'Fruit',        grade:'Excellent', env_suitability:0.89, temp_suitability:0.88, weather_score:0.87, overall_score:0.88, market_status:'High Demand', estimated_price_per_quintal:1800 },
-    { product:'Onion',      category:'Vegetable',    grade:'Good',      env_suitability:0.85, temp_suitability:0.84, weather_score:0.83, overall_score:0.84, market_status:'Balanced',    estimated_price_per_quintal:1500 },
-    { product:'Prawn',      category:'Aquaculture',  grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'High Demand', estimated_price_per_quintal:18000},
-    { product:'Shrimp',     category:'Aquaculture',  grade:'Good',      env_suitability:0.81, temp_suitability:0.80, weather_score:0.79, overall_score:0.80, market_status:'High Demand', estimated_price_per_quintal:16000},
-    { product:'Chilli',     category:'Spice',        grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:9000 },
-  ],
-  'Laterite Soil': [
-    { product:'Ginger',     category:'Spice',        grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'High Demand', estimated_price_per_quintal:12000},
-    { product:'Onion',      category:'Vegetable',    grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'Balanced',    estimated_price_per_quintal:1500 },
-    { product:'Maize',      category:'Crop',         grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'High Demand', estimated_price_per_quintal:2000 },
-    { product:'Chilli',     category:'Spice',        grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:9000 },
-    { product:'Watermelon', category:'Fruit',        grade:'Fair',      env_suitability:0.74, temp_suitability:0.73, weather_score:0.72, overall_score:0.73, market_status:'High Demand', estimated_price_per_quintal:1800 },
-    { product:'Cabbage',    category:'Vegetable',    grade:'Fair',      env_suitability:0.71, temp_suitability:0.70, weather_score:0.69, overall_score:0.70, market_status:'Balanced',    estimated_price_per_quintal:1200 },
-  ],
-};
-
-// ── YEARLY: Long-cycle perennial & annual crops (6–18 months) ────────────────
-const SOIL_PRODUCTS_YEARLY = {
-  'Alluvial':      [
-    { product:'Rice',       category:'Crop',         grade:'Excellent', env_suitability:0.93, temp_suitability:0.92, weather_score:0.91, overall_score:0.92, market_status:'Balanced',    estimated_price_per_quintal:2500 },
-    { product:'Sugarcane',  category:'Crop',         grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'High Demand', estimated_price_per_quintal:3200 },
-    { product:'Banana',     category:'Horticulture', grade:'Good',      env_suitability:0.87, temp_suitability:0.86, weather_score:0.85, overall_score:0.86, market_status:'Balanced',    estimated_price_per_quintal:1800 },
-    { product:'Coconut',    category:'Horticulture', grade:'Good',      env_suitability:0.84, temp_suitability:0.83, weather_score:0.82, overall_score:0.83, market_status:'High Demand', estimated_price_per_quintal:2200 },
-    { product:'Turmeric',   category:'Spice',        grade:'Good',      env_suitability:0.81, temp_suitability:0.80, weather_score:0.79, overall_score:0.80, market_status:'Balanced',    estimated_price_per_quintal:7000 },
-    { product:'Ginger',     category:'Spice',        grade:'Fair',      env_suitability:0.74, temp_suitability:0.73, weather_score:0.72, overall_score:0.73, market_status:'High Demand', estimated_price_per_quintal:12000},
-  ],
-  'Red Soil':      [
-    { product:'Cotton',     category:'Crop',         grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'High Demand', estimated_price_per_quintal:6500 },
-    { product:'Turmeric',   category:'Spice',        grade:'Excellent', env_suitability:0.89, temp_suitability:0.88, weather_score:0.87, overall_score:0.88, market_status:'Balanced',    estimated_price_per_quintal:7000 },
-    { product:'Coconut',    category:'Horticulture', grade:'Good',      env_suitability:0.85, temp_suitability:0.84, weather_score:0.83, overall_score:0.84, market_status:'High Demand', estimated_price_per_quintal:2200 },
-    { product:'Mango',      category:'Horticulture', grade:'Good',      env_suitability:0.82, temp_suitability:0.81, weather_score:0.80, overall_score:0.81, market_status:'High Demand', estimated_price_per_quintal:4500 },
-    { product:'Ginger',     category:'Spice',        grade:'Good',      env_suitability:0.79, temp_suitability:0.78, weather_score:0.77, overall_score:0.78, market_status:'High Demand', estimated_price_per_quintal:12000},
-    { product:'Soybean',    category:'Oilseed',      grade:'Fair',      env_suitability:0.72, temp_suitability:0.71, weather_score:0.70, overall_score:0.71, market_status:'Balanced',    estimated_price_per_quintal:3700 },
-  ],
-  'Black Soil':    [
-    { product:'Cotton',     category:'Crop',         grade:'Excellent', env_suitability:0.94, temp_suitability:0.93, weather_score:0.92, overall_score:0.93, market_status:'High Demand', estimated_price_per_quintal:6500 },
-    { product:'Sugarcane',  category:'Crop',         grade:'Excellent', env_suitability:0.91, temp_suitability:0.90, weather_score:0.89, overall_score:0.90, market_status:'Balanced',    estimated_price_per_quintal:3200 },
-    { product:'Wheat',      category:'Crop',         grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'Balanced',    estimated_price_per_quintal:2300 },
-    { product:'Pigeon Pea', category:'Pulse',        grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'High Demand', estimated_price_per_quintal:6200 },
-    { product:'Mango',      category:'Horticulture', grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'High Demand', estimated_price_per_quintal:4500 },
-    { product:'Soybean',    category:'Oilseed',      grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:3700 },
-  ],
-  'Red Loamy Soil':[
-    { product:'Coconut',    category:'Horticulture', grade:'Excellent', env_suitability:0.92, temp_suitability:0.91, weather_score:0.90, overall_score:0.91, market_status:'High Demand', estimated_price_per_quintal:2200 },
-    { product:'Banana',     category:'Horticulture', grade:'Excellent', env_suitability:0.90, temp_suitability:0.89, weather_score:0.88, overall_score:0.89, market_status:'Balanced',    estimated_price_per_quintal:1800 },
-    { product:'Sugarcane',  category:'Crop',         grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'Balanced',    estimated_price_per_quintal:3200 },
-    { product:'Turmeric',   category:'Spice',        grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'Balanced',    estimated_price_per_quintal:7000 },
-    { product:'Ginger',     category:'Spice',        grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'High Demand', estimated_price_per_quintal:12000},
-    { product:'Cashew',     category:'Horticulture', grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:9500 },
-  ],
-  'Sandy Loam':    [
-    { product:'Coconut',    category:'Horticulture', grade:'Excellent', env_suitability:0.93, temp_suitability:0.92, weather_score:0.91, overall_score:0.92, market_status:'High Demand', estimated_price_per_quintal:2200 },
-    { product:'Cashew',     category:'Horticulture', grade:'Excellent', env_suitability:0.90, temp_suitability:0.89, weather_score:0.88, overall_score:0.89, market_status:'High Demand', estimated_price_per_quintal:9500 },
-    { product:'Banana',     category:'Horticulture', grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'Balanced',    estimated_price_per_quintal:1800 },
-    { product:'Ginger',     category:'Spice',        grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'High Demand', estimated_price_per_quintal:12000},
-    { product:'Tilapia',    category:'Aquaculture',  grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:1800 },
-    { product:'Turmeric',   category:'Spice',        grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:7000 },
-  ],
-  'Laterite Soil': [
-    { product:'Coconut',    category:'Horticulture', grade:'Excellent', env_suitability:0.92, temp_suitability:0.91, weather_score:0.90, overall_score:0.91, market_status:'High Demand', estimated_price_per_quintal:2200 },
-    { product:'Mango',      category:'Horticulture', grade:'Excellent', env_suitability:0.90, temp_suitability:0.89, weather_score:0.88, overall_score:0.89, market_status:'High Demand', estimated_price_per_quintal:4500 },
-    { product:'Cashew',     category:'Horticulture', grade:'Good',      env_suitability:0.86, temp_suitability:0.85, weather_score:0.84, overall_score:0.85, market_status:'Balanced',    estimated_price_per_quintal:9500 },
-    { product:'Banana',     category:'Horticulture', grade:'Good',      env_suitability:0.83, temp_suitability:0.82, weather_score:0.81, overall_score:0.82, market_status:'Balanced',    estimated_price_per_quintal:1800 },
-    { product:'Turmeric',   category:'Spice',        grade:'Good',      env_suitability:0.80, temp_suitability:0.79, weather_score:0.78, overall_score:0.79, market_status:'Balanced',    estimated_price_per_quintal:7000 },
-    { product:'Tilapia',    category:'Aquaculture',  grade:'Fair',      env_suitability:0.73, temp_suitability:0.72, weather_score:0.71, overall_score:0.72, market_status:'Balanced',    estimated_price_per_quintal:1800 },
-  ],
-};
-
-const PERIOD_MAP = { weekly: SOIL_PRODUCTS_WEEKLY, monthly: SOIL_PRODUCTS_MONTHLY, yearly: SOIL_PRODUCTS_YEARLY };
-const DEFAULT_SOIL = 'Red Soil';
-
-function getStaticRecommendations(district, myProductNames, period = 'weekly') {
-  const soilType = DISTRICT_SOIL[district] || DEFAULT_SOIL;
-  const periodMap = PERIOD_MAP[period] || SOIL_PRODUCTS_WEEKLY;
-  const products  = periodMap[soilType] || periodMap[DEFAULT_SOIL] || SOIL_PRODUCTS_WEEKLY[DEFAULT_SOIL];
-  return products.map((item) => ({
-    ...item,
-    already_posted: (myProductNames || []).includes(item.product.toLowerCase().trim()),
-  }));
+// â”€â”€ Scoring functions â€” exact JS replication of catboost_algorithm.py â”€â”€â”€â”€â”€â”€â”€â”€
+function _calcEnvSuit(product, soilType) {
+  const c = CROP_CONDITIONS[product];
+  if (!c) return 0.7;
+  const s = soilType.toLowerCase();
+  for (const cond of c.conds) {
+    const cl = cond.toLowerCase();
+    if (cl.includes(s) || s.includes(cl)) return 0.9;
+  }
+  return 0.4;
+}
+function _calcTempSuit(product, avgTemp) {
+  const c = CROP_CONDITIONS[product];
+  if (!c) return 0.7;
+  if (avgTemp >= c.tMin && avgTemp <= c.tMax) {
+    const dev    = Math.abs(avgTemp - c.tOpt);
+    const maxDev = Math.max(c.tOpt - c.tMin, c.tMax - c.tOpt);
+    return Math.max(1.0 - (dev / maxDev) * 0.3, 0.7);
+  }
+  return 0.3;
+}
+function _calcSoilTempSuit(product, avgTemp) {
+  const c = CROP_CONDITIONS[product];
+  if (!c) return 0.7;
+  const soilTemp = avgTemp - 2, optS = c.tOpt - 2, minS = c.tMin - 3, maxS = c.tMax - 2;
+  if (soilTemp >= minS && soilTemp <= maxS) {
+    const dev    = Math.abs(soilTemp - optS);
+    const maxDev = Math.max(optS - minS, maxS - optS);
+    return Math.max(1.0 - (dev / maxDev) * 0.2, 0.8);
+  }
+  return 0.4;
+}
+function _calcWeatherSuit(product, rainfall) {
+  const b = CROP_WEATHER_BUCKET[product] || 'GENERAL';
+  if      (b === 'HIGH_WATER') return Math.min(0.5 + (rainfall / 2000) * 0.5, 1.0);
+  else if (b === 'MODERATE')   return Math.min(0.6 + (rainfall / 1500) * 0.4, 1.0);
+  else if (b === 'LOW')        return Math.min(0.8 + (rainfall / 3000) * 0.2, 1.0);
+  else if (b === 'DRAINED')    return rainfall >= 1000 && rainfall <= 2500 ? 0.85 : rainfall >= 600 ? 0.70 : 0.60;
+  return Math.min(0.7 + (rainfall / 1000) * 0.3, 1.0);
 }
 
+function getStaticRecommendations(district, myProductNames, period = 'weekly') {
+  const soilType   = DISTRICT_SOIL[district] || 'Red Soil';
+  const wx         = DISTRICT_WEATHER[district] || { t: 27.0, r: 5000 };
+  const distProd   = DISTRICT_PRODUCTION[district] || {};
+  const cycleCrops = CROP_CYCLE[period] || CROP_CYCLE.weekly;
+  const myNames    = (myProductNames || []).map((n) => n.toLowerCase().trim());
+  const scored     = [];
+
+  for (const product of Object.keys(CROP_AVG_PROD)) {
+    const envSuit  = _calcEnvSuit(product, soilType);
+    const tempSuit = _calcTempSuit(product, wx.t);
+    const stSuit   = _calcSoilTempSuit(product, wx.t);
+    const wthrSuit = _calcWeatherSuit(product, wx.r);
+    if (envSuit < 0.7 || tempSuit < 0.7 || wthrSuit < 0.6) continue;
+
+    const cropProd  = distProd[product] || 0;
+    const cropAvg   = CROP_AVG_PROD[product] || 1;
+    const prodRatio = cropProd > 0 ? cropProd / cropAvg : 1.0;
+    let mktStatus, mktOpp;
+    if      (prodRatio > 1.3) { mktStatus = 'Oversupplied'; mktOpp = 0.7;  }
+    else if (prodRatio > 1.0) { mktStatus = 'High Supply';  mktOpp = 0.85; }
+    else if (prodRatio < 0.7) { mktStatus = 'High Demand';  mktOpp = 1.3;  }
+    else                       { mktStatus = 'Balanced';     mktOpp = 1.0;  }
+
+    const overall  = ((envSuit + tempSuit + stSuit + wthrSuit) / 4) * mktOpp;
+    const estPrice = cropProd > 0 ? Math.round(2500 * (cropAvg / cropProd)) : 2500;
+    const grade    = overall >= 0.9 ? 'Excellent' : (overall >= 0.7 ? 'Good' : 'Fair');
+    scored.push({
+      product, category: CROP_CATEGORY[product] || 'Crop', grade,
+      overall_score:          +overall.toFixed(4),
+      env_suitability:        +envSuit.toFixed(3),
+      temp_suitability:       +tempSuit.toFixed(3),
+      soil_temp_suitability:  +stSuit.toFixed(3),
+      weather_score:          +wthrSuit.toFixed(3),
+      market_status:          mktStatus,
+      estimated_price_per_quintal: estPrice,
+      already_posted: myNames.includes(product.toLowerCase().trim()),
+    });
+  }
+
+  scored.sort((a, b) => b.overall_score - a.overall_score);
+  // Return period-specific cycle crops first; supplement from others if fewer than 3
+  const periodItems = scored.filter((s) =>  cycleCrops.has(s.product));
+  const otherItems  = scored.filter((s) => !cycleCrops.has(s.product));
+  const result = periodItems.length >= 3 ? periodItems : [...periodItems, ...otherItems];
+  return result.slice(0, 10);
+}
 async function callMLServer(district, period = 'weekly') {
   const { data } = await axios.post(
     `${ML_SERVER_URL}/recommend`,
