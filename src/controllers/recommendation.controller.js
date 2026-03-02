@@ -105,19 +105,26 @@ const getAllDistrictRecommendations = async (req, res) => {
 // -------------------------------------------------------------------------- //
 // Farmer-specific weekly recommendations
 // GET /api/recommendations/farmer  (requires JWT — farmer only)
-// Auto-reads the logged-in farmer's district, fetches top recommendations,
-// cross-references with the farmer's own products (already_posted flag).
 // -------------------------------------------------------------------------- //
 const getFarmerRecommendations = async (req, res) => {
   try {
-    const Farmer = require('../models/farmer_user.model');
-    const Product = require('../models/product.model');
+    console.log('[REC/farmer] ▶ START — req.user:', JSON.stringify({
+      farmer_id: req.user?.farmer_id,
+      name: req.user?.name,
+      district: req.user?.district,
+    }));
+
+    const FarmerUser = require('../models/farmer_user.model');
+    const Product    = require('../models/product.model');
 
     // 1️⃣ Load farmer profile to get district
-    const farmer = await Farmer.findOne({
+    console.log('[REC/farmer] 1️⃣  Querying FarmerUser for farmer_id:', req.user?.farmer_id);
+    const farmer = await FarmerUser.findOne({
       where: { farmer_id: req.user.farmer_id },
       attributes: ['farmer_id', 'name', 'district'],
     });
+
+    console.log('[REC/farmer] Farmer record:', farmer ? JSON.stringify({ farmer_id: farmer.farmer_id, district: farmer.district }) : 'NOT FOUND');
 
     if (!farmer || !farmer.district) {
       return res.status(400).json({
@@ -127,24 +134,28 @@ const getFarmerRecommendations = async (req, res) => {
     }
 
     const district = farmer.district.trim();
+    console.log('[REC/farmer] District:', district);
 
     // 2️⃣ Get farmer's existing product names (to flag already_posted)
+    console.log('[REC/farmer] 2️⃣  Loading farmer products...');
     const myProducts = await Product.findAll({
       where: { farmer_id: req.user.farmer_id },
-      attributes: ['name', 'created_at'],
+      attributes: ['name'],
     });
-    const myProductNames = myProducts.map((p) =>
-      (p.name || '').toLowerCase().trim()
-    );
+    const myProductNames = myProducts.map((p) => (p.name || '').toLowerCase().trim());
+    console.log('[REC/farmer] My products count:', myProducts.length, '— names:', myProductNames);
 
     // 3️⃣ Call ML server
+    console.log('[REC/farmer] 3️⃣  Calling ML server:', ML_SERVER_URL, '— district:', district);
     const { data } = await axios.post(
       `${ML_SERVER_URL}/recommend`,
       { district },
       { timeout: 30000 }
     );
+    console.log('[REC/farmer] ML response success:', data?.success, '— products count:', data?.recommended_products?.length);
 
     if (!data.success) {
+      console.warn('[REC/farmer] ML returned success=false:', data?.message);
       return res.status(500).json(data);
     }
 
@@ -153,10 +164,10 @@ const getFarmerRecommendations = async (req, res) => {
       .slice(0, 10)
       .map((item) => ({
         ...item,
-        already_posted: myProductNames.includes(
-          item.product.toLowerCase().trim()
-        ),
+        already_posted: myProductNames.includes(item.product.toLowerCase().trim()),
       }));
+
+    console.log('[REC/farmer] ✅ Returning', weekly.length, 'recommendations');
 
     return res.status(200).json({
       success: true,
@@ -172,10 +183,16 @@ const getFarmerRecommendations = async (req, res) => {
       },
     });
   } catch (err) {
+    // Log the REAL error on the server
+    console.error('[REC/farmer] ❌ EXCEPTION:', err.message);
+    console.error('[REC/farmer] Stack:', err.stack);
     if (err.response) {
+      console.error('[REC/farmer] Axios HTTP status:', err.response.status);
+      console.error('[REC/farmer] Axios HTTP data:', JSON.stringify(err.response.data));
       return res.status(err.response.status).json(err.response.data);
     }
-    return res.status(500).json({ success: false, message: err.message });
+    // Return the REAL error message instead of generic "Error"
+    return res.status(500).json({ success: false, message: err.message, stack: process.env.NODE_ENV === 'development' ? err.stack : undefined });
   }
 };
 
