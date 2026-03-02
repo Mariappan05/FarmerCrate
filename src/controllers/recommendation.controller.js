@@ -102,9 +102,87 @@ const getAllDistrictRecommendations = async (req, res) => {
   }
 };
 
+// -------------------------------------------------------------------------- //
+// Farmer-specific weekly recommendations
+// GET /api/recommendations/farmer  (requires JWT — farmer only)
+// Auto-reads the logged-in farmer's district, fetches top recommendations,
+// cross-references with the farmer's own products (already_posted flag).
+// -------------------------------------------------------------------------- //
+const getFarmerRecommendations = async (req, res) => {
+  try {
+    const Farmer = require('../models/farmer_user.model');
+    const Product = require('../models/product.model');
+
+    // 1️⃣ Load farmer profile to get district
+    const farmer = await Farmer.findOne({
+      where: { farmer_id: req.user.farmer_id },
+      attributes: ['farmer_id', 'name', 'district'],
+    });
+
+    if (!farmer || !farmer.district) {
+      return res.status(400).json({
+        success: false,
+        message: 'Farmer district not found. Please update your profile.',
+      });
+    }
+
+    const district = farmer.district.trim();
+
+    // 2️⃣ Get farmer's existing product names (to flag already_posted)
+    const myProducts = await Product.findAll({
+      where: { farmer_id: req.user.farmer_id },
+      attributes: ['name', 'created_at'],
+    });
+    const myProductNames = myProducts.map((p) =>
+      (p.name || '').toLowerCase().trim()
+    );
+
+    // 3️⃣ Call ML server
+    const { data } = await axios.post(
+      `${ML_SERVER_URL}/recommend`,
+      { district },
+      { timeout: 30000 }
+    );
+
+    if (!data.success) {
+      return res.status(500).json(data);
+    }
+
+    // 4️⃣ Tag each recommendation with already_posted flag
+    const weekly = (data.recommended_products || [])
+      .slice(0, 10)
+      .map((item) => ({
+        ...item,
+        already_posted: myProductNames.includes(
+          item.product.toLowerCase().trim()
+        ),
+      }));
+
+    return res.status(200).json({
+      success: true,
+      district: data.district,
+      soil_type: data.soil_type,
+      weather: data.weather,
+      weekly_recommendations: weekly,
+      summary: {
+        district,
+        total_recommended: weekly.length,
+        already_posted: weekly.filter((i) => i.already_posted).length,
+        new_opportunities: weekly.filter((i) => !i.already_posted).length,
+      },
+    });
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   checkMLHealth,
   getDistricts,
   getRecommendations,
   getAllDistrictRecommendations,
+  getFarmerRecommendations,
 };

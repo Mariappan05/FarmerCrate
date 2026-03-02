@@ -14,12 +14,14 @@
 
 const express = require('express');
 const router = express.Router();
+const { protect, authorize } = require('../middleware/auth.middleware');
 
 const {
   checkMLHealth,
   getDistricts,
   getRecommendations,
   getAllDistrictRecommendations,
+  getFarmerRecommendations,
 } = require('../controllers/recommendation.controller');
 
 // ML server health
@@ -35,5 +37,8 @@ router.get('/all', getAllDistrictRecommendations);
 // Get product recommendations for a specific district
 // POST body: { "district": "Thanjavur", "category": "Crop" }
 router.post('/', getRecommendations);
+
+// Weekly recommendations for logged-in farmer (auto-reads district from profile)
+router.get('/farmer', protect, authorize('farmer'), getFarmerRecommendations);
 
 module.exports = router;
