@@ -271,7 +271,7 @@ const getRecommendations = async (req, res) => {
     const filtered = category ? recs.filter((r) => r.category === category) : recs;
     return res.status(200).json({
       success: true, district,
-      soil_type: DISTRICT_SOIL[district] || DEFAULT_SOIL,
+      soil_type: DISTRICT_SOIL[district] || 'Loamy',
       source: 'static_fallback',
       recommended_products: filtered,
       summary: { total_recommended: filtered.length },
@@ -354,7 +354,7 @@ const getFarmerRecommendations = async (req, res) => {
       }
     } catch (mlErr) {
       source     = 'static_fallback';
-      mlSoilType = DISTRICT_SOIL[district] || DEFAULT_SOIL;
+      mlSoilType = DISTRICT_SOIL[district] || 'Loamy';
       console.warn('[REC/farmer] ML unreachable:', mlErr.message, '- static fallback - period:', period);
       recs = getStaticRecommendations(district, myProductNames, period);
     }
