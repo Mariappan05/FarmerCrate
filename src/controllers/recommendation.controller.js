@@ -11,9 +11,8 @@
 
 const axios = require('axios');
 
-// Render injects fromService.host as a bare hostname (no protocol).
-// Locally ML_SERVER_URL includes the protocol already.
-const _raw = process.env.ML_SERVER_URL || 'http://localhost:5001';
+// ML Server is deployed on Render — always use the Render URL.
+const _raw = process.env.ML_SERVER_URL || 'https://farmercrate-ml.onrender.com';
 const ML_SERVER_URL = _raw.startsWith('http') ? _raw : `https://${_raw}`;
 
 // -------------------------------------------------------------------------- //
