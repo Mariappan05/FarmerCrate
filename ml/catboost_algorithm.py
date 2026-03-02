@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import re
 from catboost import CatBoostRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
@@ -156,50 +157,107 @@ class WeatherIntegratedAgricultureSystem:
             self.weather_cache[cache_key] = default_weather
             return default_weather
     
-    def load_production_data(self, production_file='rice.xls'):
-        """Load production data and extract available products"""
+    # Mapping from XLS crop names to normalized names matching agriculture_products_dataset.csv
+    CROP_NAME_MAP = {
+        'Arecanut': 'Arecanut', 'Banana': 'Banana', 'Black pepper': 'Black Pepper',
+        'Cardamom': 'Cardamom', 'Cashewnut': 'Cashewnut', 'Coconut': 'Coconut',
+        'Coriander': 'Coriander', 'Dry chillies': 'Chilli', 'Garlic': 'Garlic',
+        'Ginger': 'Ginger', 'Sugarcane': 'Sugarcane', 'Sweet potato': 'Sweet Potato',
+        'Tapioca': 'Tapioca', 'Tobacco': 'Tobacco', 'Turmeric': 'Turmeric'
+    }
+
+    def load_production_data(self, production_file='All crops production.xls'):
+        """Load all-crops production data and extract available crops per district"""
         tables = pd.read_html(production_file)
-        data = tables[0]
-        data.columns = ['SNo', 'State', 'District', 'Production_Tonnes']
-        data = data[data['SNo'] != 'S.No.'].copy()
-        data['Production_Tonnes'] = pd.to_numeric(
-            data['Production_Tonnes'].astype(str).str.replace(',', '').str.strip(),
-            errors='coerce'
-        )
-        data = data.dropna(subset=['Production_Tonnes'])
-        data['Product_Type'] = 'Rice'
-        data['Category'] = 'Crop'
-        
-        self.available_products = list(data['Product_Type'].unique())
-        print(f"✓ Available products from production data: {', '.join(self.available_products)}")
-        
+        raw_df = tables[0]
+        # Flatten multi-level column headers
+        raw_df.columns = ['Name', 'Season', 'Area', 'Production', 'Yield']
+        # Skip the duplicate header row
+        raw_df = raw_df.iloc[1:].reset_index(drop=True)
+
+        records = []
+        current_crop = None
+
+        for _, row in raw_df.iterrows():
+            name = str(row['Name']).strip() if pd.notna(row['Name']) else ''
+
+            if pd.isna(row['Season']):
+                # Skip "Total (CropName)" summary rows
+                if name.lower().startswith('total'):
+                    continue
+                # Crop header row e.g. "1. Arecanut"
+                m = re.match(r'\d+\.\s*(.*)', name)
+                if m:
+                    raw_crop = m.group(1).strip()
+                    current_crop = self.CROP_NAME_MAP.get(raw_crop, raw_crop)
+            else:
+                if current_crop is None:
+                    continue
+                # District row e.g. "1. Ariyalur"
+                m = re.match(r'\d+\.\s*(.*)', name)
+                if m:
+                    district = m.group(1).strip()
+                    # Normalize known district name variations
+                    district = self._normalize_district(district)
+                    try:
+                        production = float(
+                            str(row['Production']).replace(',', '').strip()
+                        )
+                    except (ValueError, TypeError):
+                        continue
+                    records.append({
+                        'District': district,
+                        'Product_Type': current_crop,
+                        'Production_Tonnes': production,
+                        'Category': 'Crop'
+                    })
+
+        data = pd.DataFrame(records)
+        data = data[data['Production_Tonnes'] > 0].reset_index(drop=True)
+
+        self.available_products = sorted(data['Product_Type'].unique().tolist())
+        print(f"✓ Loaded {len(self.available_products)} crops from production data:")
+        for crop in self.available_products:
+            district_count = len(data[data['Product_Type'] == crop])
+            print(f"    - {crop}: {district_count} districts")
+
         self.raw_data = data
         return data
+
+    def _normalize_district(self, district):
+        """Normalize district name variations to match coordinate keys"""
+        name_map = {
+            'The nilgiris': 'Nilgiris', 'Thiruvarur': 'Tiruvarur',
+            'Thenkasi': 'Tenkasi', 'Tiruchirappalli': 'Tiruchirappalli',
+            'Kancheepuram': 'Kanchipuram'
+        }
+        return name_map.get(district, district)
     
     def prepare_training_data_with_weather(self):
-        """Engineer features including weather data"""
+        """Engineer features including weather data for all crops"""
         data = self.raw_data.copy()
-        
+
         print("\nFetching weather data for all districts (with caching & rate limiting)...")
         weather_data = []
         unique_districts = data['District'].unique()
-        
+
         for idx, district in enumerate(unique_districts, 1):
             print(f"  [{idx}/{len(unique_districts)}] {district}...", end=' ')
             weather = self.fetch_weather_data(district, years=5)
             weather['District'] = district
             weather_data.append(weather)
             print("✓")
-        
+
         weather_df = pd.DataFrame(weather_data)
         data = data.merge(weather_df, on='District', how='left')
-        
+
         data['Soil_Type'] = data['District'].apply(self._infer_soil_type)
-        
-        avg_production = data['Production_Tonnes'].mean()
-        data['State_Avg_Production'] = avg_production
-        data['Production_Ratio'] = data['Production_Tonnes'] / avg_production
-        
+
+        # Per-crop average production so every crop is fairly compared within itself
+        crop_avg_map = data.groupby('Product_Type')['Production_Tonnes'].mean()
+        data['State_Avg_Production'] = data['Product_Type'].map(crop_avg_map)
+        data['Production_Ratio'] = data['Production_Tonnes'] / data['State_Avg_Production']
+
         data['Env_Suitability'] = data.apply(
             lambda row: self._calculate_env_suitability(row['Product_Type'], row['Soil_Type']), axis=1
         )
@@ -209,17 +267,23 @@ class WeatherIntegratedAgricultureSystem:
         data['Soil_Temp_Suitability'] = data.apply(
             lambda row: self._calculate_soil_temp_suitability(row['Product_Type'], row['Soil_Temperature']), axis=1
         )
-        
+
         data['Supply_Category'] = data.apply(
             lambda row: 'Low' if row['Production_Ratio'] < 0.7 else ('High' if row['Production_Ratio'] > 1.3 else 'Medium'),
             axis=1
         )
-        
+
         base_price = 2000
         weather_factor = 1 + (data['Total_Rainfall'] - 900) / 9000
         temp_factor = data['Temp_Suitability'] * data['Soil_Temp_Suitability']
-        data['Target_Price'] = base_price * (avg_production / data['Production_Tonnes']) * data['Env_Suitability'] * weather_factor * temp_factor
-        
+        data['Target_Price'] = (
+            base_price
+            * (data['State_Avg_Production'] / data['Production_Tonnes'])
+            * data['Env_Suitability']
+            * weather_factor
+            * temp_factor
+        )
+
         self.trained_data = data
         return data
     
@@ -331,26 +395,25 @@ class WeatherIntegratedAgricultureSystem:
         return data
     
     def get_recommendation_with_weather(self, district, category_filter=None):
-        """Get agriculture product recommendations with strict validation"""
+        """Get agriculture product recommendations for all crops with strict validation"""
         soil_type = self._infer_soil_type(district)
-        
+
         district_prod = self.raw_data[self.raw_data['District'] == district]
-        rice_production = district_prod['Production_Tonnes'].values[0] if len(district_prod) > 0 else 0
-        avg_production = self.raw_data['Production_Tonnes'].mean()
-        production_ratio = rice_production / avg_production if avg_production > 0 else 1.0
-        
+        crop_avg_map = self.raw_data.groupby('Product_Type')['Production_Tonnes'].mean()
+
         print(f"\n{'='*120}")
         print(f"CATBOOST-BASED AGRICULTURE PRODUCTS & PRICE RECOMMENDATIONS")
         print(f"{'='*120}")
         print(f"District: {district}")
         print(f"Soil Type: {soil_type}")
-        print(f"Rice Production: {rice_production:,.0f} tonnes (Ratio: {production_ratio:.2f}x avg)")
+        if len(district_prod) > 0:
+            print(f"Crops with production data: {', '.join(district_prod['Product_Type'].tolist())}")
         if category_filter:
             print(f"Category Filter: {category_filter}")
-        
+
         print(f"\nFetching 5-year weather data for {district}...")
         weather = self.fetch_weather_data(district, years=5)
-        
+
         print(f"\n📊 WEATHER & TEMPERATURE ANALYSIS (Last 5 Years):")
         print(f"  Average Max Temperature: {weather['Avg_Temp_Max']:.1f}°C")
         print(f"  Average Min Temperature: {weather['Avg_Temp_Min']:.1f}°C")
@@ -360,31 +423,40 @@ class WeatherIntegratedAgricultureSystem:
         print(f"  Average Daily Rainfall: {weather['Avg_Rainfall']:.1f} mm")
         print(f"  Rainy Days: {weather['Rainfall_Days']} days")
         print(f"{'='*120}\n")
-        
+
         MIN_SOIL_MATCH = 0.7
         MIN_TEMP_MATCH = 0.7
         MIN_WEATHER_MATCH = 0.6
-        
+
         product_scores = []
         rejected_products = []
-        
+
         for product in self.available_products:
-            if product not in self.product_conditions_matrix:
-                continue
-            
-            info = self.product_conditions_matrix[product]
+            # Per-crop production for this district
+            prod_row = district_prod[district_prod['Product_Type'] == product]
+            crop_production = prod_row['Production_Tonnes'].values[0] if len(prod_row) > 0 else 0
+            crop_avg = crop_avg_map.get(product, 0)
+            production_ratio = crop_production / crop_avg if crop_avg > 0 else 1.0
+
+            # Use conditions from agriculture_products_dataset if available,
+            # otherwise build a minimal entry so the crop is still evaluated
+            if product in self.product_conditions_matrix:
+                info = self.product_conditions_matrix[product]
+            else:
+                info = {'conditions': [], 'category': 'Crop'}
+
             if category_filter and info['category'] != category_filter:
                 continue
-            
+
             env_suit = self._calculate_env_suitability(product, soil_type)
             temp_suit = self._calculate_temp_suitability(product, weather['Avg_Temp'])
             soil_temp_suit = self._calculate_soil_temp_suitability(product, weather['Soil_Temperature'])
             weather_score = self._calculate_weather_suitability(product, weather)
-            
+
             soil_pass = env_suit >= MIN_SOIL_MATCH
             temp_pass = temp_suit >= MIN_TEMP_MATCH
             weather_pass = weather_score >= MIN_WEATHER_MATCH
-            
+
             if not (soil_pass and temp_pass and weather_pass):
                 reasons = []
                 if not soil_pass:
@@ -393,13 +465,12 @@ class WeatherIntegratedAgricultureSystem:
                     reasons.append(f"Temperature unsuitable ({temp_suit:.2f} < {MIN_TEMP_MATCH})")
                 if not weather_pass:
                     reasons.append(f"Weather unsuitable ({weather_score:.2f} < {MIN_WEATHER_MATCH})")
-                
                 rejected_products.append({
                     'product': product, 'reasons': reasons,
                     'env_suit': env_suit, 'temp_suit': temp_suit, 'weather_score': weather_score
                 })
                 continue
-            
+
             if production_ratio > 1.3:
                 market_status, market_opportunity = "Oversupplied", 0.7
             elif production_ratio > 1.0:
@@ -408,57 +479,78 @@ class WeatherIntegratedAgricultureSystem:
                 market_status, market_opportunity = "High Demand", 1.3
             else:
                 market_status, market_opportunity = "Balanced", 1.0
-            
+
             overall = ((env_suit + temp_suit + soil_temp_suit + weather_score) / 4) * market_opportunity
             base_price = 2500
-            estimated_price = base_price * (avg_production / rice_production) if rice_production > 0 else base_price
-            
+            estimated_price = base_price * (crop_avg / crop_production) if crop_production > 0 else base_price
+
             product_scores.append({
-                'product': product, 'category': info['category'], 'production': rice_production,
+                'product': product, 'category': info['category'],
+                'production': crop_production,
                 'soil_match': '✓ Pass' if soil_pass else '✗ Fail',
                 'temp_match': '✓ Pass' if temp_pass else '✗ Fail',
                 'weather_match': '✓ Pass' if weather_pass else '✗ Fail',
                 'env_suit': env_suit, 'temp_suit': temp_suit, 'weather_score': weather_score,
                 'market_status': market_status, 'overall': overall, 'price': estimated_price
             })
-        
+
         if product_scores:
             product_scores.sort(key=lambda x: x['overall'], reverse=True)
-            
-            print(f"✅ RECOMMENDED PRODUCTS (All conditions met):")
-            print(f"{'Product':<12} {'Soil':<10} {'Temp':<10} {'Weather':<10} {'Soil Score':<12} {'Temp Score':<12} {'Weather Score':<15} {'Market':<15} {'Price/Qt':<12} {'Status':<15}")
-            print(f"{'-'*140}")
-            
+
+            print(f"✅ RECOMMENDED CROPS (All conditions met):")
+            print(f"{'Crop':<16} {'Category':<10} {'Prod(T)':<12} {'Soil':<10} {'Temp':<10} {'Weather':<10} "
+                  f"{'Soil Sc.':<10} {'Temp Sc.':<10} {'Wthr Sc.':<10} {'Market':<14} {'Price/Qt':<12} {'Status'}")
+            print(f"{'-'*150}")
+
             for item in product_scores:
                 status = "✓ Excellent" if item['overall'] >= 0.9 else ("✓ Good" if item['overall'] >= 0.7 else "✓ Fair")
-                print(f"{item['product']:<12} {item['soil_match']:<10} {item['temp_match']:<10} {item['weather_match']:<10} {item['env_suit']:<12.2f} {item['temp_suit']:<12.2f} {item['weather_score']:<15.2f} {item['market_status']:<15} ₹{item['price']:<11,.0f} {status:<15}")
+                print(
+                    f"{item['product']:<16} {item['category']:<10} {item['production']:<12,.0f} "
+                    f"{item['soil_match']:<10} {item['temp_match']:<10} {item['weather_match']:<10} "
+                    f"{item['env_suit']:<10.2f} {item['temp_suit']:<10.2f} {item['weather_score']:<10.2f} "
+                    f"{item['market_status']:<14} ₹{item['price']:<11,.0f} {status}"
+                )
         else:
-            print(f"❌ NO PRODUCTS RECOMMENDED - Conditions not suitable\n")
-        
+            print(f"❌ NO CROPS RECOMMENDED - Conditions not suitable\n")
+
         if rejected_products:
-            print(f"\n⚠️ REJECTED PRODUCTS (Failed validation):")
-            print(f"{'Product':<12} {'Soil Score':<12} {'Temp Score':<12} {'Weather Score':<15} {'Rejection Reasons'}")
-            print(f"{'-'*100}")
-            
+            print(f"\n⚠️  REJECTED CROPS (Failed validation):")
+            print(f"{'Crop':<16} {'Soil Sc.':<12} {'Temp Sc.':<12} {'Wthr Sc.':<15} Rejection Reasons")
+            print(f"{'-'*110}")
             for item in rejected_products:
                 reasons_str = ", ".join(item['reasons'])
-                print(f"{item['product']:<12} {item['env_suit']:<12.2f} {item['temp_suit']:<12.2f} {item['weather_score']:<15.2f} {reasons_str}")
-        
+                print(f"{item['product']:<16} {item['env_suit']:<12.2f} {item['temp_suit']:<12.2f} {item['weather_score']:<15.2f} {reasons_str}")
+
         print(f"\n{'='*120}\n")
     
     def _calculate_weather_suitability(self, product, weather):
-        """Calculate weather suitability score for product"""
+        """Calculate weather suitability score for product/crop"""
         rainfall = weather['Total_Rainfall']
-        
-        if product in ['Rice', 'Sugarcane', 'Buffalo', 'Buffalo Milk', 'Duck', 'Tilapia', 'Shrimp', 'Prawn']:
+
+        # High water demand crops
+        if product in ['Rice', 'Sugarcane', 'Banana', 'Tapioca',
+                       'Buffalo', 'Buffalo Milk', 'Duck', 'Tilapia', 'Shrimp', 'Prawn']:
             score = 0.5 + (rainfall / 2000) * 0.5
-        elif product in ['Wheat', 'Maize', 'Dairy Cattle', 'Cow Milk', 'Broiler Chicken', 'Layer Chicken', 'Eggs']:
+        # Moderate water demand
+        elif product in ['Wheat', 'Maize', 'Coconut', 'Ginger', 'Turmeric', 'Coriander',
+                         'Dairy Cattle', 'Cow Milk', 'Broiler Chicken', 'Layer Chicken', 'Eggs']:
             score = 0.6 + (rainfall / 1500) * 0.4
-        elif product in ['Goat', 'Sheep', 'Goat Milk', 'Bajra', 'Jowar']:
+        # Low water demand / arid crops
+        elif product in ['Goat', 'Sheep', 'Goat Milk', 'Bajra', 'Jowar',
+                         'Tobacco', 'Garlic', 'Dry chillies', 'Chilli']:
             score = 0.8 + (rainfall / 3000) * 0.2
+        # Well-drained / hilly crops (Black Pepper, Cardamom, Arecanut, Cashewnut)
+        elif product in ['Black Pepper', 'Cardamom', 'Arecanut', 'Cashewnut', 'Sweet Potato']:
+            # Need moderate rainfall; too much is bad
+            if 1000 <= rainfall <= 2500:
+                score = 0.85
+            elif 600 <= rainfall < 1000:
+                score = 0.7
+            else:
+                score = 0.6
         else:
             score = 0.7 + (rainfall / 1000) * 0.3
-        
+
         return min(score, 1.0)
 
 
@@ -473,29 +565,30 @@ def main():
     print("\n[1/4] Loading agriculture products data...")
     system.load_agriculture_products_data('agriculture_products_dataset.csv')
     
-    print("\n[2/4] Loading production data...")
-    system.load_production_data('rice.xls')
-    
+    print("\n[2/4] Loading all-crops production data...")
+    system.load_production_data('All crops production.xls')
+
     print("\n[3/4] Fetching weather data and engineering features...")
     data = system.prepare_training_data_with_weather()
     print(f"✓ Prepared {len(data)} records with weather features")
-    
+
     print("\n[4/4] Training CatBoost model...")
     system.train_model(data)
-    
+
     print("\n" + "="*80)
     print("FEATURE IMPORTANCE (CatBoost)")
     print("="*80)
     for _, row in system.feature_importance.head(12).iterrows():
-        print(f"{row['Feature']:<35} {row['Importance']:<15.4f} {row['Importance']*100/row['Importance'].sum() if hasattr(row['Importance'], 'sum') else 0:<10.2f}%")
+        importance_pct = row['Importance'] / system.feature_importance['Importance'].sum() * 100
+        print(f"{row['Feature']:<35} {row['Importance']:<15.4f} {importance_pct:<10.2f}%")
     print("="*80)
-    
+
     all_districts = system.raw_data['District'].unique().tolist()
-    
+
     print("\n" + "="*100)
-    print(f"RICE PRODUCTION & PRICE RECOMMENDATIONS FOR ALL {len(all_districts)} DISTRICTS")
+    print(f"ALL-CROPS RECOMMENDATIONS FOR ALL {len(all_districts)} DISTRICTS")
     print("="*100)
-    
+
     for district in all_districts:
         system.get_recommendation_with_weather(district)
 
