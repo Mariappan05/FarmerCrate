@@ -21,9 +21,9 @@ const DISTRICT_SOIL = {
   Mayiladuthurai:'Alluvial', Tiruvarur:'Alluvial',
   Cuddalore:'Red Soil',     Villupuram:'Red Soil',      Tiruvannamalai:'Red Soil',
   Dharmapuri:'Red Soil',    Salem:'Red Soil',           Krishnagiri:'Red Soil',
-  Madurai:'Black Soil',     Sivaganga:'Black Soil',     Virudhunagar:'Black Soil',
+  Madurai:'Black Soil',     Sivagangai:'Black Soil',    Virudhunagar:'Black Soil',
   Coimbatore:'Red Loamy Soil', Erode:'Red Loamy Soil', Namakkal:'Red Loamy Soil',
-  Kanniyakumari:'Sandy Loam', Thoothukudi:'Sandy Loam',
+  Kanyakumari:'Sandy Loam',  Thoothukudi:'Sandy Loam',
   Nilgiris:'Laterite Soil', Theni:'Laterite Soil',     Dindigul:'Laterite Soil',
   // All other districts (Tenkasi, Chennai, Vellore, Ariyalur, etc.) → 'Loamy' default
 };
@@ -68,17 +68,17 @@ const DISTRICT_WEATHER = {
   'Cuddalore':     {t:28.2,r:7665},  'Dharmapuri':    {t:27.0,r:900},
   'Dindigul':      {t:27.0,r:900},   'Erode':         {t:27.0,r:900},
   'Kallakurichi':  {t:28.5,r:6893},  'Kanchipuram':   {t:28.6,r:6968},
-  'Kanniyakumari': {t:27.9,r:6354},  'Karur':         {t:27.0,r:900},
+  'Kanyakumari':   {t:27.9,r:6354},  'Karur':         {t:27.0,r:900},
   'Krishnagiri':   {t:27.0,r:900},   'Madurai':       {t:29.3,r:6721},
   'Mayiladuthurai':{t:28.6,r:7842},  'Nagapattinam':  {t:28.5,r:8783},
   'Namakkal':      {t:27.0,r:900},   'Nilgiris':      {t:15.4,r:9324},
   'Perambalur':    {t:28.9,r:6811},  'Pudukkottai':   {t:28.9,r:6986},
   'Ramanathapuram':{t:27.0,r:900},   'Ranipet':       {t:28.4,r:6684},
-  'Salem':         {t:27.9,r:5675},  'Sivaganga':     {t:29.2,r:7245},
+  'Salem':         {t:27.9,r:5675},  'Sivagangai':    {t:29.2,r:7245},
   'Tenkasi':       {t:27.0,r:7414},  'Thanjavur':     {t:28.8,r:7539},
-  'Theni':         {t:28.2,r:4973},  'Thiruvallur':   {t:29.1,r:5482},
+  'Theni':         {t:28.2,r:4973},  'Tiruvallur':    {t:29.1,r:5482},
   'Thoothukudi':   {t:28.6,r:6224},  'Tiruchirappalli':{t:29.2,r:6445},
-  'Tirunelveli':   {t:27.0,r:900},   'Tirupathur':    {t:26.8,r:5669},
+  'Tirunelveli':   {t:27.0,r:900},   'Tirupattur':    {t:26.8,r:5669},
   'Tiruppur':      {t:27.9,r:5254},  'Tiruvannamalai':{t:28.2,r:6902},
   'Tiruvarur':     {t:28.6,r:8538},  'Vellore':       {t:27.9,r:6509},
   'Villupuram':    {t:28.7,r:7550},  'Virudhunagar':  {t:27.0,r:900},
@@ -94,7 +94,7 @@ const DISTRICT_PRODUCTION = {
   'Erode':       {'Arecanut':2985,'Banana':710750,'Black Pepper':11,'Cardamom':1,'Cashewnut':3,'Coconut':258700000,'Chilli':156,'Garlic':474,'Ginger':459,'Sugarcane':2266259,'Sweet Potato':254,'Tapioca':190318,'Tobacco':1748,'Turmeric':27821},
   'Kallakurichi':{'Arecanut':478,'Banana':21211,'Black Pepper':17,'Cashewnut':379,'Coconut':25600000,'Chilli':340,'Sugarcane':2885636,'Sweet Potato':648,'Tapioca':779691,'Turmeric':8564},
   'Kanchipuram': {'Banana':5234,'Cashewnut':19,'Coconut':4000000,'Chilli':54,'Sugarcane':59187,'Turmeric':6},
-  'Kanniyakumari':{'Arecanut':112,'Banana':122363,'Black Pepper':53,'Cardamom':2,'Cashewnut':65,'Coconut':188700000,'Ginger':48,'Sugarcane':11,'Tapioca':31372},
+  'Kanyakumari':  {'Arecanut':112,'Banana':122363,'Black Pepper':53,'Cardamom':2,'Cashewnut':65,'Coconut':188700000,'Ginger':48,'Sugarcane':11,'Tapioca':31372},
   'Karur':       {'Arecanut':14,'Banana':122478,'Cashewnut':3,'Coconut':89500000,'Coriander':3,'Chilli':284,'Sugarcane':181736,'Sweet Potato':2021,'Tapioca':32942,'Turmeric':634},
   'Krishnagiri': {'Arecanut':15,'Banana':30381,'Cashewnut':2,'Coconut':206800000,'Coriander':29,'Chilli':373,'Ginger':48,'Sugarcane':46546,'Tapioca':6947,'Turmeric':4818},
   'Madurai':     {'Arecanut':2,'Banana':114083,'Cashewnut':36,'Coconut':252200000,'Coriander':18,'Chilli':948,'Sugarcane':115891,'Sweet Potato':192,'Tapioca':1427,'Turmeric':22},
@@ -107,15 +107,15 @@ const DISTRICT_PRODUCTION = {
   'Ramanathapuram':{'Banana':6966,'Cashewnut':31,'Coconut':66400000,'Coriander':275,'Chilli':3987,'Sugarcane':16207,'Turmeric':17},
   'Ranipet':     {'Banana':42363,'Cashewnut':3,'Coconut':14600000,'Chilli':260,'Sugarcane':133552,'Sweet Potato':64,'Tapioca':150,'Turmeric':1157},
   'Salem':       {'Arecanut':7169,'Banana':107902,'Black Pepper':280,'Cardamom':4,'Cashewnut':30,'Coconut':187500000,'Coriander':16,'Chilli':755,'Garlic':40,'Ginger':263,'Sugarcane':698179,'Sweet Potato':75,'Tapioca':538936,'Tobacco':72,'Turmeric':28810},
-  'Sivaganga':   {'Banana':42150,'Cashewnut':57,'Coconut':175100000,'Chilli':1828,'Sugarcane':286140,'Sweet Potato':33,'Tapioca':3230,'Turmeric':11},
+  'Sivagangai':  {'Banana':42150,'Cashewnut':57,'Coconut':175100000,'Chilli':1828,'Sugarcane':286140,'Sweet Potato':33,'Tapioca':3230,'Turmeric':11},
   'Tenkasi':     {'Arecanut':26,'Banana':78124,'Black Pepper':10,'Cardamom':6,'Cashewnut':83,'Coconut':107000000,'Chilli':148,'Ginger':24,'Sugarcane':160111,'Tapioca':2403},
   'Thanjavur':   {'Arecanut':20,'Banana':171137,'Black Pepper':1,'Cashewnut':944,'Coconut':820000000,'Coriander':5,'Chilli':75,'Garlic':18,'Ginger':311,'Sugarcane':443753,'Tapioca':22419,'Turmeric':94},
   'Theni':       {'Arecanut':52,'Banana':317037,'Black Pepper':42,'Cardamom':143,'Cashewnut':280,'Coconut':355800000,'Coriander':5,'Ginger':72,'Sugarcane':257492,'Sweet Potato':19,'Tapioca':3793,'Turmeric':22},
-  'Thiruvallur': {'Banana':26367,'Cashewnut':49,'Coconut':11800000,'Chilli':448,'Sugarcane':489958,'Sweet Potato':3554,'Tapioca':939,'Turmeric':83},
+  'Tiruvallur':  {'Banana':26367,'Cashewnut':49,'Coconut':11800000,'Chilli':448,'Sugarcane':489958,'Sweet Potato':3554,'Tapioca':939,'Turmeric':83},
   'Thoothukudi': {'Banana':427569,'Cashewnut':131,'Coconut':44600000,'Coriander':655,'Chilli':5454,'Sugarcane':434,'Sweet Potato':262,'Turmeric':17},
   'Tiruchirappalli':{'Arecanut':191,'Banana':262683,'Black Pepper':5,'Cashewnut':285,'Coconut':88300000,'Coriander':4,'Chilli':295,'Sugarcane':122112,'Sweet Potato':94,'Tapioca':166685,'Turmeric':1488},
   'Tirunelveli': {'Arecanut':3,'Banana':140755,'Cardamom':10,'Cashewnut':63,'Coconut':55100000,'Coriander':1,'Chilli':58,'Sugarcane':2776,'Sweet Potato':762,'Tapioca':638,'Turmeric':28},
-  'Tirupathur':  {'Arecanut':9,'Banana':27938,'Black Pepper':1,'Coconut':170800000,'Coriander':114,'Chilli':264,'Sugarcane':84066,'Sweet Potato':69,'Tapioca':1352,'Turmeric':435},
+  'Tirupattur':  {'Arecanut':9,'Banana':27938,'Black Pepper':1,'Coconut':170800000,'Coriander':114,'Chilli':264,'Sugarcane':84066,'Sweet Potato':69,'Tapioca':1352,'Turmeric':435},
   'Tiruppur':    {'Arecanut':288,'Banana':126318,'Cashewnut':15,'Coconut':977300000,'Coriander':182,'Chilli':917,'Ginger':48,'Sugarcane':423802,'Tapioca':29930,'Tobacco':189,'Turmeric':1488},
   'Tiruvannamalai':{'Arecanut':50,'Banana':74076,'Black Pepper':23,'Cashewnut':6,'Coconut':16000000,'Coriander':10,'Chilli':3464,'Sugarcane':1719352,'Sweet Potato':1724,'Tapioca':131695,'Turmeric':2188},
   'Tiruvarur':   {'Arecanut':80,'Banana':15387,'Cashewnut':4,'Coconut':47600000,'Chilli':30,'Sugarcane':12775,'Sweet Potato':355,'Tapioca':6572,'Turmeric':22},
@@ -165,10 +165,82 @@ function _calcWeatherSuit(product, rainfall) {
   return Math.min(0.7 + (rainfall / 1000) * 0.3, 1.0);
 }
 
+// ── District name aliases (any variant → Google Maps canonical key) ────────────
+const DISTRICT_ALIASES = {
+  // Sivagangai
+  'sivaganga':        'Sivagangai',     'sivagangai':         'Sivagangai',
+  // Tiruvallur
+  'thiruvallur':      'Tiruvallur',     'tiruvallur':         'Tiruvallur',
+  // Kanyakumari
+  'kanniyakumari':    'Kanyakumari',    'kanyakumari':        'Kanyakumari',
+  'cape comorin':     'Kanyakumari',
+  // Tirupattur
+  'tirupathur':       'Tirupattur',     'tirupattur':         'Tirupattur',
+  // Tiruvarur
+  'thiruvarur':       'Tiruvarur',      'tiruvarur':          'Tiruvarur',
+  // Thoothukudi
+  'tuticorin':        'Thoothukudi',    'thoothukudi':        'Thoothukudi',
+  // Tirunelveli
+  'thirunelveli':     'Tirunelveli',    'tirunelveli':        'Tirunelveli',
+  // Tiruchirappalli
+  'trichy':           'Tiruchirappalli','tiruchirappalli':    'Tiruchirappalli',
+  'tiruchirapalli':   'Tiruchirappalli','tiruchhirapalli':    'Tiruchirappalli',
+  'trichinopoly':     'Tiruchirappalli',
+  // Tiruppur
+  'tirupur':          'Tiruppur',       'tiruppur':           'Tiruppur',
+  // Tiruvannamalai
+  'thiruvannamalai':  'Tiruvannamalai', 'tiruvannamalai':     'Tiruvannamalai',
+  // Nagapattinam
+  'nagapatnam':       'Nagapattinam',   'nagapattinam':       'Nagapattinam',
+  // Mayiladuthurai
+  'mayladuthurai':    'Mayiladuthurai', 'mayiladuthurai':     'Mayiladuthurai',
+  // Ramanathapuram
+  'ramnad':           'Ramanathapuram', 'ramanathapuram':     'Ramanathapuram',
+  // Chengalpattu
+  'chengalpet':       'Chengalpattu',   'chengalpattu':       'Chengalpattu',
+  // Thanjavur
+  'thanjore':         'Thanjavur',      'thanjavur':          'Thanjavur',
+  // Nilgiris
+  'nilgiris':         'Nilgiris',       'the nilgiris':       'Nilgiris',
+  'ooty district':    'Nilgiris',
+  // Pass-through (lower-case → exact canonical)
+  'madurai':          'Madurai',        'coimbatore':         'Coimbatore',
+  'salem':            'Salem',          'erode':              'Erode',
+  'vellore':          'Vellore',        'villupuram':         'Villupuram',
+  'ariyalur':         'Ariyalur',       'perambalur':         'Perambalur',
+  'pudukkottai':      'Pudukkottai',    'dharmapuri':         'Dharmapuri',
+  'dindigul':         'Dindigul',       'theni':              'Theni',
+  'tenkasi':          'Tenkasi',        'karur':              'Karur',
+  'namakkal':         'Namakkal',       'krishnagiri':        'Krishnagiri',
+  'ranipet':          'Ranipet',        'kallakurichi':       'Kallakurichi',
+  'cuddalore':        'Cuddalore',      'kanchipuram':        'Kanchipuram',
+  'chennai':          'Chennai',        'virudhunagar':       'Virudhunagar',
+};
+
+const _KNOWN_DISTRICT_KEYS = new Set([
+  ...Object.keys(DISTRICT_SOIL),
+  ...Object.keys(DISTRICT_WEATHER),
+  ...Object.keys(DISTRICT_PRODUCTION),
+]);
+
+/** Normalise a raw district string to the canonical key used in static data */
+function normaliseDistrict(raw) {
+  if (!raw) return raw;
+  const trimmed = raw.trim();
+  const key = trimmed.toLowerCase();
+  if (DISTRICT_ALIASES[key]) return DISTRICT_ALIASES[key];
+  // Case-insensitive match against known keys
+  for (const k of _KNOWN_DISTRICT_KEYS) {
+    if (k.toLowerCase() === key) return k;
+  }
+  return trimmed; // return as-is (ML server may still handle it)
+}
+
 function getStaticRecommendations(district, myProductNames, period = 'weekly') {
-  const soilType   = DISTRICT_SOIL[district] || 'Loamy';
-  const wx         = DISTRICT_WEATHER[district] || { t: 27.0, r: 5000 };
-  const distProd   = DISTRICT_PRODUCTION[district] || {};
+  const canonical = normaliseDistrict(district);
+  const soilType  = DISTRICT_SOIL[canonical] || 'Loamy';
+  const wx        = DISTRICT_WEATHER[canonical] || { t: 27.0, r: 5000 };
+  const distProd  = DISTRICT_PRODUCTION[canonical] || {};
   const cycleCrops = CROP_CYCLE[period] || CROP_CYCLE.weekly;
   const myNames    = (myProductNames || []).map((n) => n.toLowerCase().trim());
   const scored     = [];
@@ -213,9 +285,10 @@ function getStaticRecommendations(district, myProductNames, period = 'weekly') {
   return result.slice(0, 10);
 }
 async function callMLServer(district, period = 'weekly') {
+  const canonical = normaliseDistrict(district);
   const { data } = await axios.post(
     `${ML_SERVER_URL}/recommend`,
-    { district, period },
+    { district: canonical, period },
     { timeout: 30000 }
   );
   return data;
@@ -260,8 +333,15 @@ const getDistricts = async (req, res) => {
 // POST /api/recommendations
 // -------------------------------------------------------------------------- //
 const getRecommendations = async (req, res) => {
-  const { district, category } = req.body;
-  if (!district) return res.status(400).json({ success: false, message: 'district is required' });
+  const { district: rawDistrict, category } = req.body;
+  if (!rawDistrict) return res.status(400).json({ success: false, message: 'district is required' });
+  const district = normaliseDistrict(rawDistrict);
+  if (!_KNOWN_DISTRICT_KEYS.has(district)) {
+    return res.status(404).json({
+      success: false,
+      message: `Recommendations are not available for "${district}". Your district is not in our recommendation system.`,
+    });
+  }
   try {
     const data = await callMLServer(district);
     return res.status(200).json(data);
@@ -325,7 +405,13 @@ const getFarmerRecommendations = async (req, res) => {
         message: 'Farmer district not set. Please update your profile with your district.',
       });
     }
-    const district = farmer.district.trim();
+    const district = normaliseDistrict(farmer.district.trim());
+    if (!_KNOWN_DISTRICT_KEYS.has(district)) {
+      return res.status(404).json({
+        success: false,
+        message: `Recommendations are not available for "${district}". Your district is not in our recommendation system. Please update your profile with a valid Tamil Nadu district.`,
+      });
+    }
 
     const myProducts = await Product.findAll({
       where: { farmer_id: req.user.farmer_id },
