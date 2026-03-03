@@ -236,6 +236,39 @@ function normaliseDistrict(raw) {
   return trimmed; // return as-is (ML server may still handle it)
 }
 
+/**
+ * Resolve district from pincode via India Post API.
+ * Returns a canonical district string (matched in static data) or null.
+ */
+async function resolveDistrictByPincode(pincode) {
+  if (!pincode) return null;
+  try {
+    const { data } = await axios.get(
+      `https://api.postalpincode.in/pincode/${String(pincode).trim()}`,
+      { timeout: 8000 }
+    );
+    // Response: [{ Status, PostOffice: [{ District, State }] }]
+    if (
+      Array.isArray(data) &&
+      data[0]?.Status === 'Success' &&
+      Array.isArray(data[0]?.PostOffice) &&
+      data[0].PostOffice.length > 0
+    ) {
+      const po = data[0].PostOffice[0];
+      if (po.State !== 'Tamil Nadu') {
+        console.warn('[REC] Pincode', pincode, 'is in', po.State, '- not Tamil Nadu');
+        return null;
+      }
+      const resolved = normaliseDistrict(po.District);
+      console.log('[REC] Pincode', pincode, '→ district:', po.District, '→ canonical:', resolved);
+      return _KNOWN_DISTRICT_KEYS.has(resolved) ? resolved : null;
+    }
+  } catch (e) {
+    console.warn('[REC] Pincode lookup failed for', pincode, ':', e.message);
+  }
+  return null;
+}
+
 function getStaticRecommendations(district, myProductNames, period = 'weekly') {
   const canonical = normaliseDistrict(district);
   const soilType  = DISTRICT_SOIL[canonical] || 'Loamy';
@@ -333,14 +366,23 @@ const getDistricts = async (req, res) => {
 // POST /api/recommendations
 // -------------------------------------------------------------------------- //
 const getRecommendations = async (req, res) => {
-  const { district: rawDistrict, category } = req.body;
-  if (!rawDistrict) return res.status(400).json({ success: false, message: 'district is required' });
-  const district = normaliseDistrict(rawDistrict);
-  if (!_KNOWN_DISTRICT_KEYS.has(district)) {
-    return res.status(404).json({
-      success: false,
-      message: `Recommendations are not available for "${district}". Your district is not in our recommendation system.`,
-    });
+  const { district: rawDistrict, pincode, category } = req.body;
+  if (!rawDistrict && !pincode)
+    return res.status(400).json({ success: false, message: 'district or pincode is required' });
+
+  let district = rawDistrict ? normaliseDistrict(rawDistrict) : null;
+
+  if (!district || !_KNOWN_DISTRICT_KEYS.has(district)) {
+    const fromPin = await resolveDistrictByPincode(pincode);
+    if (fromPin) {
+      console.log('[REC] District resolved via pincode:', pincode, '→', fromPin);
+      district = fromPin;
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: `Recommendations are not available for "${rawDistrict || pincode}". Your district is not in our recommendation system.`,
+      });
+    }
   }
   try {
     const data = await callMLServer(district);
@@ -395,22 +437,31 @@ const getFarmerRecommendations = async (req, res) => {
 
     const farmer = await FarmerUser.findOne({
       where: { farmer_id: req.user.farmer_id },
-      attributes: ['farmer_id', 'name', 'district'],
+      attributes: ['farmer_id', 'name', 'district', 'pincode'],
     });
-    console.log('[REC/farmer] Farmer found:', !!farmer, '- district:', farmer?.district);
+    console.log('[REC/farmer] Farmer found:', !!farmer, '- district:', farmer?.district, '- pincode:', farmer?.pincode);
 
-    if (!farmer || !farmer.district) {
+    if (!farmer || (!farmer.district && !farmer.pincode)) {
       return res.status(400).json({
         success: false,
         message: 'Farmer district not set. Please update your profile with your district.',
       });
     }
-    const district = normaliseDistrict(farmer.district.trim());
-    if (!_KNOWN_DISTRICT_KEYS.has(district)) {
-      return res.status(404).json({
-        success: false,
-        message: `Recommendations are not available for "${district}". Your district is not in our recommendation system. Please update your profile with a valid Tamil Nadu district.`,
-      });
+
+    let district = farmer.district ? normaliseDistrict(farmer.district.trim()) : null;
+
+    if (!district || !_KNOWN_DISTRICT_KEYS.has(district)) {
+      console.warn('[REC/farmer] District "' + (farmer.district || '') + '" not matched, trying pincode:', farmer.pincode);
+      const fromPin = await resolveDistrictByPincode(farmer.pincode);
+      if (fromPin) {
+        console.log('[REC/farmer] District resolved via pincode:', farmer.pincode, '→', fromPin);
+        district = fromPin;
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: `Recommendations are not available for "${farmer.district || farmer.pincode}". Your district is not in our recommendation system. Please update your profile with a valid Tamil Nadu district.`,
+        });
+      }
     }
 
     const myProducts = await Product.findAll({
