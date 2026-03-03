@@ -437,11 +437,11 @@ const getFarmerRecommendations = async (req, res) => {
 
     const farmer = await FarmerUser.findOne({
       where: { farmer_id: req.user.farmer_id },
-      attributes: ['farmer_id', 'name', 'district', 'pincode'],
+      attributes: ['farmer_id', 'name', 'district', 'address'],
     });
-    console.log('[REC/farmer] Farmer found:', !!farmer, '- district:', farmer?.district, '- pincode:', farmer?.pincode);
+    console.log('[REC/farmer] Farmer found:', !!farmer, '- district:', farmer?.district);
 
-    if (!farmer || (!farmer.district && !farmer.pincode)) {
+    if (!farmer || (!farmer.district && !farmer.address)) {
       return res.status(400).json({
         success: false,
         message: 'Farmer district not set. Please update your profile with your district.',
@@ -451,15 +451,18 @@ const getFarmerRecommendations = async (req, res) => {
     let district = farmer.district ? normaliseDistrict(farmer.district.trim()) : null;
 
     if (!district || !_KNOWN_DISTRICT_KEYS.has(district)) {
-      console.warn('[REC/farmer] District "' + (farmer.district || '') + '" not matched, trying pincode:', farmer.pincode);
-      const fromPin = await resolveDistrictByPincode(farmer.pincode);
+      // Try extracting a 6-digit pincode from the stored address string
+      const pinMatch = (farmer.address || '').match(/\b([1-9][0-9]{5})\b/);
+      const pincode  = pinMatch ? pinMatch[1] : null;
+      console.warn('[REC/farmer] District "' + (farmer.district || '') + '" not matched, trying pincode from address:', pincode);
+      const fromPin = await resolveDistrictByPincode(pincode);
       if (fromPin) {
-        console.log('[REC/farmer] District resolved via pincode:', farmer.pincode, '→', fromPin);
+        console.log('[REC/farmer] District resolved via pincode:', pincode, '→', fromPin);
         district = fromPin;
       } else {
         return res.status(404).json({
           success: false,
-          message: `Recommendations are not available for "${farmer.district || farmer.pincode}". Your district is not in our recommendation system. Please update your profile with a valid Tamil Nadu district.`,
+          message: `Recommendations are not available for "${farmer.district || 'your district'}". Your district is not in our recommendation system. Please update your profile with a valid Tamil Nadu district.`,
         });
       }
     }
