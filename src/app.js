@@ -35,6 +35,7 @@ const vehicleRoutes = require('./routes/vehicle.routes');
 const govVerificationRoutes = require('./routes/govVerification.routes');
 const locationRoutes = require('./routes/location.routes');
 const recommendationRoutes = require('./routes/recommendation.routes');
+const pricePredictionRoutes = require('./routes/pricePrediction.routes');
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -54,6 +55,7 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/gov-verification', govVerificationRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/price-prediction', pricePredictionRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -94,6 +96,9 @@ const startServer = async () => {
       console.log('- GET  /api/recommendations/districts (Tamil Nadu Districts)');
       console.log('- GET  /api/recommendations/all (All Districts Overview)');
       console.log('- GET  /api/recommendations/health (ML Server Health)');
+      console.log('- GET  /api/price-prediction/:product_id (Price Recommendation)');
+      console.log('- GET  /api/price-prediction/farmer/all (All Farmer Products Pricing)');
+      console.log('- GET  /api/price-prediction/health (Price Prediction Health)');
     });
 
     server.on('error', (err) => {
