@@ -211,21 +211,21 @@ async function predictPrice(productId) {
   const priceChange    = predictedPrice - currentPrice;
   const priceChangePct = (priceChange / currentPrice) * 100;
 
-  // ── Step 8: Recommendation label ────────────────────────────────────────────
+  // ── Step 8: Recommendation label (matches api_seasonal.py logic) ─────────────
   let action, recommendation;
   if (priceChange > 0) {
     action = 'INCREASE';
     recommendation = isInSeason
-      ? `Increase price – ${productSeason.season} peak season, demand is ${demandLevel}`
-      : `Increase price – ${demandLevel} demand pressure (${todaySales.toFixed(0)} units sold today)`;
+      ? `Peak season for ${productName}, high demand expected`
+      : `Off-season premium – limited supply drives price up`;
   } else if (priceChange < 0) {
     action = 'DECREASE';
     recommendation = isInSeason
-      ? `Decrease price – even in season, low sales indicate oversupply`
-      : `Decrease price – ${demandLevel} demand, boost sales with lower price`;
+      ? `Even in season, low sales indicate oversupply`
+      : `Off-season – boost demand with lower prices`;
   } else {
     action = 'MAINTAIN';
-    recommendation = 'Maintain price – balanced supply and demand';
+    recommendation = 'Balanced supply and demand – maintain current price';
   }
 
   return {
@@ -265,6 +265,10 @@ async function predictPrice(productId) {
     was_adjusted:          wasAdjusted,
     adjustment_reason:     wasAdjusted ? adjustmentReason : null,
     raw_price_change:      parseFloat(rawChange.toFixed(2)),
+
+    // Algorithm info (mirrors Python api_seasonal.py model_version / cv_rmse)
+    algorithm:             'Demand-based seasonal pricing (ported from LightGBM / api_seasonal.py)',
+    model_version:         'v2.0-seasonal',
 
     computed_at:           new Date().toISOString(),
   };

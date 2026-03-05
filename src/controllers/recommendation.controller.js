@@ -8,6 +8,7 @@
  */
 
 const axios = require('axios');
+const { predictPricesForFarmer } = require('../services/pricePrediction.service');
 
 const _raw = process.env.ML_SERVER_URL || 'https://farmercrate-ml.onrender.com';
 const ML_SERVER_URL = _raw.startsWith('http') ? _raw : `https://${_raw}`;
@@ -501,6 +502,44 @@ const getFarmerRecommendations = async (req, res) => {
 
     console.log('[REC/farmer] Returning', recs.length, 'recs - period:', period, '- source:', source);
 
+    // ── Enrich already-listed products with demand-based price predictions ──────
+    // Run price predictions for farmer's products; merge into matching rec items.
+    let demandPriceMap = {};
+    try {
+      const predictions = await predictPricesForFarmer(req.user.farmer_id);
+      demandPriceMap = Object.fromEntries(
+        predictions.map((p) => [p.product_name.toLowerCase().trim(), p])
+      );
+      console.log('[REC/farmer] Demand pricing enrichment: matched', predictions.length, 'products');
+    } catch (dpErr) {
+      console.warn('[REC/farmer] Demand pricing fetch failed (non-fatal):', dpErr.message);
+    }
+
+    const enrichedRecs = recs.map((item) => {
+      if (!item.already_posted) return item;
+      const pred = demandPriceMap[(item.product || '').toLowerCase().trim()];
+      if (!pred) return item;
+      return {
+        ...item,
+        demand_pricing: {
+          action:          pred.action,          // 'INCREASE' | 'DECREASE' | 'MAINTAIN'
+          current_price:   pred.current_price,
+          predicted_price: pred.predicted_price,
+          price_change:    pred.price_change,
+          price_change_pct:pred.price_change_pct,
+          demand_level:    pred.demand_level,    // 'HIGH' | 'MODERATE' | 'LOW'
+          seasonal_demand: pred.seasonal_demand,
+          in_season:       pred.in_season,
+          current_season:  pred.current_season,
+          seasonal_factor: pred.seasonal_factor,
+          recommendation:  pred.recommendation,
+          today_sales:     pred.today_sales,
+          avg_sales_7_days:pred.avg_sales_7_days,
+          current_stock:   pred.current_stock,
+        },
+      };
+    });
+
     return res.status(200).json({
       success: true,
       district,
@@ -508,14 +547,15 @@ const getFarmerRecommendations = async (req, res) => {
       soil_type: mlSoilType,
       weather: mlWeather,
       source,
-      weekly_recommendations: recs,
-      recommendations: recs,
+      weekly_recommendations: enrichedRecs,
+      recommendations: enrichedRecs,
       summary: {
         district,
         period,
-        total_recommended: recs.length,
-        already_posted:    recs.filter((i) => i.already_posted).length,
-        new_opportunities: recs.filter((i) => !i.already_posted).length,
+        total_recommended: enrichedRecs.length,
+        already_posted:    enrichedRecs.filter((i) => i.already_posted).length,
+        new_opportunities: enrichedRecs.filter((i) => !i.already_posted).length,
+        demand_enriched:   enrichedRecs.filter((i) => !!i.demand_pricing).length,
       },
     });
   } catch (err) {
