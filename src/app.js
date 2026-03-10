@@ -36,6 +36,7 @@ const govVerificationRoutes = require('./routes/govVerification.routes');
 const locationRoutes = require('./routes/location.routes');
 const recommendationRoutes = require('./routes/recommendation.routes');
 const pricePredictionRoutes = require('./routes/pricePrediction.routes');
+const fheRoutes = require('./routes/fhe.routes');
 
 // No need to import models here; they are imported in initializeDatabase
 
@@ -56,6 +57,7 @@ app.use('/api/gov-verification', govVerificationRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/price-prediction', pricePredictionRoutes);
+app.use('/api/fhe', fheRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
