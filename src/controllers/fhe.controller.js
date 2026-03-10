@@ -89,13 +89,13 @@ const verifyOrdersHandler = async (req, res) => {
     }
 
     const results = orders.map(o => {
-      const minPrice    = Number(o.Product.current_price);
+      const minPrice    = Number(o.product?.current_price ?? 0);
       const paidPerUnit = o.quantity > 0 ? Number(o.total_price) / o.quantity : minPrice;
       const qty         = o.quantity;
 
       return {
         order_id    : o.order_id,
-        product_name: o.Product.name,
+        product_name: o.product?.name || 'Product',
         buyer_name  : o.customer?.name || 'Customer',
         quantity    : qty,
         fhe_result  : verifyBid(minPrice, paidPerUnit, qty),
@@ -201,7 +201,7 @@ const transactionLedgerHandler = async (req, res) => {
 
       const transactions = allOrders.map(o => ({
         buyer   : o.customer?.name || 'Customer',
-        crop    : o.Product?.name  || 'Product',
+        crop    : o.product?.name  || 'Product',
         quantity: o.quantity,
         price   : Math.round(Number(o.farmer_amount) / Math.max(o.quantity, 1)),
       }));
@@ -212,7 +212,7 @@ const transactionLedgerHandler = async (req, res) => {
 
     const transactions = orders.map(o => ({
       buyer   : o.customer?.name || 'Customer',
-      crop    : o.Product?.name  || 'Product',
+      crop    : o.product?.name  || 'Product',
       quantity: o.quantity,
       price   : Math.round(Number(o.farmer_amount) / Math.max(o.quantity, 1)),
     }));
