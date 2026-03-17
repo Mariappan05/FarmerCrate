@@ -232,9 +232,12 @@ exports.assignTransporters = async (req, res) => {
     const { order_id } = req.params;
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
+    const TransporterUser = require('../models/transporter_user.model');
     const Notification = require('../models/notification.model');
+    const DeliveryPerson = require('../models/deliveryPerson.model');
+    const GoogleMapsService = require('../services/googleMaps.service');
     
-    console.log('\n=== SIMPLE TRANSPORTER ASSIGNMENT STARTED ===');
+    console.log('\n=== TRANSPORTER ASSIGNMENT WITH GOOGLE MAPS STARTED ===');
     console.log('Order ID:', order_id);
     console.log('Farmer ID:', req.user.farmer_id);
     
@@ -253,6 +256,7 @@ exports.assignTransporters = async (req, res) => {
     }
     
     console.log('✅ Order found, current status:', order.current_status);
+    console.log('Delivery Address:', order.delivery_address);
     
     if (order.current_status !== 'PLACED') {
       console.log('❌ Order is not in PLACED status');
@@ -262,42 +266,189 @@ exports.assignTransporters = async (req, res) => {
       });
     }
     
-    console.log('✅ Order is in PLACED status, proceeding with assignment');
+    // Get farmer details
+    const farmer = await FarmerUser.findByPk(req.user.farmer_id);
+    if (!farmer) {
+      console.log('❌ Farmer not found');
+      return res.status(404).json({ success: false, message: 'Farmer not found' });
+    }
     
-    // Simple assignment: just update status to ASSIGNED
+    const farmerAddress = `${farmer.address}, ${farmer.zone}, ${farmer.district}, ${farmer.state}`;
+    console.log('✅ Farmer Address:', farmerAddress);
+    
+    // Get all transporters
+    const allTransporters = await TransporterUser.findAll();
+    console.log('Total Transporters in DB:', allTransporters.length);
+    
+    if (allTransporters.length === 0) {
+      console.log('⚠️ No transporters found in database');
+      // Still update order to ASSIGNED for testing
+      await order.update({ current_status: 'ASSIGNED' });
+      
+      try {
+        await Notification.create({
+          user_type: 'customer',
+          user_id: order.customer_id,
+          title: 'Order Processing',
+          message: `Your order #${order.order_id} is being processed for delivery`,
+          type: 'order',
+          order_id: order.order_id
+        });
+      } catch (notifError) {
+        console.log('⚠️ Notification failed:', notifError.message);
+      }
+      
+      return res.json({
+        success: true,
+        message: 'Order assigned (no transporters available)',
+        data: {
+          order_id,
+          status: 'ASSIGNED',
+          current_status: 'ASSIGNED',
+          note: 'No transporters in database'
+        }
+      });
+    }
+    
+    // Filter transporters with available delivery persons (optional check)
+    const transportersWithDelivery = [];
+    for (const transporter of allTransporters) {
+      const availableDeliveryCount = await DeliveryPerson.count({
+        where: {
+          transporter_id: transporter.transporter_id,
+          is_available: true
+        }
+      });
+      
+      if (availableDeliveryCount > 0) {
+        transportersWithDelivery.push(transporter);
+      }
+    }
+    
+    console.log('Transporters with available delivery persons:', transportersWithDelivery.length);
+    
+    // Use transporters with delivery persons if available, otherwise use all
+    const selectedTransporters = transportersWithDelivery.length > 0 ? transportersWithDelivery : allTransporters;
+    console.log('Selected transporters for assignment:', selectedTransporters.length);
+    
+    // Find closest transporter to farmer (source)
+    let sourceTransporter = null;
+    let shortestSourceDistance = Infinity;
+    
+    console.log('\n--- Finding Source Transporter (closest to farmer) ---');
+    for (const transporter of selectedTransporters) {
+      const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+      console.log(`Checking transporter: ${transporter.name} at ${transporterAddress}`);
+      
+      try {
+        const distanceData = await GoogleMapsService.calculateDistanceAndDuration(
+          [farmerAddress],
+          [transporterAddress]
+        );
+        
+        console.log(`  Distance: ${distanceData.distance} meters, Duration: ${distanceData.duration} seconds`);
+        
+        if (distanceData.distance < shortestSourceDistance) {
+          shortestSourceDistance = distanceData.distance;
+          sourceTransporter = transporter;
+          console.log(`  ✅ New closest source transporter: ${transporter.name}`);
+        }
+      } catch (error) {
+        console.log(`  ⚠️ Google Maps error for ${transporter.name}:`, error.message);
+      }
+    }
+    
+    // Fallback if Google Maps failed for all
+    if (!sourceTransporter) {
+      console.log('⚠️ Google Maps failed for all source transporters, using first available');
+      sourceTransporter = selectedTransporters[0];
+    }
+    
+    console.log(`\n✅ Selected Source Transporter: ${sourceTransporter.name} (${shortestSourceDistance}m from farmer)`);
+    
+    // Find closest transporter to customer (destination)
+    let destTransporter = null;
+    let shortestDestDistance = Infinity;
+    
+    console.log('\n--- Finding Destination Transporter (closest to customer) ---');
+    for (const transporter of selectedTransporters) {
+      const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+      console.log(`Checking transporter: ${transporter.name} at ${transporterAddress}`);
+      
+      try {
+        const distanceData = await GoogleMapsService.calculateDistanceAndDuration(
+          [order.delivery_address],
+          [transporterAddress]
+        );
+        
+        console.log(`  Distance: ${distanceData.distance} meters, Duration: ${distanceData.duration} seconds`);
+        
+        if (distanceData.distance < shortestDestDistance) {
+          shortestDestDistance = distanceData.distance;
+          destTransporter = transporter;
+          console.log(`  ✅ New closest destination transporter: ${transporter.name}`);
+        }
+      } catch (error) {
+        console.log(`  ⚠️ Google Maps error for ${transporter.name}:`, error.message);
+      }
+    }
+    
+    // Fallback if Google Maps failed for all
+    if (!destTransporter) {
+      console.log('⚠️ Google Maps failed for all destination transporters, using second available or same as source');
+      destTransporter = selectedTransporters.length > 1 ? selectedTransporters[1] : selectedTransporters[0];
+    }
+    
+    console.log(`\n✅ Selected Destination Transporter: ${destTransporter.name} (${shortestDestDistance}m from customer)`);
+    
+    // Update order with transporter assignments
     await order.update({
-      current_status: 'ASSIGNED'
+      current_status: 'ASSIGNED',
+      source_transporter_id: sourceTransporter.transporter_id,
+      destination_transporter_id: destTransporter.transporter_id
     });
     
-    console.log('✅ Order status updated to ASSIGNED');
+    console.log('\n✅ Order updated with transporter assignments');
     
-    // Try to create notification (but don't fail if it doesn't work)
+    // Notify customer
     try {
       await Notification.create({
         user_type: 'customer',
         user_id: order.customer_id,
-        title: 'Order Processing',
-        message: `Your order #${order.order_id} is being processed for delivery`,
+        title: 'Transporters Assigned',
+        message: `Transporters have been assigned to your order #${order.order_id}. Your order will be picked up soon.`,
         type: 'order',
         order_id: order.order_id
       });
-      console.log('✅ Customer notification created');
+      console.log('✅ Customer notification sent');
     } catch (notifError) {
       console.log('⚠️ Notification failed but continuing:', notifError.message);
     }
     
-    console.log('\n--- SIMPLE ASSIGNMENT COMPLETED ---');
+    console.log('\n=== TRANSPORTER ASSIGNMENT COMPLETED ===');
+    console.log('Order ID:', order_id);
     console.log('Status: PLACED → ASSIGNED');
-    console.log('=== END SIMPLE ASSIGNMENT ===\n');
+    console.log('Source Transporter:', sourceTransporter.name, `(${(shortestSourceDistance / 1000).toFixed(2)} km from farmer)`);
+    console.log('Destination Transporter:', destTransporter.name, `(${(shortestDestDistance / 1000).toFixed(2)} km from customer)`);
+    console.log('=== END ASSIGNMENT ===\n');
     
     res.json({
       success: true,
-      message: 'Order assigned for processing successfully',
+      message: 'Transporters assigned successfully using Google Maps',
       data: {
         order_id,
         status: 'ASSIGNED',
         current_status: 'ASSIGNED',
-        message: 'Order is now being processed for delivery'
+        source_transporter: {
+          id: sourceTransporter.transporter_id,
+          name: sourceTransporter.name,
+          distance_from_farmer_km: (shortestSourceDistance / 1000).toFixed(2)
+        },
+        destination_transporter: {
+          id: destTransporter.transporter_id,
+          name: destTransporter.name,
+          distance_from_customer_km: (shortestDestDistance / 1000).toFixed(2)
+        }
       }
     });
     
