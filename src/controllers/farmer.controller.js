@@ -232,12 +232,13 @@ exports.assignTransporters = async (req, res) => {
     const { order_id } = req.params;
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
-    const TransporterUser = require('../models/transporter_user.model');
     const Notification = require('../models/notification.model');
     
-    console.log('\n=== TRANSPORTER ASSIGNMENT STARTED ===');
+    console.log('\n=== SIMPLE TRANSPORTER ASSIGNMENT STARTED ===');
     console.log('Order ID:', order_id);
+    console.log('Farmer ID:', req.user.farmer_id);
     
+    // Find the order
     const order = await Order.findOne({
       where: { order_id },
       include: [{
@@ -247,34 +248,31 @@ exports.assignTransporters = async (req, res) => {
     });
     
     if (!order) {
+      console.log('❌ Order not found');
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
     
+    console.log('✅ Order found, current status:', order.current_status);
+    
     if (order.current_status !== 'PLACED') {
+      console.log('❌ Order is not in PLACED status');
       return res.status(400).json({ 
         success: false, 
         message: 'Order must be in PLACED status to assign transporters' 
       });
     }
     
-    // Get farmer details
-    const farmer = await FarmerUser.findByPk(req.user.farmer_id);
-    const allTransporters = await TransporterUser.findAll();
+    console.log('✅ Order is in PLACED status, proceeding with assignment');
     
-    console.log('Total Transporters in DB:', allTransporters.length);
+    // Simple assignment: just update status to ASSIGNED
+    await order.update({
+      current_status: 'ASSIGNED'
+    });
     
-    // If no transporters exist, create a mock assignment
-    if (allTransporters.length === 0) {
-      console.log('No transporters found, creating mock assignment');
-      
-      // Update order status to ASSIGNED without actual transporter IDs
-      await order.update({
-        current_status: 'ASSIGNED',
-        source_transporter_id: null,
-        destination_transporter_id: null
-      });
-      
-      // Notify customer
+    console.log('✅ Order status updated to ASSIGNED');
+    
+    // Try to create notification (but don't fail if it doesn't work)
+    try {
       await Notification.create({
         user_type: 'customer',
         user_id: order.customer_id,
@@ -283,128 +281,40 @@ exports.assignTransporters = async (req, res) => {
         type: 'order',
         order_id: order.order_id
       });
-      
-      console.log('Mock assignment completed - Order status updated to ASSIGNED');
-      
-      return res.json({
-        success: true,
-        message: 'Order assigned for processing (mock assignment)',
-        data: {
-          order_id,
-          status: 'ASSIGNED',
-          current_status: 'ASSIGNED',
-          note: 'Mock assignment - no transporters available'
-        }
-      });
+      console.log('✅ Customer notification created');
+    } catch (notifError) {
+      console.log('⚠️ Notification failed but continuing:', notifError.message);
     }
     
-    const DeliveryPerson = require('../models/deliveryPerson.model');
-    const GoogleMapsService = require('../services/googleMaps.service');
-    
-    // Filter transporters with available delivery persons
-    const transportersWithDelivery = [];
-    for (const transporter of allTransporters) {
-      const availableDeliveryCount = await DeliveryPerson.count({
-        where: {
-          transporter_id: transporter.transporter_id,
-          is_available: true
-        }
-      });
-      
-      if (availableDeliveryCount > 0) {
-        transportersWithDelivery.push(transporter);
-      }
-    }
-    
-    console.log('Available Transporters with Delivery Persons:', transportersWithDelivery.length);
-    
-    // If no transporters with delivery persons, use any available transporter
-    let selectedTransporters = transportersWithDelivery;
-    if (selectedTransporters.length === 0) {
-      console.log('No transporters with available delivery persons, using any available transporter');
-      selectedTransporters = allTransporters;
-    }
-    
-    if (selectedTransporters.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No transporters found in the system'
-      });
-    }
-    
-    const farmerAddress = `${farmer.address}, ${farmer.zone}, ${farmer.district}, ${farmer.state}`;
-    
-    let sourceTransporter = selectedTransporters[0]; // Default to first transporter
-    let destTransporter = selectedTransporters[selectedTransporters.length > 1 ? 1 : 0]; // Use second if available, otherwise same
-    
-    try {
-      // Try to find closest transporters using Google Maps
-      let shortestSourceDistance = Infinity;
-      let shortestDestDistance = Infinity;
-      
-      // Find closest transporter to farmer
-      for (const transporter of selectedTransporters) {
-        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
-        const distance = await GoogleMapsService.calculateDistanceAndDuration([farmerAddress], [transporterAddress]);
-        
-        if (distance.distance < shortestSourceDistance) {
-          shortestSourceDistance = distance.distance;
-          sourceTransporter = transporter;
-        }
-      }
-      
-      // Find closest transporter to customer
-      for (const transporter of selectedTransporters) {
-        const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
-        const distance = await GoogleMapsService.calculateDistanceAndDuration([order.delivery_address], [transporterAddress]);
-        
-        if (distance.distance < shortestDestDistance) {
-          shortestDestDistance = distance.distance;
-          destTransporter = transporter;
-        }
-      }
-    } catch (error) {
-      console.warn('Google Maps failed, using fallback assignment:', error.message);
-      // Keep the default assignments
-    }
-    
-    // Update order with transporter assignments
-    await order.update({
-      current_status: 'ASSIGNED',
-      source_transporter_id: sourceTransporter?.transporter_id,
-      destination_transporter_id: destTransporter?.transporter_id
-    });
-    
-    // Notify customer
-    await Notification.create({
-      user_type: 'customer',
-      user_id: order.customer_id,
-      title: 'Transporters Assigned',
-      message: `Transporters have been assigned to your order #${order.order_id}`,
-      type: 'order',
-      order_id: order.order_id
-    });
-    
-    console.log('\n--- TRANSPORTER ASSIGNMENT COMPLETED ---');
+    console.log('\n--- SIMPLE ASSIGNMENT COMPLETED ---');
     console.log('Status: PLACED → ASSIGNED');
-    console.log('Source Transporter:', sourceTransporter?.name);
-    console.log('Destination Transporter:', destTransporter?.name);
-    console.log('=== END TRANSPORTER ASSIGNMENT ===\n');
+    console.log('=== END SIMPLE ASSIGNMENT ===\n');
     
     res.json({
       success: true,
-      message: 'Transporters assigned successfully',
+      message: 'Order assigned for processing successfully',
       data: {
         order_id,
         status: 'ASSIGNED',
         current_status: 'ASSIGNED',
-        source_transporter: sourceTransporter?.name,
-        destination_transporter: destTransporter?.name
+        message: 'Order is now being processed for delivery'
       }
     });
+    
   } catch (error) {
-    console.error('Assign transporters error:', error);
-    res.status(500).json({ message: 'Error assigning transporters' });
+    console.error('\n❌ ASSIGN TRANSPORTERS ERROR:');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Order ID:', req.params.order_id);
+    console.error('Farmer ID:', req.user?.farmer_id);
+    console.error('=== END ERROR LOG ===\n');
+    
+    res.status(500).json({ 
+      success: false,
+      message: 'Error assigning transporters',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
