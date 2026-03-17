@@ -29,6 +29,7 @@ router.get('/orders/:order_id/track', protect, authorize('farmer'), farmerContro
 router.get('/orders/:order_id/updates', protect, authorize('farmer'), farmerController.getTrackingUpdates);
 router.put('/orders/:order_id/accept', protect, authorize('farmer'), farmerController.acceptOrder);
 router.put('/orders/:order_id/reject', protect, authorize('farmer'), farmerController.rejectOrder);
+router.put('/orders/:order_id/assign-transporters', protect, authorize('farmer'), farmerController.assignTransporters);
 router.put('/orders/:order_id/status', protect, authorize('farmer'), farmerController.updateOrderStatus);
 router.put('/orders/:order_id/ship', protect, authorize('farmer'), farmerController.shipOrder);
 

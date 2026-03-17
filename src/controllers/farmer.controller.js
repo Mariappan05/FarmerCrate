@@ -226,16 +226,17 @@ exports.getPendingOrders = async (req, res) => {
   }
 };
 
-// Accept order by farmer
-exports.acceptOrder = async (req, res) => {
+// Assign transporters to accepted order (Step 2: Assign transporters after acceptance)
+exports.assignTransporters = async (req, res) => {
   try {
     const { order_id } = req.params;
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
     const TransporterUser = require('../models/transporter_user.model');
-    const RazorpayService = require('../services/razorpay.service');
-    const Transaction = require('../models/transaction.model');
     const Notification = require('../models/notification.model');
+    
+    console.log('\n=== TRANSPORTER ASSIGNMENT STARTED ===');
+    console.log('Order ID:', order_id);
     
     const order = await Order.findOne({
       where: { order_id },
@@ -246,11 +247,14 @@ exports.acceptOrder = async (req, res) => {
     });
     
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
     
-    if (order.current_status !== 'PENDING') {
-      return res.status(400).json({ message: 'Order is not in pending status' });
+    if (order.current_status !== 'PLACED') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Order must be in PLACED status to assign transporters' 
+      });
     }
     
     // Get farmer details
@@ -258,7 +262,6 @@ exports.acceptOrder = async (req, res) => {
     const allTransporters = await TransporterUser.findAll();
     const DeliveryPerson = require('../models/deliveryPerson.model');
     const GoogleMapsService = require('../services/googleMaps.service');
-    const { Op } = require('sequelize');
     
     // Filter transporters with available delivery persons
     const transportersWithDelivery = [];
@@ -275,14 +278,12 @@ exports.acceptOrder = async (req, res) => {
       }
     }
     
-    console.log('\n=== TRANSPORTER AVAILABILITY CHECK ===');
-    console.log('Total Transporters:', allTransporters.length);
-    console.log('Transporters with Available Delivery Persons:', transportersWithDelivery.length);
+    console.log('Available Transporters:', transportersWithDelivery.length);
     
     if (transportersWithDelivery.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'No transporters with available delivery persons found. Cannot accept order.'
+        message: 'No transporters with available delivery persons found'
       });
     }
     
@@ -293,17 +294,11 @@ exports.acceptOrder = async (req, res) => {
     let shortestSourceDistance = Infinity;
     let shortestDestDistance = Infinity;
     
-    console.log('\n=== TRANSPORTER ALLOCATION WITH SHORTEST DISTANCE ===');
-    console.log('Farmer Address:', farmerAddress);
-    console.log('Customer Address:', order.delivery_address);
-    
     try {
-      // Find closest transporter to farmer (with available delivery persons)
+      // Find closest transporter to farmer
       for (const transporter of transportersWithDelivery) {
         const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
         const distance = await GoogleMapsService.calculateDistanceAndDuration([farmerAddress], [transporterAddress]);
-        
-        console.log(`Farmer to ${transporter.name}: ${distance.distance}km`);
         
         if (distance.distance < shortestSourceDistance) {
           shortestSourceDistance = distance.distance;
@@ -311,302 +306,134 @@ exports.acceptOrder = async (req, res) => {
         }
       }
       
-      // Find closest transporter to customer (with available delivery persons)
+      // Find closest transporter to customer
       for (const transporter of transportersWithDelivery) {
         const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
         const distance = await GoogleMapsService.calculateDistanceAndDuration([order.delivery_address], [transporterAddress]);
-        
-        console.log(`Customer to ${transporter.name}: ${distance.distance}km`);
         
         if (distance.distance < shortestDestDistance) {
           shortestDestDistance = distance.distance;
           destTransporter = transporter;
         }
       }
-      
-      console.log('\nSelected Source Transporter:', sourceTransporter?.name, '- Distance:', shortestSourceDistance + 'km');
-      console.log('Selected Destination Transporter:', destTransporter?.name, '- Distance:', shortestDestDistance + 'km');
     } catch (error) {
       console.warn('Google Maps failed, using fallback:', error.message);
       sourceTransporter = transportersWithDelivery[0];
       destTransporter = transportersWithDelivery[1] || transportersWithDelivery[0];
     }
     
-    console.log('\n=== ORDER ACCEPTANCE & FUND TRANSFER STARTED ===');
-    console.log('Order ID:', order_id);
-    console.log('Farmer:', farmer.name, '(ID:', farmer.farmer_id, ')');
-    console.log('Order Amount Breakdown:');
-    console.log('  Total Price: ₹', order.total_price);
-    console.log('  Farmer Amount: ₹', order.farmer_amount);
-    console.log('  Admin Commission: ₹', order.admin_commission);
-    console.log('  Transport Charge: ₹', order.transport_charge);
-    
-    // Process fund transfers
-    const transferResults = { allSuccess: true, transfers: [] };
-    
-    // Transfer to farmer
-    console.log('\n--- FARMER FUND TRANSFER ---');
-    if (farmer.account_number && farmer.ifsc_code) {
-      console.log('Farmer Account:', farmer.account_number);
-      console.log('Farmer IFSC:', farmer.ifsc_code);
-      console.log('Transfer Amount: ₹', order.farmer_amount);
-      
-      const farmerTransfer = await RazorpayService.transferFunds({
-        account_number: farmer.account_number,
-        ifsc_code: farmer.ifsc_code,
-        amount: order.farmer_amount,
-        purpose: 'Product sale payment',
-        reference: `order_${order_id}_farmer`
-      });
-      
-      console.log('Transfer Status:', farmerTransfer.success ? '✅ SUCCESS' : '❌ FAILED');
-      if (!farmerTransfer.success) {
-        console.log('Error:', farmerTransfer.error);
-      }
-      
-      transferResults.transfers.push({
-        type: 'farmer',
-        name: farmer.name,
-        account: farmer.account_number,
-        ifsc: farmer.ifsc_code,
-        amount: order.farmer_amount,
-        status: farmerTransfer.success ? 'success' : 'failed',
-        details: farmerTransfer
-      });
-      
-      await Transaction.create({
-        farmer_id: farmer.farmer_id,
-        user_type: 'farmer',
-        user_id: farmer.farmer_id,
-        order_id: order.order_id,
-        amount: order.farmer_amount,
-        type: 'credit',
-        status: farmerTransfer.success ? 'completed' : 'failed',
-        description: `Farmer payment for order #${order.order_id}`
-      });
-      
-      await Notification.create({
-        user_type: 'farmer',
-        user_id: farmer.farmer_id,
-        title: 'Payment Received',
-        message: `₹${order.farmer_amount} credited to your account for order #${order.order_id}`,
-        type: 'payment',
-        order_id: order.order_id
-      });
-    } else {
-      console.log('❌ Farmer bank details not available');
-      transferResults.allSuccess = false;
-      transferResults.transfers.push({
-        type: 'farmer',
-        name: farmer.name,
-        status: 'failed',
-        error: 'Bank details not available'
-      });
-    }
-    
-    // Transfer to transporters
-    const transportAmount = order.transport_charge / 2;
-    
-    console.log('\n--- SOURCE TRANSPORTER FUND TRANSFER ---');
-    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code) {
-      console.log('Transporter:', sourceTransporter.name);
-      console.log('Account:', sourceTransporter.account_number);
-      console.log('IFSC:', sourceTransporter.ifsc_code);
-      console.log('Transfer Amount: ₹', transportAmount);
-      
-      const sourceTransfer = await RazorpayService.transferFunds({
-        account_number: sourceTransporter.account_number,
-        ifsc_code: sourceTransporter.ifsc_code,
-        amount: transportAmount,
-        purpose: 'Transport service payment',
-        reference: `order_${order_id}_source_transport`
-      });
-      
-      console.log('Transfer Status:', sourceTransfer.success ? '✅ SUCCESS' : '❌ FAILED');
-      if (!sourceTransfer.success) {
-        console.log('Error:', sourceTransfer.error);
-      }
-      
-      transferResults.transfers.push({
-        type: 'source_transporter',
-        name: sourceTransporter.name,
-        account: sourceTransporter.account_number,
-        ifsc: sourceTransporter.ifsc_code,
-        amount: transportAmount,
-        status: sourceTransfer.success ? 'success' : 'failed'
-      });
-      
-      if (sourceTransfer.success) {
-        await Transaction.create({
-          user_type: 'transporter',
-          user_id: sourceTransporter.transporter_id,
-          order_id: order.order_id,
-          amount: transportAmount,
-          type: 'credit',
-          status: 'completed',
-          description: `Transport payment for order #${order.order_id}`
-        });
-        
-        await Notification.create({
-          user_type: 'transporter',
-          user_id: sourceTransporter.transporter_id,
-          title: 'Payment Received',
-          message: `₹${transportAmount} credited for transport service - Order #${order.order_id}`,
-          type: 'payment',
-          order_id: order.order_id
-        });
-      } else {
-        transferResults.allSuccess = false;
-      }
-    } else {
-      console.log('❌ Source transporter bank details not available');
-      transferResults.allSuccess = false;
-      transferResults.transfers.push({
-        type: 'source_transporter',
-        status: 'failed',
-        error: 'Bank details not available'
-      });
-    }
-    
-    console.log('\n--- DESTINATION TRANSPORTER FUND TRANSFER ---');
-    if (destTransporter?.account_number && destTransporter?.ifsc_code) {
-      console.log('Transporter:', destTransporter.name);
-      console.log('Account:', destTransporter.account_number);
-      console.log('IFSC:', destTransporter.ifsc_code);
-      console.log('Transfer Amount: ₹', transportAmount);
-      
-      const destTransfer = await RazorpayService.transferFunds({
-        account_number: destTransporter.account_number,
-        ifsc_code: destTransporter.ifsc_code,
-        amount: transportAmount,
-        purpose: 'Transport service payment',
-        reference: `order_${order_id}_dest_transport`
-      });
-      
-      console.log('Transfer Status:', destTransfer.success ? '✅ SUCCESS' : '❌ FAILED');
-      if (!destTransfer.success) {
-        console.log('Error:', destTransfer.error);
-      }
-      
-      transferResults.transfers.push({
-        type: 'dest_transporter',
-        name: destTransporter.name,
-        account: destTransporter.account_number,
-        ifsc: destTransporter.ifsc_code,
-        amount: transportAmount,
-        status: destTransfer.success ? 'success' : 'failed'
-      });
-      
-      if (destTransfer.success) {
-        await Transaction.create({
-          user_type: 'transporter',
-          user_id: destTransporter.transporter_id,
-          order_id: order.order_id,
-          amount: transportAmount,
-          type: 'credit',
-          status: 'completed',
-          description: `Transport payment for order #${order.order_id}`
-        });
-        
-        await Notification.create({
-          user_type: 'transporter',
-          user_id: destTransporter.transporter_id,
-          title: 'Payment Received',
-          message: `₹${transportAmount} credited for transport service - Order #${order.order_id}`,
-          type: 'payment',
-          order_id: order.order_id
-        });
-      } else {
-        transferResults.allSuccess = false;
-      }
-    } else {
-      console.log('❌ Destination transporter bank details not available');
-      transferResults.allSuccess = false;
-      transferResults.transfers.push({
-        type: 'dest_transporter',
-        status: 'failed',
-        error: 'Bank details not available'
-      });
-    }
-    
-    // Admin commission
-    console.log('\n--- ADMIN COMMISSION ---');
-    console.log('Amount: ₹', order.admin_commission);
-    console.log('Status: ✅ RETAINED in Razorpay account');
-    
-    transferResults.transfers.push({
-      type: 'admin_commission',
-      amount: order.admin_commission,
-      status: 'retained',
-      details: 'Commission retained in Razorpay account'
+    // Update order with transporter assignments
+    await order.update({
+      current_status: 'ASSIGNED',
+      source_transporter_id: sourceTransporter?.transporter_id,
+      destination_transporter_id: destTransporter?.transporter_id
     });
     
-    // Check if all transfers succeeded
-    transferResults.allSuccess = transferResults.transfers.every(t => 
-      t.status === 'success' || t.status === 'retained'
-    );
+    // Notify customer
+    await Notification.create({
+      user_type: 'customer',
+      user_id: order.customer_id,
+      title: 'Transporters Assigned',
+      message: `Transporters have been assigned to your order #${order.order_id}`,
+      type: 'order',
+      order_id: order.order_id
+    });
     
-    // Update order status only if transfers succeeded
-    if (transferResults.allSuccess) {
-      await order.update({
-        current_status: 'PLACED',
-        source_transporter_id: sourceTransporter?.transporter_id,
-        destination_transporter_id: destTransporter?.transporter_id
-      });
-      
-      // Create notification for customer
-      const CustomerUser = require('../models/customer_user.model');
-      await Notification.create({
-        user_type: 'customer',
-        user_id: order.customer_id,
-        title: 'Order Accepted',
-        message: `Your order #${order.order_id} has been accepted by the farmer and is now being processed`,
-        type: 'order',
-        order_id: order.order_id
-      });
-      
-      console.log('\n--- ORDER STATUS UPDATE ---');
-      console.log('Status: PENDING → PLACED');
-      console.log('✅ All fund transfers completed successfully');
-      console.log('✅ Transaction records created');
-      console.log('✅ Notifications sent to all parties');
-      console.log('Assigned Source Transporter:', sourceTransporter?.name, '(ID:', sourceTransporter?.transporter_id, ') - Distance:', shortestSourceDistance + 'km');
-      console.log('Assigned Destination Transporter:', destTransporter?.name, '(ID:', destTransporter?.transporter_id, ') - Distance:', shortestDestDistance + 'km');
-      console.log('=== ORDER ACCEPTANCE & FUND TRANSFER COMPLETED ===\n');
-    } else {
-      console.log('\n--- ORDER STATUS UPDATE ---');
-      console.log('❌ Some fund transfers failed - Order remains PENDING');
-      console.log('=== ORDER ACCEPTANCE FAILED ===\n');
-      
-      return res.status(400).json({
-        success: false,
-        message: 'Fund transfers failed. Order not placed.',
-        data: {
-          order_id,
-          status: 'PENDING',
-          fund_transfers: transferResults
-        }
-      });
+    console.log('\n--- TRANSPORTER ASSIGNMENT COMPLETED ---');
+    console.log('Status: PLACED → ASSIGNED');
+    console.log('Source Transporter:', sourceTransporter?.name);
+    console.log('Destination Transporter:', destTransporter?.name);
+    console.log('=== END TRANSPORTER ASSIGNMENT ===\n');
+    
+    res.json({
+      success: true,
+      message: 'Transporters assigned successfully',
+      data: {
+        order_id,
+        status: 'ASSIGNED',
+        current_status: 'ASSIGNED',
+        source_transporter: sourceTransporter?.name,
+        destination_transporter: destTransporter?.name
+      }
+    });
+  } catch (error) {
+    console.error('Assign transporters error:', error);
+    res.status(500).json({ message: 'Error assigning transporters' });
+  }
+};
+
+// Accept order by farmer (Step 1: Just accept, don't assign transporters yet)
+exports.acceptOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const Order = require('../models/order.model');
+    const Product = require('../models/product.model');
+    const Notification = require('../models/notification.model');
+    
+    console.log('\n=== ORDER ACCEPTANCE STARTED ===');
+    console.log('Order ID:', order_id);
+    console.log('Farmer ID:', req.user.farmer_id);
+    
+    const order = await Order.findOne({
+      where: { order_id },
+      include: [{
+        model: Product,
+        where: { farmer_id: req.user.farmer_id },
+        include: [{
+          model: ProductImage,
+          as: 'images',
+          attributes: ['image_url', 'is_primary']
+        }]
+      }]
+    });
+    
+    if (!order) {
+      console.log('❌ Order not found');
+      return res.status(404).json({ success: false, message: 'Order not found' });
     }
+    
+    if (order.current_status !== 'PENDING') {
+      console.log('❌ Order is not in pending status, current status:', order.current_status);
+      return res.status(400).json({ success: false, message: 'Order is not in pending status' });
+    }
+
+    // Step 1: Just accept the order, don't assign transporters yet
+    await order.update({
+      current_status: 'PLACED'
+    });
+    
+    // Create notification for customer
+    await Notification.create({
+      user_type: 'customer',
+      user_id: order.customer_id,
+      title: 'Order Accepted',
+      message: `Your order #${order.order_id} has been accepted by the farmer`,
+      type: 'order',
+      order_id: order.order_id
+    });
+    
+    console.log('\n--- ORDER STATUS UPDATE ---');
+    console.log('Status: PENDING → PLACED');
+    console.log('✅ Order accepted by farmer');
+    console.log('✅ Customer notification sent');
+    console.log('⏳ Transporter assignment will happen separately');
+    console.log('=== ORDER ACCEPTANCE COMPLETED ===\n');
     
     // Send real-time update
     const WebSocketService = require('../services/websocket.service');
     WebSocketService.sendOrderUpdate(order_id, {
       status: 'PLACED',
-      message: 'Order accepted by farmer',
-      source_transporter: sourceTransporter?.name,
-      destination_transporter: destTransporter?.name
+      message: 'Order accepted by farmer - awaiting transporter assignment'
     });
 
     res.json({
       success: true,
-      message: 'Order accepted, transporters assigned, and funds transferred',
+      message: 'Order accepted successfully. Transporter will be assigned shortly.',
       data: {
         order_id,
         status: 'PLACED',
-        source_transporter: sourceTransporter?.name,
-        destination_transporter: destTransporter?.name,
-        fund_transfers: transferResults
+        current_status: 'PLACED',
+        message: 'Order accepted - awaiting transporter assignment'
       }
     });
   } catch (error) {
