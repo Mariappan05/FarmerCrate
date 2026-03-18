@@ -770,14 +770,20 @@ exports.getOrderDetailsById = async (req, res) => {
         { 
           model: Product, 
           attributes: ['product_id', 'name', 'current_price', 'description'],
-          include: [{
-            model: ProductImage,
-            as: 'images',
-            attributes: ['image_url', 'is_primary', 'display_order']
-          }]
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary', 'display_order']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url']
+            }
+          ]
         },
         { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'email', 'mobile_number', 'address', 'image_url'] },
-        { model: FarmerUser, as: 'farmer', attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url'] },
         { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
         { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
         { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'transporter_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type'] }
