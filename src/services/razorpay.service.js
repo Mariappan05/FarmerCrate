@@ -1,15 +1,42 @@
 const Razorpay = require('razorpay');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const getRazorpayClient = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    throw new Error('Razorpay configuration missing on server');
+  }
+
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret,
+  });
+};
+
+const getRazorpayErrorMessage = (error) => {
+  if (!error) return 'Unknown Razorpay error';
+
+  return (
+    error?.error?.description ||
+    error?.response?.data?.error?.description ||
+    error?.description ||
+    error?.message ||
+    'Unknown Razorpay error'
+  );
+};
 
 class RazorpayService {
   static async createOrder(amount, currency = 'INR', receipt) {
     try {
+      const numericAmount = Number(amount);
+      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        throw new Error('Invalid order amount. Amount must be greater than zero');
+      }
+
+      const razorpay = getRazorpayClient();
       const options = {
-        amount: amount * 100, // Convert to paise
+        amount: Math.round(numericAmount * 100), // Convert to paise
         currency,
         receipt,
       };
@@ -17,7 +44,7 @@ class RazorpayService {
       const order = await razorpay.orders.create(options);
       return order;
     } catch (error) {
-      throw new Error(`Razorpay order creation failed: ${error.message}`);
+      throw new Error(`Razorpay order creation failed: ${getRazorpayErrorMessage(error)}`);
     }
   }
 
@@ -28,6 +55,10 @@ class RazorpayService {
       console.log('Payment ID:', razorpay_payment_id);
       console.log('Received Signature:', razorpay_signature);
       console.log('JWT Secret:', process.env.RAZORPAY_KEY_SECRET ? 'Present' : 'Missing');
+
+      if (!process.env.RAZORPAY_KEY_SECRET) {
+        throw new Error('Razorpay key secret missing on server');
+      }
       
       const crypto = require('crypto');
       const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -51,7 +82,7 @@ class RazorpayService {
       return expectedSignature === razorpay_signature;
     } catch (error) {
       console.error('Payment verification error:', error);
-      throw new Error(`Payment verification failed: ${error.message}`);
+      throw new Error(`Payment verification failed: ${getRazorpayErrorMessage(error)}`);
     }
   }
 

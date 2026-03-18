@@ -81,6 +81,13 @@ exports.createOrder = async (req, res) => {
     // ── ONLINE payment path ─────────────────────────────────────
     const method = (payment_method || 'ONLINE').toUpperCase();
     if (method === 'ONLINE') {
+      if (!Number.isFinite(total) || total <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid order amount for online payment'
+        });
+      }
+
       const receipt = `order_${Date.now()}`;
       const razorpayOrder = await RazorpayService.createOrder(total, 'INR', receipt);
 
