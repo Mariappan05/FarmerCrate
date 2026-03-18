@@ -83,19 +83,17 @@ const getPickupOrders = async (req, res) => {
 
     console.log('[getPickupOrders] Delivery person found:', deliveryPerson.name);
 
+    // First try without includes to avoid association issues
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
         current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'SHIPPED'] }
       },
-      include: [
-        { model: Product, attributes: ['name', 'current_price', 'image_url'] },
-        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
-      ],
       order: [['created_at', 'DESC']]
     });
 
     console.log('[getPickupOrders] Found orders:', orders.length);
+    console.log('[getPickupOrders] Orders data:', orders.map(o => ({ id: o.order_id, status: o.current_status, product_id: o.product_id })));
 
     res.json({
       success: true,
@@ -122,19 +120,17 @@ const getDeliveryOrders = async (req, res) => {
 
     console.log('[getDeliveryOrders] Delivery person found:', deliveryPerson.name);
 
+    // First try without includes to avoid association issues
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
         current_status: { [Op.in]: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
       },
-      include: [
-        { model: Product, attributes: ['name', 'current_price', 'image_url'] },
-        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number', 'address'] }
-      ],
       order: [['created_at', 'DESC']]
     });
 
     console.log('[getDeliveryOrders] Found orders:', orders.length);
+    console.log('[getDeliveryOrders] Orders data:', orders.map(o => ({ id: o.order_id, status: o.current_status, product_id: o.product_id })));
 
     res.json({
       success: true,
