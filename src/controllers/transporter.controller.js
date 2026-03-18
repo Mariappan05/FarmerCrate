@@ -325,8 +325,18 @@ const manualReceiveOrder = async (req, res) => {
       order_id: order.order_id,
       source_transporter_id: order.source_transporter_id,
       destination_transporter_id: order.destination_transporter_id,
-      current_status: order.current_status
+      current_status: order.current_status,
+      delivery_person_id: order.delivery_person_id
     });
+    
+    // Check if order already has a delivery person assigned
+    if (order.delivery_person_id) {
+      console.log('[manualReceiveOrder] Order already assigned to delivery person:', order.delivery_person_id);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Order is already assigned to a delivery person. Cannot reassign.' 
+      });
+    }
     
     // Check if order belongs to this transporter OR if it's unassigned
     const belongsToTransporter = 
@@ -706,29 +716,31 @@ const trackOrder = async (req, res) => {
           model: Product,
           attributes: ['product_id', 'name', 'current_price'],
           required: false,
-          include: [{
-            model: ProductImage,
-            as: 'images',
-            attributes: ['image_url', 'is_primary'],
-            required: false
-          }]
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
+              required: false
+            }
+          ]
         },
         {
           model: CustomerUser,
           as: 'customer',
-          attributes: ['customer_id', 'name', 'mobile_number', 'address'],
-          required: false
-        },
-        {
-          model: FarmerUser,
-          as: 'farmer',
-          attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+          attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'],
           required: false
         },
         {
           model: DeliveryPerson,
           as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'],
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
           required: false
         }
       ]
@@ -757,18 +769,22 @@ const trackOrder = async (req, res) => {
     ];
 
     const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
-    
     const enrichedSteps = trackingSteps.map((step, index) => {
       const trackingEvent = trackingHistory.find(t => t.status === step.status);
       return {
         ...step,
         completed: index <= currentStepIndex,
         current: index === currentStepIndex,
-        timestamp: trackingEvent?.scanned_at,
-        location: trackingEvent?.location_address,
-        notes: trackingEvent?.notes
+        timestamp: trackingEvent?.scanned_at || null,
+        location: trackingEvent?.location_address || null,
+        notes: trackingEvent?.notes || null
       };
     });
+
+    // Get farmer from product association
+    const farmer = order.Product?.farmer || null;
+    const deliveryPerson = order.delivery_person || null;
+    const customer = order.customer || null;
 
     res.json({
       success: true,
@@ -777,9 +793,12 @@ const trackOrder = async (req, res) => {
           order_id: order.order_id,
           current_status: order.current_status,
           total_price: order.total_price,
+          quantity: order.quantity,
           delivery_address: order.delivery_address,
           pickup_address: order.pickup_address,
           transport_charge: order.transport_charge,
+          payment_method: order.payment_method,
+          payment_status: order.payment_status,
           created_at: order.created_at,
           updated_at: order.updated_at,
           product: order.Product ? {
@@ -788,27 +807,33 @@ const trackOrder = async (req, res) => {
             current_price: order.Product.current_price,
             images: order.Product.images || []
           } : null,
-          customer: order.customer ? {
-            customer_id: order.customer.customer_id,
-            name: order.customer.name,
-            mobile_number: order.customer.mobile_number,
-            address: order.customer.address
+          // Farmer mapped with exact field names frontend expects
+          farmer: farmer ? {
+            farmer_id: farmer.farmer_id,
+            name: farmer.name || '',
+            phone: farmer.mobile_number || '',
+            address: farmer.address || '',
+            image: farmer.image_url || null,
+            zone: farmer.zone || '',
+            district: farmer.district || '',
+            state: farmer.state || ''
           } : null,
-          farmer: order.farmer ? {
-            farmer_id: order.farmer.farmer_id,
-            name: order.farmer.name,
-            mobile_number: order.farmer.mobile_number,
-            address: order.farmer.address,
-            zone: order.farmer.zone,
-            district: order.farmer.district,
-            state: order.farmer.state
+          // Customer mapped with exact field names frontend expects
+          customer: customer ? {
+            customer_id: customer.customer_id,
+            name: customer.name || '',
+            phone: customer.mobile_number || '',
+            address: customer.address || '',
+            image: customer.image_url || null
           } : null,
-          delivery_person: order.delivery_person ? {
-            delivery_person_id: order.delivery_person.delivery_person_id,
-            name: order.delivery_person.name,
-            mobile_number: order.delivery_person.mobile_number,
-            vehicle_type: order.delivery_person.vehicle_type,
-            vehicle_number: order.delivery_person.vehicle_number
+          // Delivery person mapped with exact field names frontend expects
+          delivery_person: deliveryPerson ? {
+            delivery_person_id: deliveryPerson.delivery_person_id,
+            name: deliveryPerson.name || '',
+            phone: deliveryPerson.mobile_number || '',
+            vehicle: deliveryPerson.vehicle_number || '',
+            vehicleType: deliveryPerson.vehicle_type || '',
+            image: deliveryPerson.image_url || null
           } : null
         },
         tracking_steps: enrichedSteps,
