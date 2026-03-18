@@ -18,7 +18,10 @@ const getAssignedOrders = async (req, res) => {
     }
 
     const orders = await Order.findAll({
-      where: { delivery_person_id: req.user.delivery_person_id },
+      where: { 
+        delivery_person_id: req.user.delivery_person_id,
+        current_status: ['ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY']
+      },
       include: [
         { model: Product, attributes: ['name', 'current_price'] },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
@@ -63,6 +66,68 @@ const getAssignedOrders = async (req, res) => {
   } catch (error) {
     console.error('Get assigned orders error:', error);
     res.status(500).json({ message: 'Error fetching assigned orders' });
+  }
+};
+
+const getPickupOrders = async (req, res) => {
+  try {
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+
+    const orders = await Order.findAll({
+      where: { 
+        delivery_person_id: req.user.delivery_person_id,
+        source_transporter_id: deliveryPerson.transporter_id,
+        current_status: ['ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED']
+      },
+      include: [
+        { model: Product, attributes: ['name', 'current_price', 'image_url'] },
+        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Get pickup orders error:', error);
+    res.status(500).json({ message: 'Error fetching pickup orders' });
+  }
+};
+
+const getDeliveryOrders = async (req, res) => {
+  try {
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+
+    const orders = await Order.findAll({
+      where: { 
+        delivery_person_id: req.user.delivery_person_id,
+        destination_transporter_id: deliveryPerson.transporter_id,
+        current_status: ['IN_TRANSIT', 'OUT_FOR_DELIVERY']
+      },
+      include: [
+        { model: Product, attributes: ['name', 'current_price', 'image_url'] },
+        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number', 'address'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Get delivery orders error:', error);
+    res.status(500).json({ message: 'Error fetching delivery orders' });
   }
 };
 
@@ -191,9 +256,41 @@ const getProfile = async (req, res) => {
       return res.status(404).json({ message: 'Delivery person not found' });
     }
     
+    // Calculate statistics from orders
+    const completedOrders = await Order.findAll({
+      where: {
+        delivery_person_id: req.user.delivery_person_id,
+        current_status: ['DELIVERED', 'COMPLETED']
+      }
+    });
+    
+    const totalDeliveries = completedOrders.length;
+    
+    // Calculate average rating from completed orders
+    const ordersWithRating = completedOrders.filter(o => o.rating && o.rating > 0);
+    const averageRating = ordersWithRating.length > 0
+      ? ordersWithRating.reduce((sum, o) => sum + parseFloat(o.rating || 0), 0) / ordersWithRating.length
+      : parseFloat(deliveryPerson.rating || 0);
+    
+    // Calculate on-time percentage (orders delivered on or before expected date)
+    const onTimeOrders = completedOrders.filter(o => {
+      if (!o.expected_delivery_date || !o.updated_at) return false;
+      return new Date(o.updated_at) <= new Date(o.expected_delivery_date);
+    });
+    const onTimePercentage = totalDeliveries > 0 
+      ? Math.round((onTimeOrders.length / totalDeliveries) * 100)
+      : 0;
+    
     res.json({
       success: true,
-      data: deliveryPerson
+      data: {
+        ...deliveryPerson.toJSON(),
+        total_deliveries: totalDeliveries,
+        rating: averageRating,
+        average_rating: averageRating,
+        on_time_percentage: onTimePercentage,
+        on_time_rate: onTimePercentage
+      }
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -425,6 +522,8 @@ const updateAvailability = async (req, res) => {
 
 module.exports = {
   getAssignedOrders,
+  getPickupOrders,
+  getDeliveryOrders,
   getOrderHistory,
   getEarnings,
   getProfile,

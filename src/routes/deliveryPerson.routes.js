@@ -24,6 +24,18 @@ router.get('/orders',
   deliveryPersonController.getAssignedOrders
 );
 
+router.get('/pickups', 
+  authenticate, 
+  authorize('delivery'), 
+  deliveryPersonController.getPickupOrders
+);
+
+router.get('/deliveries', 
+  authenticate, 
+  authorize('delivery'), 
+  deliveryPersonController.getDeliveryOrders
+);
+
 router.get('/orders/history', 
   authenticate, 
   authorize('delivery'), 
