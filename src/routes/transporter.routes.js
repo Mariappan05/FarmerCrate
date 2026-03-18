@@ -34,8 +34,12 @@ router.post('/assign-vehicle',
   transporterController.assignVehicleToOrder
 );
 
-// Order management routes
+// Order management routes — specific routes BEFORE generic /orders
+router.get('/orders/active', authenticate, authorize('transporter'), transporterController.getActiveOrders);
+router.get('/orders/:order_id/track', authenticate, authorize('transporter'), transporterController.trackOrder);
+router.get('/orders/:order_id/updates', authenticate, authorize('transporter'), transporterController.getTrackingUpdates);
 router.get('/orders', authenticate, authorize('transporter'), transporterController.getAssignedOrders);
+
 router.put('/order-status', 
   authenticate, 
   authorize('transporter'),
@@ -59,15 +63,19 @@ router.post('/receive-order',
   transporterController.receiveOrderAndAssignDelivery
 );
 
+// Manual receive order route
+router.post('/manual-receive-order',
+  authenticate,
+  authorize('transporter'),
+  body('order_id').isInt().withMessage('Valid order ID required'),
+  body('delivery_person_id').isInt().withMessage('Valid delivery person ID required'),
+  transporterController.manualReceiveOrder
+);
+
 // Delivery persons management
 router.get('/delivery-persons', authenticate, authorize('transporter'), transporterController.getDeliveryPersons);
 
 // Vehicles management
 router.get('/vehicles', authenticate, authorize('transporter'), transporterController.getVehicles);
-
-// Order tracking routes
-router.get('/orders/active', authenticate, authorize('transporter'), transporterController.getActiveOrders);
-router.get('/orders/:order_id/track', authenticate, authorize('transporter'), transporterController.trackOrder);
-router.get('/orders/:order_id/updates', authenticate, authorize('transporter'), transporterController.getTrackingUpdates);
 
 module.exports = router;

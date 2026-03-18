@@ -470,10 +470,29 @@ const getAssignedOrders = async (req, res) => {
           { destination_transporter_id: req.user.transporter_id }
         ]
       },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price'],
+          required: false
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: ['name', 'mobile_number', 'address'],
+          required: false
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type'],
+          required: false
+        }
+      ],
       order: [['created_at', 'DESC']]
     });
     
-    res.json({ success: true, orders });
+    res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
