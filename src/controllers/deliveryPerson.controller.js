@@ -20,7 +20,7 @@ const getAssignedOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['ASSIGNED', 'PLACED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED']
+        current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
       },
       include: [
         { model: Product, attributes: ['name', 'current_price'] },
@@ -71,15 +71,22 @@ const getAssignedOrders = async (req, res) => {
 
 const getPickupOrders = async (req, res) => {
   try {
+    console.log('[getPickupOrders] Starting...');
+    console.log('[getPickupOrders] User:', req.user);
+    console.log('[getPickupOrders] Delivery person ID:', req.user.delivery_person_id);
+    
     const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
     if (!deliveryPerson) {
+      console.log('[getPickupOrders] Delivery person not found');
       return res.status(404).json({ message: 'Delivery person not found' });
     }
+
+    console.log('[getPickupOrders] Delivery person found:', deliveryPerson.name);
 
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['ASSIGNED', 'PLACED', 'SHIPPED']
+        current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'SHIPPED'] }
       },
       include: [
         { model: Product, attributes: ['name', 'current_price', 'image_url'] },
@@ -88,28 +95,37 @@ const getPickupOrders = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    console.log('[getPickupOrders] Found orders:', orders.length);
+
     res.json({
       success: true,
       count: orders.length,
       data: orders
     });
   } catch (error) {
-    console.error('Get pickup orders error:', error);
-    res.status(500).json({ message: 'Error fetching pickup orders' });
+    console.error('[getPickupOrders] Error:', error);
+    res.status(500).json({ message: 'Error fetching pickup orders', error: error.message });
   }
 };
 
 const getDeliveryOrders = async (req, res) => {
   try {
+    console.log('[getDeliveryOrders] Starting...');
+    console.log('[getDeliveryOrders] User:', req.user);
+    console.log('[getDeliveryOrders] Delivery person ID:', req.user.delivery_person_id);
+    
     const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
     if (!deliveryPerson) {
+      console.log('[getDeliveryOrders] Delivery person not found');
       return res.status(404).json({ message: 'Delivery person not found' });
     }
+
+    console.log('[getDeliveryOrders] Delivery person found:', deliveryPerson.name);
 
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED']
+        current_status: { [Op.in]: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
       },
       include: [
         { model: Product, attributes: ['name', 'current_price', 'image_url'] },
@@ -118,14 +134,16 @@ const getDeliveryOrders = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    console.log('[getDeliveryOrders] Found orders:', orders.length);
+
     res.json({
       success: true,
       count: orders.length,
       data: orders
     });
   } catch (error) {
-    console.error('Get delivery orders error:', error);
-    res.status(500).json({ message: 'Error fetching delivery orders' });
+    console.error('[getDeliveryOrders] Error:', error);
+    res.status(500).json({ message: 'Error fetching delivery orders', error: error.message });
   }
 };
 
@@ -139,7 +157,7 @@ const getOrderHistory = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['COMPLETED', 'CANCELLED']
+        current_status: { [Op.in]: ['COMPLETED', 'CANCELLED'] }
       },
       include: [
         { model: Product, attributes: ['name', 'current_price'] },
@@ -169,7 +187,7 @@ const getEarnings = async (req, res) => {
 
     let whereClause = {
       delivery_person_id: req.user.delivery_person_id,
-      current_status: ['COMPLETED']
+      current_status: 'COMPLETED'
     };
 
     // Filter by period
@@ -258,7 +276,7 @@ const getProfile = async (req, res) => {
     const completedOrders = await Order.findAll({
       where: {
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['COMPLETED']
+        current_status: 'COMPLETED'
       }
     });
     
