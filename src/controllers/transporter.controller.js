@@ -4,6 +4,7 @@ const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const ProductImage = require('../models/productImage.model');
 const CustomerUser = require('../models/customer_user.model');
+const FarmerUser = require('../models/farmer_user.model');
 const DeliveryTracking = require('../models/deliveryTracking.model');
 const PermanentVehicle = require('../models/permanentVehicle.model');
 const TemporaryVehicle = require('../models/temporaryVehicle.model');
@@ -306,15 +307,46 @@ const manualReceiveOrder = async (req, res) => {
   
   try {
     const { Op } = require('sequelize');
-    const order = await Order.findOne({
-      where: {
-        order_id,
-        destination_transporter_id: req.user.transporter_id
-      }
-    });
+    
+    console.log('[manualReceiveOrder] Request:', { order_id, delivery_person_id, transporter_id: req.user.transporter_id });
+    
+    // First, just find the order
+    const order = await Order.findByPk(order_id);
     
     if (!order) {
-      return res.status(404).json({ message: 'Order not found or not assigned to this transporter' });
+      console.log('[manualReceiveOrder] Order not found:', order_id);
+      return res.status(404).json({ 
+        success: false,
+        message: 'Order not found' 
+      });
+    }
+    
+    console.log('[manualReceiveOrder] Order found:', {
+      order_id: order.order_id,
+      source_transporter_id: order.source_transporter_id,
+      destination_transporter_id: order.destination_transporter_id,
+      current_status: order.current_status
+    });
+    
+    // Check if order belongs to this transporter OR if it's unassigned
+    const belongsToTransporter = 
+      order.source_transporter_id === req.user.transporter_id ||
+      order.destination_transporter_id === req.user.transporter_id;
+    
+    const isUnassigned = !order.source_transporter_id && !order.destination_transporter_id;
+    
+    if (!belongsToTransporter && !isUnassigned) {
+      console.log('[manualReceiveOrder] Order not assigned to this transporter');
+      return res.status(403).json({ 
+        success: false,
+        message: 'Order not assigned to this transporter' 
+      });
+    }
+    
+    // If unassigned, assign to this transporter
+    if (isUnassigned) {
+      console.log('[manualReceiveOrder] Assigning order to transporter:', req.user.transporter_id);
+      await order.update({ source_transporter_id: req.user.transporter_id });
     }
     
     const deliveryPerson = await DeliveryPerson.findOne({
@@ -325,7 +357,11 @@ const manualReceiveOrder = async (req, res) => {
     });
     
     if (!deliveryPerson) {
-      return res.status(404).json({ message: 'Delivery person not found' });
+      console.log('[manualReceiveOrder] Delivery person not found:', delivery_person_id);
+      return res.status(404).json({ 
+        success: false,
+        message: 'Delivery person not found or does not belong to your company' 
+      });
     }
     
     // Check capacity
@@ -336,31 +372,47 @@ const manualReceiveOrder = async (req, res) => {
       }
     });
     
+    console.log('[manualReceiveOrder] Delivery person capacity:', { activeOrdersCount, max: 10 });
+    
     if (activeOrdersCount >= 10) {
       return res.status(400).json({ 
+        success: false,
         message: `Delivery person has reached maximum capacity (10 orders). Current: ${activeOrdersCount}/10` 
       });
     }
     
+    // Determine the new status based on current status
+    let newStatus = 'ASSIGNED';
+    if (order.current_status === 'PLACED' || order.current_status === 'PENDING') {
+      newStatus = 'ASSIGNED';
+    } else if (order.current_status === 'ASSIGNED' || order.current_status === 'SHIPPED') {
+      newStatus = 'RECEIVED';
+    } else {
+      newStatus = order.current_status; // Keep current status if already advanced
+    }
+    
     const updateData = {
-      current_status: 'RECEIVED',
+      current_status: newStatus,
       delivery_person_id
     };
     
     if (permanent_vehicle_id) updateData.permanent_vehicle_id = permanent_vehicle_id;
     if (temp_vehicle_id) updateData.temp_vehicle_id = temp_vehicle_id;
     
+    console.log('[manualReceiveOrder] Updating order:', updateData);
     await order.update(updateData);
     
     const newCount = activeOrdersCount + 1;
     await deliveryPerson.update({ is_available: newCount < 10 });
+    
+    console.log('[manualReceiveOrder] Success!');
     
     res.json({
       success: true,
       message: 'Order received and manually assigned to delivery person',
       data: {
         order_id,
-        status: 'RECEIVED',
+        status: newStatus,
         delivery_person_id,
         delivery_person_name: deliveryPerson.name,
         vehicle_id: permanent_vehicle_id || temp_vehicle_id,
@@ -368,7 +420,12 @@ const manualReceiveOrder = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('[manualReceiveOrder] Error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -648,22 +705,40 @@ const trackOrder = async (req, res) => {
         {
           model: Product,
           attributes: ['product_id', 'name', 'current_price'],
+          required: false,
           include: [{
             model: ProductImage,
             as: 'images',
-            attributes: ['image_url', 'is_primary']
+            attributes: ['image_url', 'is_primary'],
+            required: false
           }]
         },
         {
           model: CustomerUser,
           as: 'customer',
-          attributes: ['name', 'mobile_number', 'address']
+          attributes: ['customer_id', 'name', 'mobile_number', 'address'],
+          required: false
+        },
+        {
+          model: FarmerUser,
+          as: 'farmer',
+          attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+          required: false
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'],
+          required: false
         }
       ]
     });
 
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Order not found or you do not have permission to view it' 
+      });
     }
 
     const trackingHistory = await DeliveryTracking.findAll({
@@ -698,14 +773,55 @@ const trackOrder = async (req, res) => {
     res.json({
       success: true,
       data: {
-        order,
+        order: {
+          order_id: order.order_id,
+          current_status: order.current_status,
+          total_price: order.total_price,
+          delivery_address: order.delivery_address,
+          pickup_address: order.pickup_address,
+          transport_charge: order.transport_charge,
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          product: order.Product ? {
+            product_id: order.Product.product_id,
+            name: order.Product.name,
+            current_price: order.Product.current_price,
+            images: order.Product.images || []
+          } : null,
+          customer: order.customer ? {
+            customer_id: order.customer.customer_id,
+            name: order.customer.name,
+            mobile_number: order.customer.mobile_number,
+            address: order.customer.address
+          } : null,
+          farmer: order.farmer ? {
+            farmer_id: order.farmer.farmer_id,
+            name: order.farmer.name,
+            mobile_number: order.farmer.mobile_number,
+            address: order.farmer.address,
+            zone: order.farmer.zone,
+            district: order.farmer.district,
+            state: order.farmer.state
+          } : null,
+          delivery_person: order.delivery_person ? {
+            delivery_person_id: order.delivery_person.delivery_person_id,
+            name: order.delivery_person.name,
+            mobile_number: order.delivery_person.mobile_number,
+            vehicle_type: order.delivery_person.vehicle_type,
+            vehicle_number: order.delivery_person.vehicle_number
+          } : null
+        },
         tracking_steps: enrichedSteps,
         tracking_history: trackingHistory
       }
     });
   } catch (error) {
     console.error('Track order error:', error);
-    res.status(500).json({ message: 'Error tracking order' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error tracking order',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
