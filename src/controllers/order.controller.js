@@ -24,6 +24,28 @@ const getScannerIdFromRequest = (req) => {
   return null;
 };
 
+const canViewQrForOrder = (req, order) => {
+  if (!req?.role || !req?.user || !order) return false;
+
+  if (req.role === 'transporter') {
+    const transporterId = req.user.transporter_id;
+    return transporterId === order.source_transporter_id || transporterId === order.destination_transporter_id;
+  }
+
+  if (req.role === 'delivery') {
+    const scannerDeliveryId = req.user.delivery_person_id;
+    const isAssignedDelivery = order.delivery_person_id && scannerDeliveryId === order.delivery_person_id;
+    const isDestinationDelivery =
+      order.delivery_person &&
+      order.delivery_person.transporter_id &&
+      order.destination_transporter_id === order.delivery_person.transporter_id;
+
+    return Boolean(isAssignedDelivery && isDestinationDelivery && order.current_status === 'OUT_FOR_DELIVERY');
+  }
+
+  return false;
+};
+
 // Create payment order (step 1)
 exports.createOrder = async (req, res) => {
   try {
@@ -758,7 +780,7 @@ exports.getOrderDetailsById = async (req, res) => {
         { model: FarmerUser, as: 'farmer', attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url'] },
         { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
         { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
-        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type'] }
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'transporter_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type'] }
       ]
     });
 
@@ -766,9 +788,15 @@ exports.getOrderDetailsById = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    const data = order.toJSON();
+    if (!canViewQrForOrder(req, data)) {
+      data.qr_code = null;
+      data.qr_image_url = null;
+    }
+
     res.json({
       success: true,
-      data: order
+      data
     });
   } catch (error) {
     console.error('Get order details error:', error);
