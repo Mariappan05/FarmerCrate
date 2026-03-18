@@ -866,15 +866,39 @@ exports.trackOrder = async (req, res) => {
     
     const order = await Order.findOne({
       where: { order_id, customer_id: req.user.customer_id },
-      include: [{
-        model: Product,
-        attributes: ['product_id', 'name', 'current_price'],
-        include: [{
-          model: ProductImage,
-          as: 'images',
-          attributes: ['image_url', 'is_primary']
-        }]
-      }]
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'description'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state']
+            }
+          ]
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state']
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state']
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'transporter_id']
+        }
+      ]
     });
 
     if (!order) {

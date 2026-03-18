@@ -369,6 +369,7 @@ exports.assignTransporters = async (req, res) => {
     // Find closest transporter to customer (destination)
     let destTransporter = null;
     let shortestDestDistance = Infinity;
+    const destinationCandidates = [];
     
     console.log('\n--- Finding Destination Transporter (closest to customer) ---');
     for (const transporter of selectedTransporters) {
@@ -388,6 +389,8 @@ exports.assignTransporters = async (req, res) => {
           destTransporter = transporter;
           console.log(`  ✅ New closest destination transporter: ${transporter.name}`);
         }
+
+        destinationCandidates.push({ transporter, distance: distanceData.distance });
       } catch (error) {
         console.log(`  ⚠️ Google Maps error for ${transporter.name}:`, error.message);
       }
@@ -397,6 +400,33 @@ exports.assignTransporters = async (req, res) => {
     if (!destTransporter) {
       console.log('⚠️ Google Maps failed for all destination transporters, using second available or same as source');
       destTransporter = selectedTransporters.length > 1 ? selectedTransporters[1] : selectedTransporters[0];
+    }
+
+    // Enforce different source and destination transporters when possible.
+    if (
+      sourceTransporter &&
+      destTransporter &&
+      sourceTransporter.transporter_id === destTransporter.transporter_id &&
+      selectedTransporters.length > 1
+    ) {
+      console.log('⚠️ Source and destination transporter matched. Trying distinct destination transporter...');
+
+      const alternateByDistance = destinationCandidates
+        .filter(candidate => candidate.transporter.transporter_id !== sourceTransporter.transporter_id)
+        .sort((a, b) => a.distance - b.distance)[0];
+
+      const alternateFallback = selectedTransporters.find(
+        transporter => transporter.transporter_id !== sourceTransporter.transporter_id
+      );
+
+      if (alternateByDistance) {
+        destTransporter = alternateByDistance.transporter;
+        shortestDestDistance = alternateByDistance.distance;
+      } else if (alternateFallback) {
+        destTransporter = alternateFallback;
+      }
+
+      console.log(`✅ Distinct destination transporter selected: ${destTransporter.name}`);
     }
     
     console.log(`\n✅ Selected Destination Transporter: ${destTransporter.name} (${shortestDestDistance}m from customer)`);
