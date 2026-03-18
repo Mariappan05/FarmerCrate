@@ -20,7 +20,7 @@ const getAssignedOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY']
+        current_status: ['ASSIGNED', 'PLACED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED']
       },
       include: [
         { model: Product, attributes: ['name', 'current_price'] },
@@ -79,8 +79,7 @@ const getPickupOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        source_transporter_id: deliveryPerson.transporter_id,
-        current_status: ['ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED']
+        current_status: ['ASSIGNED', 'PLACED', 'SHIPPED']
       },
       include: [
         { model: Product, attributes: ['name', 'current_price', 'image_url'] },
@@ -110,8 +109,7 @@ const getDeliveryOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        destination_transporter_id: deliveryPerson.transporter_id,
-        current_status: ['IN_TRANSIT', 'OUT_FOR_DELIVERY']
+        current_status: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED']
       },
       include: [
         { model: Product, attributes: ['name', 'current_price', 'image_url'] },
@@ -141,7 +139,7 @@ const getOrderHistory = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['DELIVERED', 'COMPLETED', 'CANCELLED', 'FAILED']
+        current_status: ['COMPLETED', 'CANCELLED']
       },
       include: [
         { model: Product, attributes: ['name', 'current_price'] },
@@ -171,7 +169,7 @@ const getEarnings = async (req, res) => {
 
     let whereClause = {
       delivery_person_id: req.user.delivery_person_id,
-      current_status: ['DELIVERED', 'COMPLETED']
+      current_status: ['COMPLETED']
     };
 
     // Filter by period
@@ -260,7 +258,7 @@ const getProfile = async (req, res) => {
     const completedOrders = await Order.findAll({
       where: {
         delivery_person_id: req.user.delivery_person_id,
-        current_status: ['DELIVERED', 'COMPLETED']
+        current_status: ['COMPLETED']
       }
     });
     
@@ -274,8 +272,8 @@ const getProfile = async (req, res) => {
     
     // Calculate on-time percentage (orders delivered on or before expected date)
     const onTimeOrders = completedOrders.filter(o => {
-      if (!o.expected_delivery_date || !o.updated_at) return false;
-      return new Date(o.updated_at) <= new Date(o.expected_delivery_date);
+      if (!o.estimated_delivery_time || !o.updated_at) return false;
+      return new Date(o.updated_at) <= new Date(o.estimated_delivery_time);
     });
     const onTimePercentage = totalDeliveries > 0 
       ? Math.round((onTimeOrders.length / totalDeliveries) * 100)
