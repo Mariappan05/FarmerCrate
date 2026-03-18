@@ -40,9 +40,7 @@ CustomerUser.hasMany(Order, { as: 'orders', foreignKey: 'customer_id', sourceKey
 Order.belongsTo(Product, { foreignKey: 'product_id', targetKey: 'product_id', onDelete: 'CASCADE' });
 Product.hasMany(Order, { foreignKey: 'product_id', sourceKey: 'product_id', onDelete: 'CASCADE' });
 
-// Farmer - Order relationship (via product's farmer)
-Order.belongsTo(FarmerUser, { as: 'farmer', foreignKey: 'farmer_id', targetKey: 'farmer_id', onDelete: 'SET NULL' });
-FarmerUser.hasMany(Order, { as: 'farmer_orders', foreignKey: 'farmer_id', sourceKey: 'farmer_id', onDelete: 'SET NULL' });
+// Farmer is accessed via Order -> Product -> FarmerUser (no direct farmer_id on orders table)
 
 // Transporter - Order relationships
 Order.belongsTo(TransporterUser, { as: 'source_transporter', foreignKey: 'source_transporter_id', targetKey: 'transporter_id', onDelete: 'SET NULL' });
