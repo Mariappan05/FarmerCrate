@@ -3,10 +3,94 @@ const DeliveryTracking = require('../models/deliveryTracking.model');
 const Product = require('../models/product.model');
 const FarmerUser = require('../models/farmer_user.model');
 const TransporterUser = require('../models/transporter_user.model');
+const DeliveryPerson = require('../models/deliveryPerson.model');
 const GoogleMapsService = require('./googleMaps.service');
 const { v4: uuidv4 } = require('uuid');
 
 class OrderTrackingService {
+  static getStatusFlow() {
+    return {
+      ASSIGNED: 'SHIPPED',
+      SHIPPED: 'IN_TRANSIT',
+      IN_TRANSIT: 'RECEIVED',
+      RECEIVED: 'OUT_FOR_DELIVERY',
+      OUT_FOR_DELIVERY: 'COMPLETED'
+    };
+  }
+
+  static getNextStatus(currentStatus) {
+    return this.getStatusFlow()[currentStatus];
+  }
+
+  static getRequiredTransporterForTransition(order, currentStatus) {
+    if (currentStatus === 'ASSIGNED' || currentStatus === 'SHIPPED') {
+      return order.source_transporter_id;
+    }
+
+    if (currentStatus === 'IN_TRANSIT' || currentStatus === 'RECEIVED') {
+      return order.destination_transporter_id;
+    }
+
+    return null;
+  }
+
+  static async validateScannerPermission(order, scannerData, currentStatus, nextStatus) {
+    const role = scannerData.scanned_by_role;
+    const scannerId = scannerData.scanned_by_id;
+
+    if (!order.source_transporter_id || !order.destination_transporter_id) {
+      throw new Error('Transporters must be assigned before QR status updates');
+    }
+
+    if (role === 'transporter') {
+      if (!scannerId) throw new Error('Transporter scanner identity missing');
+
+      if (scannerId !== order.source_transporter_id && scannerId !== order.destination_transporter_id) {
+        throw new Error('Only assigned source or destination transporter can scan this QR');
+      }
+
+      const requiredTransporterId = this.getRequiredTransporterForTransition(order, currentStatus);
+      if (!requiredTransporterId || scannerId !== requiredTransporterId) {
+        throw new Error(`Only the assigned ${requiredTransporterId === order.source_transporter_id ? 'source' : 'destination'} transporter can perform this scan`);
+      }
+
+      if (currentStatus === 'SHIPPED' && !order.permanent_vehicle_id && !order.temp_vehicle_id) {
+        throw new Error('Assign a vehicle before scanning to IN_TRANSIT');
+      }
+
+      if (currentStatus === 'RECEIVED') {
+        if (!order.delivery_person_id) {
+          throw new Error('Assign destination delivery person before scanning to OUT_FOR_DELIVERY');
+        }
+
+        const deliveryPerson = await DeliveryPerson.findByPk(order.delivery_person_id);
+        if (!deliveryPerson || deliveryPerson.transporter_id !== order.destination_transporter_id) {
+          throw new Error('Order must be assigned to a destination transporter delivery person before OUT_FOR_DELIVERY');
+        }
+      }
+
+      return;
+    }
+
+    if (role === 'delivery') {
+      if (currentStatus !== 'OUT_FOR_DELIVERY' || nextStatus !== 'COMPLETED') {
+        throw new Error('Delivery person can scan only at final customer delivery step');
+      }
+
+      if (!order.delivery_person_id || scannerId !== order.delivery_person_id) {
+        throw new Error('Only assigned destination delivery person can complete this order');
+      }
+
+      const deliveryPerson = await DeliveryPerson.findByPk(order.delivery_person_id);
+      if (!deliveryPerson || deliveryPerson.transporter_id !== order.destination_transporter_id) {
+        throw new Error('Pickup delivery person is not allowed to scan this QR');
+      }
+
+      return;
+    }
+
+    throw new Error('Only assigned transporter or destination delivery person can scan QR');
+  }
   
   // Calculate distance using Google Maps API
   static async calculateDistance(pickupAddress, deliveryAddress) {
@@ -145,17 +229,10 @@ class OrderTrackingService {
       const order = await Order.findOne({ where: { qr_code: qrCode } });
       if (!order) throw new Error('Invalid QR code');
 
-      const statusFlow = {
-        'PLACED': 'ASSIGNED',
-        'ASSIGNED': 'SHIPPED',
-        'SHIPPED': 'IN_TRANSIT',
-        'IN_TRANSIT': 'RECEIVED',
-        'RECEIVED': 'OUT_FOR_DELIVERY',
-        'OUT_FOR_DELIVERY': 'COMPLETED'
-      };
+      const nextStatus = this.getNextStatus(order.current_status);
+      if (!nextStatus) throw new Error('QR scan not allowed for current order status');
 
-      const nextStatus = statusFlow[order.current_status];
-      if (!nextStatus) throw new Error('Invalid status transition');
+      await this.validateScannerPermission(order, scannerData, order.current_status, nextStatus);
 
       await this.updateOrderStatus(order.order_id, nextStatus, {
         qr_code: qrCode,
@@ -171,6 +248,36 @@ class OrderTrackingService {
     } catch (error) {
       throw error;
     }
+  }
+
+  static async scanOrderById(orderId, requestedStatus, scannerData) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Order not found');
+
+    if (!order.qr_code) {
+      throw new Error('QR code is not available for this order');
+    }
+
+    const nextStatus = this.getNextStatus(order.current_status);
+    if (!nextStatus) throw new Error('QR scan not allowed for current order status');
+
+    if (requestedStatus && requestedStatus !== nextStatus) {
+      throw new Error(`Invalid QR transition. Expected next status: ${nextStatus}`);
+    }
+
+    await this.validateScannerPermission(order, scannerData, order.current_status, nextStatus);
+
+    await this.updateOrderStatus(order.order_id, nextStatus, {
+      qr_code: order.qr_code,
+      ...scannerData
+    });
+
+    return {
+      success: true,
+      order_id: order.order_id,
+      previous_status: order.current_status,
+      new_status: nextStatus
+    };
   }
 }
 

@@ -401,6 +401,12 @@ const updateOrderStatus = async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: 'Order not found or not assigned to you' });
     }
+
+    if (order.source_transporter_id && order.destination_transporter_id) {
+      return res.status(403).json({
+        message: 'After transporter assignment, delivery status updates must be done via QR scan only'
+      });
+    }
     
     const previousStatus = order.current_status;
     await order.update({ current_status: status });

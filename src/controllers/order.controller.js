@@ -15,6 +15,15 @@ const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
+const getScannerIdFromRequest = (req) => {
+  if (req.role === 'transporter') return req.user?.transporter_id;
+  if (req.role === 'delivery') return req.user?.delivery_person_id;
+  if (req.role === 'customer') return req.user?.customer_id;
+  if (req.role === 'farmer') return req.user?.farmer_id;
+  if (req.role === 'admin') return req.user?.admin_id;
+  return null;
+};
+
 // Create payment order (step 1)
 exports.createOrder = async (req, res) => {
   try {
@@ -450,7 +459,7 @@ exports.scanQRCode = async (req, res) => {
     const { qr_code, location_lat, location_lng, location_address, notes } = req.body;
 
     const result = await OrderTrackingService.scanQRCode(qr_code, {
-      scanned_by_id: req.user[`${req.role}_id`],
+      scanned_by_id: getScannerIdFromRequest(req),
       scanned_by_role: req.role,
       location_lat,
       location_lng,
@@ -465,6 +474,41 @@ exports.scanQRCode = async (req, res) => {
     });
   } catch (error) {
     console.error('QR scan error:', error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.updateOrderStatusByQR = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { status, location_lat, location_lng, location_address, notes } = req.body;
+
+    const scannerRole = req.role;
+    if (!['transporter', 'delivery'].includes(scannerRole)) {
+      return res.status(403).json({ message: 'Only transporter or delivery can scan QR' });
+    }
+
+    const scannerId = getScannerIdFromRequest(req);
+    if (!scannerId) {
+      return res.status(401).json({ message: 'Scanner identity not found in token' });
+    }
+
+    const result = await OrderTrackingService.scanOrderById(order_id, status, {
+      scanned_by_id: scannerId,
+      scanned_by_role: scannerRole,
+      location_lat,
+      location_lng,
+      location_address,
+      notes
+    });
+
+    res.json({
+      success: true,
+      message: `Status updated from ${result.previous_status} to ${result.new_status}`,
+      data: result
+    });
+  } catch (error) {
+    console.error('QR status update error:', error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -614,6 +658,13 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    if (order.source_transporter_id && order.destination_transporter_id) {
+      return res.status(403).json({
+        message: 'After transporter assignment, status changes are allowed only via QR scanner'
+      });
+    }
+
+    const previousStatus = order.current_status;
     await order.update({ current_status: status });
 
     res.json({
@@ -621,7 +672,7 @@ exports.updateOrderStatus = async (req, res) => {
       message: 'Order status updated successfully',
       data: {
         order_id,
-        previous_status: order.current_status,
+        previous_status: previousStatus,
         new_status: status
       }
     });

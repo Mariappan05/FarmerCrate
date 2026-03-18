@@ -574,17 +574,34 @@ const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
     
-    const updated = await Order.update(
-      { current_status: status },
-      { where: { order_id } }
-    );
-    
-    if (!updated[0]) return res.status(404).json({ message: 'Order not found' });
+    const { Op } = require('sequelize');
+    const order = await Order.findOne({
+      where: {
+        order_id,
+        [Op.or]: [
+          { source_transporter_id: req.user.transporter_id },
+          { destination_transporter_id: req.user.transporter_id }
+        ]
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found or not assigned to this transporter' });
+    }
+
+    if (order.source_transporter_id && order.destination_transporter_id) {
+      return res.status(403).json({
+        message: 'After transporter assignment, status updates must be done via QR scan only'
+      });
+    }
+
+    const previousStatus = order.current_status;
+    await order.update({ current_status: status });
     
     res.json({ 
       success: true,
       message: 'Order status updated successfully',
-      data: { order_id, status }
+      data: { order_id, status, previous_status: previousStatus }
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
