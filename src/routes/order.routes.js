@@ -88,24 +88,13 @@ router.put('/:order_id/qr-code',
   orderController.updateQRCode
 );
 
-router.get('/:id', 
-  authenticate, 
-  orderController.getOrder
-);
-
-// Tracking routes
+// Specific named routes BEFORE wildcard /:id
 router.post('/scan-qr',
   authenticate,
   body('qr_code').notEmpty().withMessage('QR code required'),
   body('location_lat').optional().isFloat(),
   body('location_lng').optional().isFloat(),
   orderController.scanQRCode
-);
-
-router.get('/tracking/:order_id',
-  authenticate,
-  param('order_id').isInt().withMessage('Valid order ID required'),
-  orderController.getOrderTracking
 );
 
 router.put('/status',
@@ -126,10 +115,22 @@ router.post('/current-location',
   orderController.getCurrentLocation
 );
 
+router.get('/tracking/:order_id',
+  authenticate,
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  orderController.getOrderTracking
+);
+
 router.get('/details/:order_id',
   authenticate,
   param('order_id').isInt().withMessage('Valid order ID required'),
   orderController.getOrderDetailsById
+);
+
+// Wildcard /:id LAST
+router.get('/:id',
+  authenticate,
+  orderController.getOrder
 );
 
 // Bill routes
