@@ -1,3 +1,5 @@
+const { Sequelize } = require('sequelize');
+const { Op } = Sequelize;
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const CustomerUser = require('../models/customer_user.model');
@@ -61,6 +63,124 @@ const getAssignedOrders = async (req, res) => {
   } catch (error) {
     console.error('Get assigned orders error:', error);
     res.status(500).json({ message: 'Error fetching assigned orders' });
+  }
+};
+
+const getOrderHistory = async (req, res) => {
+  try {
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+
+    const orders = await Order.findAll({
+      where: { 
+        delivery_person_id: req.user.delivery_person_id,
+        current_status: ['DELIVERED', 'COMPLETED', 'CANCELLED', 'FAILED']
+      },
+      include: [
+        { model: Product, attributes: ['name', 'current_price'] },
+        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number', 'address'] }
+      ],
+      order: [['updated_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Get order history error:', error);
+    res.status(500).json({ message: 'Error fetching order history' });
+  }
+};
+
+const getEarnings = async (req, res) => {
+  try {
+    const { period = 'all' } = req.query;
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+
+    let whereClause = {
+      delivery_person_id: req.user.delivery_person_id,
+      current_status: ['DELIVERED', 'COMPLETED']
+    };
+
+    // Filter by period
+    const now = new Date();
+    if (period === 'today') {
+      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+      whereClause.updated_at = { [Op.gte]: startOfDay };
+    } else if (period === 'week') {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      whereClause.updated_at = { [Op.gte]: weekAgo };
+    } else if (period === 'month') {
+      const monthAgo = new Date(now);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      whereClause.updated_at = { [Op.gte]: monthAgo };
+    }
+
+    const orders = await Order.findAll({
+      where: whereClause,
+      include: [
+        { model: Product, attributes: ['name'] },
+        { model: CustomerUser, as: 'customer', attributes: ['name'] }
+      ],
+      order: [['updated_at', 'DESC']]
+    });
+
+    const deliveries = orders.map(order => ({
+      order_id: order.order_id,
+      delivery_charge: order.transport_charge || 0,
+      earnings: order.transport_charge || 0,
+      delivery_date: order.updated_at,
+      customer_name: order.customer?.name || 'Customer',
+      product_name: order.Product?.name || 'Product'
+    }));
+
+    res.json({
+      success: true,
+      period,
+      count: deliveries.length,
+      data: deliveries
+    });
+  } catch (error) {
+    console.error('Get earnings error:', error);
+    res.status(500).json({ message: 'Error fetching earnings' });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
+    if (!deliveryPerson) {
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+
+    const { name, mobile_number, vehicle_number, vehicle_type, current_location, image_url } = req.body;
+    
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (mobile_number) updateData.mobile_number = mobile_number;
+    if (vehicle_number) updateData.vehicle_number = vehicle_number;
+    if (vehicle_type) updateData.vehicle_type = vehicle_type;
+    if (current_location) updateData.current_location = current_location;
+    if (image_url) updateData.image_url = image_url;
+
+    await deliveryPerson.update(updateData);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: deliveryPerson
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Error updating profile' });
   }
 };
 
@@ -305,7 +425,10 @@ const updateAvailability = async (req, res) => {
 
 module.exports = {
   getAssignedOrders,
+  getOrderHistory,
+  getEarnings,
   getProfile,
+  updateProfile,
   updateOrderStatus,
   updateLocation,
   trackOrder,

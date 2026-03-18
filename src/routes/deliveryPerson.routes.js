@@ -24,10 +24,28 @@ router.get('/orders',
   deliveryPersonController.getAssignedOrders
 );
 
+router.get('/orders/history', 
+  authenticate, 
+  authorize('delivery'), 
+  deliveryPersonController.getOrderHistory
+);
+
+router.get('/earnings', 
+  authenticate, 
+  authorize('delivery'), 
+  deliveryPersonController.getEarnings
+);
+
 router.get('/profile', 
   authenticate, 
   authorize('delivery'), 
   deliveryPersonController.getProfile
+);
+
+router.put('/profile', 
+  authenticate, 
+  authorize('delivery'), 
+  deliveryPersonController.updateProfile
 );
 
 router.put('/update-status',
