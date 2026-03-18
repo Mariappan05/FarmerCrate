@@ -12,11 +12,6 @@ const GoogleMapsService = require('../services/googleMaps.service');
 
 const getAssignedOrders = async (req, res) => {
   try {
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
-    if (!deliveryPerson) {
-      return res.status(404).json({ message: 'Delivery person not found' });
-    }
-
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
@@ -30,8 +25,8 @@ const getAssignedOrders = async (req, res) => {
     });
 
     const ordersWithDetails = await Promise.all(orders.map(async (order) => {
-      const isSourceTransporter = order.source_transporter_id === deliveryPerson.transporter_id;
-      const isDestinationTransporter = order.destination_transporter_id === deliveryPerson.transporter_id;
+      const isSourceTransporter = order.source_transporter_id === req.user.transporter_id;
+      const isDestinationTransporter = order.destination_transporter_id === req.user.transporter_id;
       
       let vehicleInfo = null;
       if (order.permanent_vehicle_id) {
@@ -72,16 +67,15 @@ const getAssignedOrders = async (req, res) => {
 const getPickupOrders = async (req, res) => {
   try {
     console.log('[getPickupOrders] Starting...');
-    console.log('[getPickupOrders] User:', req.user);
+    console.log('[getPickupOrders] User:', req.user.toJSON());
     console.log('[getPickupOrders] Delivery person ID:', req.user.delivery_person_id);
     
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
-    if (!deliveryPerson) {
-      console.log('[getPickupOrders] Delivery person not found');
-      return res.status(404).json({ message: 'Delivery person not found' });
+    if (!req.user.delivery_person_id) {
+      console.log('[getPickupOrders] No delivery_person_id found');
+      return res.status(400).json({ message: 'Delivery person ID not found in token' });
     }
 
-    console.log('[getPickupOrders] Delivery person found:', deliveryPerson.name);
+    console.log('[getPickupOrders] Delivery person found:', req.user.name);
 
     // First try without includes to avoid association issues
     const orders = await Order.findAll({
@@ -109,16 +103,15 @@ const getPickupOrders = async (req, res) => {
 const getDeliveryOrders = async (req, res) => {
   try {
     console.log('[getDeliveryOrders] Starting...');
-    console.log('[getDeliveryOrders] User:', req.user);
+    console.log('[getDeliveryOrders] User:', req.user.toJSON());
     console.log('[getDeliveryOrders] Delivery person ID:', req.user.delivery_person_id);
     
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
-    if (!deliveryPerson) {
-      console.log('[getDeliveryOrders] Delivery person not found');
-      return res.status(404).json({ message: 'Delivery person not found' });
+    if (!req.user.delivery_person_id) {
+      console.log('[getDeliveryOrders] No delivery_person_id found');
+      return res.status(400).json({ message: 'Delivery person ID not found in token' });
     }
 
-    console.log('[getDeliveryOrders] Delivery person found:', deliveryPerson.name);
+    console.log('[getDeliveryOrders] Delivery person found:', req.user.name);
 
     // First try without includes to avoid association issues
     const orders = await Order.findAll({
@@ -145,11 +138,6 @@ const getDeliveryOrders = async (req, res) => {
 
 const getOrderHistory = async (req, res) => {
   try {
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
-    if (!deliveryPerson) {
-      return res.status(404).json({ message: 'Delivery person not found' });
-    }
-
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
@@ -176,10 +164,6 @@ const getOrderHistory = async (req, res) => {
 const getEarnings = async (req, res) => {
   try {
     const { period = 'all' } = req.query;
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
-    if (!deliveryPerson) {
-      return res.status(404).json({ message: 'Delivery person not found' });
-    }
 
     let whereClause = {
       delivery_person_id: req.user.delivery_person_id,
@@ -263,11 +247,6 @@ const updateProfile = async (req, res) => {
 
 const getProfile = async (req, res) => {
   try {
-    const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);
-    if (!deliveryPerson) {
-      return res.status(404).json({ message: 'Delivery person not found' });
-    }
-    
     // Calculate statistics from orders
     const completedOrders = await Order.findAll({
       where: {
@@ -282,7 +261,7 @@ const getProfile = async (req, res) => {
     const ordersWithRating = completedOrders.filter(o => o.rating && o.rating > 0);
     const averageRating = ordersWithRating.length > 0
       ? ordersWithRating.reduce((sum, o) => sum + parseFloat(o.rating || 0), 0) / ordersWithRating.length
-      : parseFloat(deliveryPerson.rating || 0);
+      : parseFloat(req.user.rating || 0);
     
     // Calculate on-time percentage (orders delivered on or before expected date)
     const onTimeOrders = completedOrders.filter(o => {
@@ -296,7 +275,7 @@ const getProfile = async (req, res) => {
     res.json({
       success: true,
       data: {
-        ...deliveryPerson.toJSON(),
+        ...req.user.toJSON(),
         total_deliveries: totalDeliveries,
         rating: averageRating,
         average_rating: averageRating,
