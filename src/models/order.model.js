@@ -45,12 +45,6 @@ const Order = sequelize.define('orders', {
     references: { model: 'temporary_vehicles', key: 'vehicle_id' },
     onDelete: 'SET NULL'
   },
-  farmer_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: { model: 'farmers', key: 'farmer_id' },
-    onDelete: 'SET NULL'
-  },
   quantity: { type: DataTypes.INTEGER, allowNull: false },
   total_price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   farmer_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
