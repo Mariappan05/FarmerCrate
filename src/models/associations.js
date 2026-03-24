@@ -4,6 +4,7 @@ const FarmerUser = require('./farmer_user.model');
 const CustomerUser = require('./customer_user.model');
 const TransporterUser = require('./transporter_user.model');
 const Order = require('./order.model');
+const OrderItem = require('./orderItem.model');
 const Cart = require('./cart.model');
 const Transaction = require('./transaction.model');
 const DeliveryPerson = require('./deliveryPerson.model');
@@ -39,6 +40,12 @@ CustomerUser.hasMany(Order, { as: 'orders', foreignKey: 'customer_id', sourceKey
 // Product - Order relationship
 Order.belongsTo(Product, { foreignKey: 'product_id', targetKey: 'product_id', onDelete: 'CASCADE' });
 Product.hasMany(Order, { foreignKey: 'product_id', sourceKey: 'product_id', onDelete: 'CASCADE' });
+
+// Order - OrderItem relationship (normalized line items)
+Order.hasMany(OrderItem, { as: 'items', foreignKey: 'order_id', sourceKey: 'order_id', onDelete: 'CASCADE' });
+OrderItem.belongsTo(Order, { as: 'order', foreignKey: 'order_id', targetKey: 'order_id', onDelete: 'CASCADE' });
+OrderItem.belongsTo(Product, { as: 'item_product', foreignKey: 'product_id', targetKey: 'product_id', onDelete: 'CASCADE' });
+Product.hasMany(OrderItem, { as: 'order_items', foreignKey: 'product_id', sourceKey: 'product_id', onDelete: 'CASCADE' });
 
 // Transporter - Order relationships
 Order.belongsTo(TransporterUser, { as: 'source_transporter', foreignKey: 'source_transporter_id', targetKey: 'transporter_id', onDelete: 'SET NULL' });

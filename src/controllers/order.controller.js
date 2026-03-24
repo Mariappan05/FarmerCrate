@@ -6,6 +6,8 @@ const TransporterUser = require('../models/transporter_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
 const Product = require('../models/product.model');
 const ProductImage = require('../models/productImage.model');
+const OrderItem = require('../models/orderItem.model');
+const Cart = require('../models/cart.model');
 const Transaction = require('../models/transaction.model');
 const DeliveryTracking = require('../models/deliveryTracking.model');
 const OrderTrackingService = require('../services/orderTracking.service');
@@ -133,53 +135,64 @@ exports.createOrder = async (req, res) => {
     const perItemDelivery = (parseFloat(delivery_charges || transport_charge || 0)) / ordersToCreate.length;
     const perItemCommission = parseFloat(admin_commission || 0) / ordersToCreate.length;
 
-    for (const item of ordersToCreate) {
-      const product = await Product.findByPk(item.product_id, {
-        include: [{ model: FarmerUser, as: 'farmer' }]
-      });
-      if (!product) { console.warn(`Product ${item.product_id} not found, skipping`); continue; }
+    await sequelize.transaction(async (t) => {
+      for (const item of ordersToCreate) {
+        const qty = Number(item.quantity || 0);
+        if (!item.product_id || !Number.isFinite(qty) || qty <= 0) {
+          throw new Error(`Invalid item payload for product ${item.product_id || 'unknown'}`);
+        }
 
-      const itemPrice = parseFloat(item.price || product.current_price || 0);
-      const itemTotal = itemPrice * item.quantity;
-      const itemCommission = perItemCommission || itemTotal * 0.03;
-      const itemTransport = perItemDelivery || 0;
-      const farmerAmt = itemTotal - itemCommission;
+        const product = await Product.findByPk(item.product_id, {
+          include: [{ model: FarmerUser, as: 'farmer' }],
+          transaction: t,
+          lock: t.LOCK.UPDATE
+        });
 
-      const pickupAddress = product.farmer
-        ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
-        : '';
+        if (!product || product.quantity < qty) {
+          throw new Error(`Product ${item.product_id} not available or insufficient quantity`);
+        }
 
-      const order = await Order.create({
-        customer_id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        delivery_address: typeof delivery_address === 'object' ? JSON.stringify(delivery_address) : (delivery_address || ''),
-        total_price: itemTotal,
-        farmer_amount: farmerAmt,
-        admin_commission: itemCommission,
-        transport_charge: itemTransport,
-        payment_method: 'COD',
-        payment_status: 'pending',
-        current_status: 'PLACED',
-        pickup_address: pickupAddress,
-        qr_code: qr_code || null,
-        qr_image_url: qr_image_url || null,
-        items_json: JSON.stringify(ordersToCreate)
-      });
+        const itemPrice = parseFloat(item.price || product.current_price || 0);
+        const itemTotal = itemPrice * qty;
+        const itemCommission = perItemCommission || itemTotal * 0.03;
+        const itemTransport = perItemDelivery || 0;
+        const farmerAmt = itemTotal - itemCommission;
 
-      // Reduce stock
-      const newQty = Math.max(0, product.quantity - item.quantity);
-      await product.update({ quantity: newQty });
-      createdOrders.push(order);
-    }
+        const pickupAddress = product.farmer
+          ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
+          : '';
 
-    // Clear cart
-    try {
-      const Cart = require('../models/cart.model');
-      await Cart.destroy({ where: { customer_id } });
-    } catch (cartErr) {
-      console.warn('Could not clear cart:', cartErr.message);
-    }
+        const order = await Order.create({
+          customer_id,
+          product_id: item.product_id,
+          quantity: qty,
+          delivery_address: typeof delivery_address === 'object' ? JSON.stringify(delivery_address) : (delivery_address || ''),
+          total_price: itemTotal,
+          farmer_amount: farmerAmt,
+          admin_commission: itemCommission,
+          transport_charge: itemTransport,
+          payment_method: 'COD',
+          payment_status: 'pending',
+          current_status: 'PLACED',
+          pickup_address: pickupAddress,
+          qr_code: qr_code || null,
+          qr_image_url: qr_image_url || null
+        }, { transaction: t });
+
+        await OrderItem.create({
+          order_id: order.order_id,
+          product_id: item.product_id,
+          quantity: qty,
+          unit_price: itemPrice,
+          line_total: itemTotal
+        }, { transaction: t });
+
+        await product.update({ quantity: Math.max(0, product.quantity - qty) }, { transaction: t });
+        createdOrders.push(order);
+      }
+
+      await Cart.destroy({ where: { customer_id }, transaction: t });
+    });
 
     return res.status(201).json({
       success: true,
@@ -274,60 +287,66 @@ exports.completeOrder = async (req, res) => {
     const customer_id = req.user.customer_id;
     const createdOrders = [];
 
-    for (const item of ordersToCreate) {
-      const product = await Product.findByPk(item.product_id, {
-        include: [{ model: FarmerUser, as: 'farmer' }]
-      });
+    await sequelize.transaction(async (t) => {
+      for (const item of ordersToCreate) {
+        const qty = Number(item.quantity || 0);
+        if (!item.product_id || !Number.isFinite(qty) || qty <= 0) {
+          throw new Error(`Invalid item payload for product ${item.product_id || 'unknown'}`);
+        }
 
-      if (!product || product.quantity < item.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Product ${item.product_id} not available or insufficient quantity`
+        const product = await Product.findByPk(item.product_id, {
+          include: [{ model: FarmerUser, as: 'farmer' }],
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
+
+        if (!product || product.quantity < qty) {
+          throw new Error(`Product ${item.product_id} not available or insufficient quantity`);
+        }
+
+        const itemPrice = parseFloat(item.price || product.current_price || 0);
+        const itemTotal = itemPrice * qty;
+        const itemCommission = perItemCommission || itemTotal * 0.03;
+        const itemTransport = perItemDelivery || 0;
+        const farmerAmt = itemTotal - itemCommission;
+
+        const pickupAddress = product.farmer
+          ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
+          : '';
+
+        const order = await Order.create({
+          customer_id,
+          product_id: item.product_id,
+          quantity: qty,
+          delivery_address: typeof delivery_address === 'object' ? JSON.stringify(delivery_address) : (delivery_address || ''),
+          total_price: itemTotal,
+          farmer_amount: farmerAmt,
+          admin_commission: itemCommission,
+          transport_charge: itemTransport,
+          payment_method: 'ONLINE',
+          payment_status: 'completed',
+          current_status: 'PLACED',
+          pickup_address: pickupAddress,
+          qr_code: qr_code || null,
+          qr_image_url: qr_image_url || null,
+          razorpay_order_id: razorpay_order_id || null,
+          razorpay_payment_id: razorpay_payment_id || null
+        }, { transaction: t });
+
+        await OrderItem.create({
+          order_id: order.order_id,
+          product_id: item.product_id,
+          quantity: qty,
+          unit_price: itemPrice,
+          line_total: itemTotal
+        }, { transaction: t });
+
+        await product.update({ quantity: Math.max(0, product.quantity - qty) }, { transaction: t });
+        createdOrders.push(order);
       }
 
-      const itemPrice = parseFloat(item.price || product.current_price || 0);
-      const itemTotal = itemPrice * item.quantity;
-      const itemCommission = perItemCommission || itemTotal * 0.03;
-      const itemTransport = perItemDelivery || 0;
-      const farmerAmt = itemTotal - itemCommission;
-
-      const pickupAddress = product.farmer
-        ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
-        : '';
-
-      const order = await Order.create({
-        customer_id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        delivery_address: typeof delivery_address === 'object' ? JSON.stringify(delivery_address) : (delivery_address || ''),
-        total_price: itemTotal,
-        farmer_amount: farmerAmt,
-        admin_commission: itemCommission,
-        transport_charge: itemTransport,
-        payment_method: 'ONLINE',
-        payment_status: 'completed',
-        current_status: 'PLACED',
-        pickup_address: pickupAddress,
-        qr_code: qr_code || null,
-        qr_image_url: qr_image_url || null,
-        razorpay_order_id: razorpay_order_id || null,
-        razorpay_payment_id: razorpay_payment_id || null,
-        items_json: JSON.stringify(ordersToCreate)
-      });
-
-      // Reduce stock
-      await product.update({ quantity: Math.max(0, product.quantity - item.quantity) });
-      createdOrders.push(order);
-    }
-
-    // Clear cart
-    try {
-      const Cart = require('../models/cart.model');
-      await Cart.destroy({ where: { customer_id } });
-    } catch (cartErr) {
-      console.warn('Could not clear cart:', cartErr.message);
-    }
+      await Cart.destroy({ where: { customer_id }, transaction: t });
+    });
 
     res.status(201).json({
       success: true,

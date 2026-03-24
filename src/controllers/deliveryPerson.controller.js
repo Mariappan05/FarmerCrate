@@ -36,7 +36,21 @@ const fetchOrdersRaw = async (deliveryPersonId, statuses) => {
       payment_status,
       current_status,
       payment_method,
-      items_json,
+      COALESCE(
+        o.items_json,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'product_id', oi.product_id,
+              'quantity', oi.quantity,
+              'price', oi.unit_price
+            )
+          )::text
+          FROM order_items oi
+          WHERE oi.order_id = o.order_id
+        ),
+        '[]'
+      ) AS items_json,
       razorpay_order_id,
       razorpay_payment_id,
       qr_code,
@@ -48,10 +62,10 @@ const fetchOrdersRaw = async (deliveryPersonId, statuses) => {
       estimated_delivery_time,
       created_at,
       updated_at
-    FROM orders
-    WHERE delivery_person_id = :deliveryPersonId
-      AND current_status IN (${placeholders})
-    ORDER BY created_at DESC
+    FROM orders o
+    WHERE o.delivery_person_id = :deliveryPersonId
+      AND o.current_status IN (${placeholders})
+    ORDER BY o.created_at DESC
   `;
 
   const rows = await sequelize.query(sql, {

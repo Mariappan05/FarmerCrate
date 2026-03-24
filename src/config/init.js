@@ -41,6 +41,20 @@ const initDatabase = async () => {
     await safeAddCol(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS destination_transporter_id INTEGER`);
     await safeAddCol(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_person_id INTEGER`);
 
+    // Normalize order line items
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        order_item_id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL,
+        unit_price DECIMAL(10,2) NOT NULL,
+        line_total DECIMAL(10,2) NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     // products table
     await safeAddCol(`ALTER TABLE products ADD COLUMN IF NOT EXISTS unit VARCHAR(20) DEFAULT 'kg'`);
     await safeAddCol(`ALTER TABLE products ADD COLUMN IF NOT EXISTS harvest_date DATE`);

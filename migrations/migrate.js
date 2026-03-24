@@ -12,6 +12,7 @@ async function migrate() {
     require('../src/models/deliveryPerson.model');
     require('../src/models/product.model');
     require('../src/models/order.model');
+    require('../src/models/orderItem.model');
     require('../src/models/cart.model');
     require('../src/models/wishlist.model');
     require('../src/models/transaction.model');

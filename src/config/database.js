@@ -25,6 +25,7 @@ const initializeDatabase = async () => {
     require('../models/customer_user.model');
     require('../models/product.model');
     require('../models/order.model');
+    require('../models/orderItem.model');
     require('../models/transaction.model');
     require('../models/cart.model');
     require('../models/transporter_user.model');
