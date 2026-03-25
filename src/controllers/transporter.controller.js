@@ -178,9 +178,16 @@ const assignOrderToDeliveryPerson = async (req, res) => {
       });
     }
     
+    let newStatus = order.current_status;
+    if (order.current_status === 'ASSIGNED' && order.source_transporter_id === req.user.transporter_id) {
+      newStatus = 'PICKUP_ASSIGNED';
+    } else if (order.current_status === 'REACHED_DESTINATION') { // destination transporter
+      newStatus = 'OUT_FOR_DELIVERY';
+    }
+
     const updateData = { 
       delivery_person_id,
-      current_status: 'ASSIGNED'
+      current_status: newStatus
     };
     
     if (permanent_vehicle_id) updateData.permanent_vehicle_id = permanent_vehicle_id;
