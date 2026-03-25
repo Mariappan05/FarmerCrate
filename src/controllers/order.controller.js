@@ -598,35 +598,53 @@ exports.getTransporterOrders = async (req, res) => {
         { 
           model: Product, 
           attributes: ['product_id', 'name', 'current_price'],
-          include: [{
-            model: ProductImage,
-            as: 'images',
-            attributes: ['image_url', 'is_primary']
-          }]
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
+              required: false
+            }
+          ]
         },
-        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
+        { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'], required: false },
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'], required: false }
       ]
     });
 
-    // Get destination transporter orders (only if shipped)
+    // Get destination transporter orders
     const destinationOrders = await Order.findAll({
       where: { 
         destination_transporter_id: transporterId,
         current_status: {
-          [Op.in]: [ 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']
+          [Op.in]: ['ASSIGNED', 'PICKUP_ASSIGNED', 'PICKED_UP', 'RECEIVED', 'SHIPPED', 'IN_TRANSIT', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 'COMPLETED']
         }
       },
       include: [
         { 
           model: Product, 
           attributes: ['product_id', 'name', 'current_price'],
-          include: [{
-            model: ProductImage,
-            as: 'images',
-            attributes: ['image_url', 'is_primary']
-          }]
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary']
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
+              required: false
+            }
+          ]
         },
-        { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
+        { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'], required: false },
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'], required: false }
       ]
     });
 
@@ -704,7 +722,13 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     const { order_id, status } = req.body;
 
-    const validStatuses = ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'];
+    const validStatuses = [
+      'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED',
+      'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
+      'RECEIVED', 'SHIPPED', 'IN_TRANSIT',
+      'REACHED_DESTINATION', 'OUT_FOR_DELIVERY',
+      'COMPLETED', 'CANCELLED'
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
@@ -714,7 +738,11 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    if (order.source_transporter_id && order.destination_transporter_id) {
+    // Allow manual updates for pickup statuses, block others when both transporters assigned
+    const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
+    const isPickupUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status);
+
+    if (order.source_transporter_id && order.destination_transporter_id && !isPickupUpdate) {
       return res.status(403).json({
         message: 'After transporter assignment, status changes are allowed only via QR scanner'
       });

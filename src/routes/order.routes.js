@@ -111,7 +111,13 @@ router.put('/status',
   authenticate,
   authorize(['admin', 'transporter', 'delivery']),
   body('order_id').isInt().withMessage('Valid order ID required'),
-  body('status').isIn(['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED']).withMessage('Invalid status'),
+  body('status').isIn([
+    'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED',
+    'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
+    'RECEIVED', 'SHIPPED', 'IN_TRANSIT',
+    'REACHED_DESTINATION', 'OUT_FOR_DELIVERY',
+    'COMPLETED', 'CANCELLED'
+  ]).withMessage('Invalid status'),
   orderController.updateOrderStatus
 );
 
