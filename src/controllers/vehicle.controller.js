@@ -11,15 +11,53 @@ class VehicleController {
     try {
       const { transporter_id } = req.user;
       
-      const permanentVehicles = await PermanentVehicle.findAll({
-        where: { transporter_id },
-        order: [['created_at', 'DESC']]
-      });
+      if (!transporter_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Transporter ID not found in authentication token'
+        });
+      }
+
+      let permanentVehicles = [];
+      let temporaryVehicles = [];
+
+      // Fetch permanent vehicles — fallback to raw query if model fails
+      try {
+        permanentVehicles = await PermanentVehicle.findAll({
+          where: { transporter_id },
+          order: [['created_at', 'DESC']]
+        });
+      } catch (pvErr) {
+        console.error('PermanentVehicle query failed, trying raw SQL:', pvErr.message);
+        try {
+          const [rows] = await sequelize.query(
+            'SELECT * FROM permanent_vehicles WHERE transporter_id = :tid ORDER BY created_at DESC',
+            { replacements: { tid: transporter_id } }
+          );
+          permanentVehicles = rows || [];
+        } catch (rawErr) {
+          console.error('Raw permanent_vehicles query also failed:', rawErr.message);
+        }
+      }
       
-      const temporaryVehicles = await TemporaryVehicle.findAll({
-        where: { transporter_id },
-        order: [['created_at', 'DESC']]
-      });
+      // Fetch temporary vehicles — fallback to raw query if model fails
+      try {
+        temporaryVehicles = await TemporaryVehicle.findAll({
+          where: { transporter_id },
+          order: [['created_at', 'DESC']]
+        });
+      } catch (tvErr) {
+        console.error('TemporaryVehicle query failed, trying raw SQL:', tvErr.message);
+        try {
+          const [rows] = await sequelize.query(
+            'SELECT * FROM temporary_vehicles WHERE transporter_id = :tid ORDER BY created_at DESC',
+            { replacements: { tid: transporter_id } }
+          );
+          temporaryVehicles = rows || [];
+        } catch (rawErr) {
+          console.error('Raw temporary_vehicles query also failed:', rawErr.message);
+        }
+      }
       
       const fleetStats = {
         total_vehicles: permanentVehicles.length + temporaryVehicles.length,
