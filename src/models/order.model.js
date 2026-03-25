@@ -61,7 +61,7 @@ const Order = sequelize.define('orders', {
       'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
       'RECEIVED', 'SHIPPED', 'IN_TRANSIT', 
       'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 
-      'COMPLETED', 'CANCELLED'
+      'DELIVERED', 'COMPLETED', 'CANCELLED'
     ), 
     defaultValue: 'PENDING' 
   },
