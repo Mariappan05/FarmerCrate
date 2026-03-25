@@ -719,6 +719,8 @@ exports.trackOrder = async (req, res) => {
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
     const CustomerUser = require('../models/customer_user.model');
+    const TransporterUser = require('../models/transporter_user.model');
+    const DeliveryPerson = require('../models/deliveryPerson.model');
     const DeliveryTracking = require('../models/deliveryTracking.model');
     
     const order = await Order.findOne({
@@ -735,7 +737,23 @@ exports.trackOrder = async (req, res) => {
       }, {
         model: CustomerUser,
         as: 'customer',
-        attributes: ['name', 'mobile_number', 'address', 'zone']
+        attributes: ['customer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state', 'image_url'],
+        required: false
+      }, {
+        model: TransporterUser,
+        as: 'source_transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
+        required: false
+      }, {
+        model: TransporterUser,
+        as: 'destination_transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
+        required: false
+      }, {
+        model: DeliveryPerson,
+        as: 'delivery_person',
+        attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'],
+        required: false
       }]
     });
 
@@ -749,16 +767,34 @@ exports.trackOrder = async (req, res) => {
     });
 
     const trackingSteps = [
-      { status: 'PLACED', label: 'Order Accepted', icon: '✅' },
-      { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
-      { status: 'SHIPPED', label: 'Picked Up from Farm', icon: '📤' },
-      { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
-      { status: 'RECEIVED', label: 'Reached Destination Hub', icon: '🏢' },
+      { status: 'PENDING', label: 'Order Placed', icon: '🛒' },
+      { status: 'ASSIGNED', label: 'Farmer Accepted + Transporters Assigned', icon: '🚛' },
+      { status: 'PICKUP_ASSIGNED', label: 'Pickup Person Assigned', icon: '👤' },
+      { status: 'PICKED_UP', label: 'Picked Up from Farmer', icon: '📦' },
+      { status: 'RECEIVED', label: 'Received at Source Office', icon: '🏢' },
+      { status: 'SHIPPED', label: 'Shipped from Source', icon: '📤' },
+      { status: 'IN_TRANSIT', label: 'In Transit to Destination', icon: '🚚' },
+      { status: 'REACHED_DESTINATION', label: 'Reached Destination', icon: '🏭' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
-      { status: 'COMPLETED', label: 'Delivered to Customer', icon: '✅' }
+      { status: 'DELIVERED', label: 'Delivered to Customer', icon: '✅' }
     ];
 
-    const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
+    // Map status to step index — support alternate status names
+    const STATUS_TO_INDEX = {
+      PENDING: 0, PLACED: 0,
+      CONFIRMED: 1, ACCEPTED: 1, ASSIGNED: 1,
+      PICKUP_ASSIGNED: 2, PICKUP_IN_PROGRESS: 2,
+      PICKED_UP: 3,
+      RECEIVED: 4,
+      SHIPPED: 5,
+      IN_TRANSIT: 6,
+      REACHED_DESTINATION: 7,
+      OUT_FOR_DELIVERY: 8,
+      DELIVERED: 9, COMPLETED: 9
+    };
+
+    const currentStatus = (order.current_status || '').toUpperCase();
+    const currentStepIndex = STATUS_TO_INDEX[currentStatus] ?? 0;
     
     const enrichedSteps = trackingSteps.map((step, index) => {
       const trackingEvent = trackingHistory.find(t => t.status === step.status);
