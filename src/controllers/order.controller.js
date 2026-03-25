@@ -143,7 +143,6 @@ exports.createOrder = async (req, res) => {
         }
 
         const product = await Product.findByPk(item.product_id, {
-          include: [{ model: FarmerUser, as: 'farmer' }],
           transaction: t,
           lock: t.LOCK.UPDATE
         });
@@ -158,8 +157,13 @@ exports.createOrder = async (req, res) => {
         const itemTransport = perItemDelivery || 0;
         const farmerAmt = itemTotal - itemCommission;
 
-        const pickupAddress = product.farmer
-          ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
+        let farmer = null;
+        if (product?.farmer_id) {
+          farmer = await FarmerUser.findByPk(product.farmer_id, { transaction: t });
+        }
+
+        const pickupAddress = farmer
+          ? `${farmer.address || ''}, ${farmer.zone || ''}, ${farmer.district || ''}, ${farmer.state || ''}`
           : '';
 
         const order = await Order.create({
@@ -295,7 +299,6 @@ exports.completeOrder = async (req, res) => {
         }
 
         const product = await Product.findByPk(item.product_id, {
-          include: [{ model: FarmerUser, as: 'farmer' }],
           transaction: t,
           lock: t.LOCK.UPDATE
         });
@@ -310,8 +313,13 @@ exports.completeOrder = async (req, res) => {
         const itemTransport = perItemDelivery || 0;
         const farmerAmt = itemTotal - itemCommission;
 
-        const pickupAddress = product.farmer
-          ? `${product.farmer.address || ''}, ${product.farmer.zone || ''}, ${product.farmer.district || ''}, ${product.farmer.state || ''}`
+        let farmer = null;
+        if (product?.farmer_id) {
+          farmer = await FarmerUser.findByPk(product.farmer_id, { transaction: t });
+        }
+
+        const pickupAddress = farmer
+          ? `${farmer.address || ''}, ${farmer.zone || ''}, ${farmer.district || ''}, ${farmer.state || ''}`
           : '';
 
         const order = await Order.create({
