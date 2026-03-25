@@ -737,17 +737,17 @@ exports.trackOrder = async (req, res) => {
       }, {
         model: CustomerUser,
         as: 'customer',
-        attributes: ['customer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state', 'image_url'],
+        attributes: ['customer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
         required: false
       }, {
         model: TransporterUser,
         as: 'source_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
         required: false
       }, {
         model: TransporterUser,
         as: 'destination_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
         required: false
       }, {
         model: DeliveryPerson,
