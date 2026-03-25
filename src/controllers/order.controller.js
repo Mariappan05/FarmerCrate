@@ -661,10 +661,27 @@ exports.getTransporterOrders = async (req, res) => {
       const otherTransporter = transporterMap[otherTransporterId];
       const otherAddress = otherTransporter ? `${otherTransporter.address}, ${otherTransporter.zone}, ${otherTransporter.district}, ${otherTransporter.state}` : 'Address not available';
       
+      // When source and destination transporter are the same, determine role by current status
+      const sameTransporter = order.source_transporter_id && 
+        order.source_transporter_id === order.destination_transporter_id;
+      
+      let role;
+      if (sameTransporter) {
+        // Before SHIPPED → source role; SHIPPED and after → destination role
+        const postShipStatuses = ['SHIPPED', 'IN_TRANSIT', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
+        const currentStatus = (order.current_status || '').toUpperCase();
+        role = postShipStatuses.includes(currentStatus) ? 'DELIVERY' : 'PICKUP_SHIPPING';
+      } else {
+        role = isSource ? 'PICKUP_SHIPPING' : 'DELIVERY';
+      }
+
       return {
         ...order.toJSON(),
-        transporter_role: isSource ? 'PICKUP_SHIPPING' : 'DELIVERY',
-        responsibility: isSource ? 'Pickup from farmer and ship to destination transporter' : 'Receive from source transporter and deliver to customer',
+        transporter_role: role,
+        same_transporter: sameTransporter || false,
+        responsibility: role === 'PICKUP_SHIPPING'
+          ? 'Pickup from farmer and ship to destination'
+          : 'Receive shipment and deliver to customer',
         pickup_location: isSource ? order.pickup_address : otherAddress,
         delivery_location: isSource ? otherAddress : order.delivery_address,
         other_transporter: otherTransporter ? {
@@ -674,10 +691,33 @@ exports.getTransporterOrders = async (req, res) => {
       };
     });
 
-    const allOrders = [
-      ...processOrders(sourceOrders, true),
-      ...processOrders(destinationOrders, false)
-    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Merge and deduplicate — when same transporter, order appears in both lists
+    const sourceProcessed = processOrders(sourceOrders, true);
+    const destProcessed = processOrders(destinationOrders, false);
+    
+    const orderMap = new Map();
+    // Add source orders first
+    for (const o of sourceProcessed) {
+      const oid = o.order_id || o.id;
+      orderMap.set(oid, o);
+    }
+    // Add destination orders — if same transporter and order already exists,
+    // keep the one with the correct role for current status
+    for (const o of destProcessed) {
+      const oid = o.order_id || o.id;
+      if (orderMap.has(oid)) {
+        // Same order from same transporter — keep the one with the dynamic role
+        const existing = orderMap.get(oid);
+        if (existing.same_transporter) {
+          // Already processed with correct role based on status, skip duplicate
+          continue;
+        }
+      }
+      orderMap.set(oid, o);
+    }
+
+    const allOrders = Array.from(orderMap.values())
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     res.json({
       success: true,
