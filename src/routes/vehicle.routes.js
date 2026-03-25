@@ -13,8 +13,7 @@ router.post('/permanent',
   authorize('transporter'),
   [
     body('vehicle_number').notEmpty().withMessage('Vehicle number is required'),
-    body('vehicle_type').notEmpty().withMessage('Vehicle type is required'),
-    body('capacity').optional().isInt({ min: 0 }).withMessage('Capacity must be a positive number')
+    body('vehicle_type').notEmpty().withMessage('Vehicle type is required')
   ],
   VehicleController.addPermanentVehicle
 );
@@ -25,10 +24,7 @@ router.post('/temporary',
   authorize('transporter'),
   [
     body('vehicle_number').notEmpty().withMessage('Vehicle number is required'),
-    body('vehicle_type').notEmpty().withMessage('Vehicle type is required'),
-    body('rental_start_date').isISO8601().withMessage('Valid rental start date is required'),
-    body('rental_end_date').isISO8601().withMessage('Valid rental end date is required'),
-    body('capacity').optional().isInt({ min: 0 }).withMessage('Capacity must be a positive number')
+    body('vehicle_type').notEmpty().withMessage('Vehicle type is required')
   ],
   VehicleController.addTemporaryVehicle
 );

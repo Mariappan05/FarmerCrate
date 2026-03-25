@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const transporterController = require('../controllers/transporter.controller');
 const authenticate = require('../middleware/auth');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 
 // Simple authorize middleware
 const authorize = (roles) => {
@@ -38,13 +38,37 @@ router.post('/assign-vehicle',
 router.get('/orders/active', authenticate, authorize('transporter'), transporterController.getActiveOrders);
 router.get('/orders/:order_id/track', authenticate, authorize('transporter'), transporterController.trackOrder);
 router.get('/orders/:order_id/updates', authenticate, authorize('transporter'), transporterController.getTrackingUpdates);
+
+// Single order detail with full includes (farmer, customer, delivery person)
+router.get('/orders/:order_id', authenticate, authorize('transporter'), transporterController.getOrderDetail);
+
 router.get('/orders', authenticate, authorize('transporter'), transporterController.getAssignedOrders);
+
+// Packing proof upload
+router.put('/orders/:order_id/packing', 
+  authenticate, 
+  authorize('transporter'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  transporterController.updatePackingProof
+);
+router.post('/orders/:order_id/packing', 
+  authenticate, 
+  authorize('transporter'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  transporterController.updatePackingProof
+);
 
 router.put('/order-status', 
   authenticate, 
   authorize('transporter'),
   body('order_id').isInt().withMessage('Valid order ID required'),
-  body('status').isIn(['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED']).withMessage('Invalid status'),
+  body('status').isIn([
+    'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED', 
+    'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
+    'RECEIVED', 'SHIPPED', 'IN_TRANSIT', 
+    'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 
+    'COMPLETED', 'CANCELLED'
+  ]).withMessage('Invalid status'),
   transporterController.updateOrderStatus
 );
 

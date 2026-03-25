@@ -27,6 +27,31 @@ const PermanentVehicle = sequelize.define('permanent_vehicles', {
   },
   capacity: {
     type: DataTypes.INTEGER
+  },
+  rc_book_number: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  ownership_type: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    defaultValue: 'Owned'
+  },
+  is_available: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  rc_copy_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  insurance_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  permit_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 }, {
   tableName: 'permanent_vehicles',

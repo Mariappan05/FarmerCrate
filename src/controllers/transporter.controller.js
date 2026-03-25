@@ -541,18 +541,32 @@ const getAssignedOrders = async (req, res) => {
         {
           model: Product,
           attributes: ['product_id', 'name', 'current_price'],
-          required: false
+          required: false,
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
+              required: false
+            }
+          ]
         },
         {
           model: CustomerUser,
           as: 'customer',
-          attributes: ['name', 'mobile_number', 'address'],
+          attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'],
           required: false
         },
         {
           model: DeliveryPerson,
           as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type'],
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
           required: false
         }
       ],
@@ -569,7 +583,13 @@ const updateOrderStatus = async (req, res) => {
   const { order_id, status } = req.body;
   
   try {
-    const validStatuses = ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'];
+    const validStatuses = [
+      'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED', 
+      'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
+      'RECEIVED', 'SHIPPED', 'IN_TRANSIT', 
+      'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 
+      'COMPLETED', 'CANCELLED'
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
@@ -589,7 +609,12 @@ const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found or not assigned to this transporter' });
     }
 
-    if (order.source_transporter_id && order.destination_transporter_id) {
+    // Pickup delivery person statuses can always be updated manually
+    const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
+    const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status);
+
+    // Only enforce QR-only rule for non-pickup statuses when both transporters assigned
+    if (order.source_transporter_id && order.destination_transporter_id && !isPickupStatusUpdate) {
       return res.status(403).json({
         message: 'After transporter assignment, status updates must be done via QR scan only'
       });
@@ -720,7 +745,42 @@ const trackOrder = async (req, res) => {
     const { order_id } = req.params;
     const { Op } = require('sequelize');
     
-    const order = await Order.findOne({
+    const orderIncludes = [
+      {
+        model: Product,
+        attributes: ['product_id', 'name', 'current_price'],
+        required: false,
+        include: [
+          {
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary'],
+            required: false
+          },
+          {
+            model: FarmerUser,
+            as: 'farmer',
+            attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
+            required: false
+          }
+        ]
+      },
+      {
+        model: CustomerUser,
+        as: 'customer',
+        attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'],
+        required: false
+      },
+      {
+        model: DeliveryPerson,
+        as: 'delivery_person',
+        attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
+        required: false
+      }
+    ];
+
+    // First try with transporter filter
+    let order = await Order.findOne({
       where: {
         order_id,
         [Op.or]: [
@@ -728,45 +788,21 @@ const trackOrder = async (req, res) => {
           { destination_transporter_id: req.user.transporter_id }
         ]
       },
-      include: [
-        {
-          model: Product,
-          attributes: ['product_id', 'name', 'current_price'],
-          required: false,
-          include: [
-            {
-              model: ProductImage,
-              as: 'images',
-              attributes: ['image_url', 'is_primary'],
-              required: false
-            },
-            {
-              model: FarmerUser,
-              as: 'farmer',
-              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
-              required: false
-            }
-          ]
-        },
-        {
-          model: CustomerUser,
-          as: 'customer',
-          attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'],
-          required: false
-        },
-        {
-          model: DeliveryPerson,
-          as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
-          required: false
-        }
-      ]
+      include: orderIncludes
     });
+
+    // Fallback: order may not have transporters assigned yet — find by ID only
+    if (!order) {
+      order = await Order.findOne({
+        where: { order_id },
+        include: orderIncludes
+      });
+    }
 
     if (!order) {
       return res.status(404).json({ 
         success: false,
-        message: 'Order not found or you do not have permission to view it' 
+        message: 'Order not found' 
       });
     }
 
@@ -907,6 +943,196 @@ const getTrackingUpdates = async (req, res) => {
   }
 };
 
+// Update packing proof images on an order
+const updatePackingProof = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { packing_image_url, bill_paste_image_url } = req.body;
+    const { Op } = require('sequelize');
+
+    const order = await Order.findOne({
+      where: {
+        order_id,
+        [Op.or]: [
+          { source_transporter_id: req.user.transporter_id },
+          { destination_transporter_id: req.user.transporter_id }
+        ]
+      }
+    });
+
+    if (!order) {
+      // Fallback: try finding by order_id only
+      const fallbackOrder = await Order.findByPk(order_id);
+      if (!fallbackOrder) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+      // Update fallback
+      const updateData = {};
+      if (packing_image_url) updateData.packing_image_url = packing_image_url;
+      if (bill_paste_image_url) updateData.bill_paste_image_url = bill_paste_image_url;
+      await fallbackOrder.update(updateData);
+      return res.json({ success: true, message: 'Packing proof updated', data: fallbackOrder });
+    }
+
+    const updateData = {};
+    if (packing_image_url) updateData.packing_image_url = packing_image_url;
+    if (bill_paste_image_url) updateData.bill_paste_image_url = bill_paste_image_url;
+    await order.update(updateData);
+
+    res.json({ 
+      success: true, 
+      message: 'Packing proof updated successfully',
+      data: order
+    });
+  } catch (error) {
+    console.error('Update packing proof error:', error);
+    res.status(500).json({ success: false, message: 'Error updating packing proof', error: error.message });
+  }
+};
+
+// Get single order detail with all includes
+const getOrderDetail = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { Op } = require('sequelize');
+
+    let order = await Order.findOne({
+      where: {
+        order_id,
+        [Op.or]: [
+          { source_transporter_id: req.user.transporter_id },
+          { destination_transporter_id: req.user.transporter_id }
+        ]
+      },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price'],
+          required: false,
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'],
+              required: false
+            }
+          ]
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'],
+          required: false
+        },
+        {
+          model: DeliveryPerson,
+          as: 'delivery_person',
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
+          required: false
+        }
+      ]
+    });
+
+    // Fallback: try finding by order_id only
+    if (!order) {
+      order = await Order.findOne({
+        where: { order_id },
+        include: [
+          {
+            model: Product,
+            attributes: ['product_id', 'name', 'current_price'],
+            required: false,
+            include: [
+              { model: ProductImage, as: 'images', attributes: ['image_url', 'is_primary'], required: false },
+              { model: FarmerUser, as: 'farmer', attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url', 'zone', 'district', 'state'], required: false }
+            ]
+          },
+          { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'], required: false },
+          { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'], required: false }
+        ]
+      });
+    }
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const farmer = order.Product?.farmer || null;
+    const deliveryPerson = order.delivery_person || null;
+    const customer = order.customer || null;
+
+    res.json({
+      success: true,
+      data: {
+        order_id: order.order_id,
+        current_status: order.current_status,
+        total_price: order.total_price,
+        quantity: order.quantity,
+        delivery_address: order.delivery_address,
+        pickup_address: order.pickup_address,
+        transport_charge: order.transport_charge,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        qr_code: order.qr_code,
+        qr_image_url: order.qr_image_url,
+        packing_image_url: order.packing_image_url,
+        bill_paste_image_url: order.bill_paste_image_url,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        delivery_person_id: order.delivery_person_id,
+        permanent_vehicle_id: order.permanent_vehicle_id,
+        temp_vehicle_id: order.temp_vehicle_id,
+        product: order.Product ? {
+          product_id: order.Product.product_id,
+          name: order.Product.name,
+          current_price: order.Product.current_price,
+          images: order.Product.images || []
+        } : null,
+        farmer: farmer ? {
+          farmer_id: farmer.farmer_id,
+          name: farmer.name || '',
+          full_name: farmer.name || '',
+          phone: farmer.mobile_number || '',
+          mobile_number: farmer.mobile_number || '',
+          address: farmer.address || '',
+          image_url: farmer.image_url || null,
+          zone: farmer.zone || '',
+          district: farmer.district || '',
+          state: farmer.state || ''
+        } : null,
+        customer: customer ? {
+          customer_id: customer.customer_id,
+          name: customer.name || '',
+          full_name: customer.name || '',
+          phone: customer.mobile_number || '',
+          mobile_number: customer.mobile_number || '',
+          address: customer.address || '',
+          image_url: customer.image_url || null
+        } : null,
+        delivery_person: deliveryPerson ? {
+          delivery_person_id: deliveryPerson.delivery_person_id,
+          name: deliveryPerson.name || '',
+          full_name: deliveryPerson.name || '',
+          phone: deliveryPerson.mobile_number || '',
+          mobile_number: deliveryPerson.mobile_number || '',
+          vehicle_number: deliveryPerson.vehicle_number || '',
+          vehicle_type: deliveryPerson.vehicle_type || '',
+          image_url: deliveryPerson.image_url || null
+        } : null
+      }
+    });
+  } catch (error) {
+    console.error('Get order detail error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching order details', error: error.message });
+  }
+};
+
 module.exports = { 
   getProfile, 
   updateProfile, 
@@ -923,5 +1149,7 @@ module.exports = {
   getVehicles,
   getActiveOrders,
   trackOrder,
-  getTrackingUpdates
+  getTrackingUpdates,
+  updatePackingProof,
+  getOrderDetail
 };

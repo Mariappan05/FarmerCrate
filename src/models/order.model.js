@@ -57,8 +57,11 @@ const Order = sequelize.define('orders', {
 
   current_status: { 
     type: DataTypes.ENUM(
-      'PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 
-      'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'
+      'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED', 
+      'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
+      'RECEIVED', 'SHIPPED', 'IN_TRANSIT', 
+      'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 
+      'COMPLETED', 'CANCELLED'
     ), 
     defaultValue: 'PENDING' 
   },
@@ -77,7 +80,10 @@ const Order = sequelize.define('orders', {
   pickup_address: { type: DataTypes.TEXT },
   delivery_address: { type: DataTypes.TEXT },
   estimated_distance: { type: DataTypes.DECIMAL(8, 2) },
-  estimated_delivery_time: { type: DataTypes.DATE }
+  estimated_delivery_time: { type: DataTypes.DATE },
+  // Packing proof images
+  packing_image_url: { type: DataTypes.TEXT, allowNull: true },
+  bill_paste_image_url: { type: DataTypes.TEXT, allowNull: true }
 }, {
   tableName: 'orders',
   timestamps: true,
