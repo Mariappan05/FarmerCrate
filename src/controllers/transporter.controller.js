@@ -783,6 +783,18 @@ const trackOrder = async (req, res) => {
         as: 'delivery_person',
         attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
         required: false
+      },
+      {
+        model: TransporterUser,
+        as: 'source_transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        required: false
+      },
+      {
+        model: TransporterUser,
+        as: 'destination_transporter',
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        required: false
       }
     ];
 
@@ -845,6 +857,8 @@ const trackOrder = async (req, res) => {
     const farmer = order.Product?.farmer || null;
     const deliveryPerson = order.delivery_person || null;
     const customer = order.customer || null;
+    const srcTrans = order.source_transporter || null;
+    const dstTrans = order.destination_transporter || null;
 
     res.json({
       success: true,
@@ -894,6 +908,30 @@ const trackOrder = async (req, res) => {
             vehicle: deliveryPerson.vehicle_number || '',
             vehicleType: deliveryPerson.vehicle_type || '',
             image: deliveryPerson.image_url || null
+          } : null,
+          source_transporter: srcTrans ? {
+            transporter_id: srcTrans.transporter_id,
+            name: srcTrans.name || '',
+            full_name: srcTrans.name || '',
+            phone: srcTrans.mobile_number || '',
+            mobile_number: srcTrans.mobile_number || '',
+            email: srcTrans.email || '',
+            address: srcTrans.address || '',
+            zone: srcTrans.zone || '',
+            district: srcTrans.district || '',
+            state: srcTrans.state || ''
+          } : null,
+          destination_transporter: dstTrans ? {
+            transporter_id: dstTrans.transporter_id,
+            name: dstTrans.name || '',
+            full_name: dstTrans.name || '',
+            phone: dstTrans.mobile_number || '',
+            mobile_number: dstTrans.mobile_number || '',
+            email: dstTrans.email || '',
+            address: dstTrans.address || '',
+            zone: dstTrans.zone || '',
+            district: dstTrans.district || '',
+            state: dstTrans.state || ''
           } : null
         },
         tracking_steps: enrichedSteps,
