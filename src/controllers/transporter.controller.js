@@ -787,13 +787,13 @@ const trackOrder = async (req, res) => {
       {
         model: TransporterUser,
         as: 'source_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       },
       {
         model: TransporterUser,
         as: 'destination_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       }
     ];
@@ -919,7 +919,8 @@ const trackOrder = async (req, res) => {
             address: srcTrans.address || '',
             zone: srcTrans.zone || '',
             district: srcTrans.district || '',
-            state: srcTrans.state || ''
+            state: srcTrans.state || '',
+            image_url: srcTrans.image_url || null
           } : null,
           destination_transporter: dstTrans ? {
             transporter_id: dstTrans.transporter_id,
@@ -931,7 +932,8 @@ const trackOrder = async (req, res) => {
             address: dstTrans.address || '',
             zone: dstTrans.zone || '',
             district: dstTrans.district || '',
-            state: dstTrans.state || ''
+            state: dstTrans.state || '',
+            image_url: dstTrans.image_url || null
           } : null
         },
         tracking_steps: enrichedSteps,
@@ -1084,13 +1086,13 @@ const getOrderDetail = async (req, res) => {
         {
           model: TransporterUser,
           as: 'source_transporter',
-          attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+          attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
           required: false
         },
         {
           model: TransporterUser,
           as: 'destination_transporter',
-          attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+          attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
           required: false
         }
       ]
@@ -1112,8 +1114,8 @@ const getOrderDetail = async (req, res) => {
           },
           { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'], required: false },
           { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'], required: false },
-          { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'], required: false },
-          { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'], required: false }
+          { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'], required: false },
+          { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'], required: false }
         ]
       });
     }
@@ -1198,7 +1200,8 @@ const getOrderDetail = async (req, res) => {
           address: srcTrans.address || '',
           zone: srcTrans.zone || '',
           district: srcTrans.district || '',
-          state: srcTrans.state || ''
+          state: srcTrans.state || '',
+          image_url: srcTrans.image_url || null
         } : null,
         destination_transporter: dstTrans ? {
           transporter_id: dstTrans.transporter_id,
@@ -1210,7 +1213,8 @@ const getOrderDetail = async (req, res) => {
           address: dstTrans.address || '',
           zone: dstTrans.zone || '',
           district: dstTrans.district || '',
-          state: dstTrans.state || ''
+          state: dstTrans.state || '',
+          image_url: dstTrans.image_url || null
         } : null
       }
     });
