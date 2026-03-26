@@ -580,7 +580,13 @@ const getAssignedOrders = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
     
-    res.json({ success: true, count: orders.length, data: orders });
+    const enrichedOrders = orders.map(order => {
+      const o = order.toJSON();
+      o.product_name = o.Product?.name || 'Product';
+      return o;
+    });
+
+    res.json({ success: true, count: enrichedOrders.length, data: enrichedOrders });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -875,6 +881,7 @@ const trackOrder = async (req, res) => {
           payment_status: order.payment_status,
           created_at: order.created_at,
           updated_at: order.updated_at,
+          product_name: order.Product?.name || 'Product',
           product: order.Product ? {
             product_id: order.Product.product_id,
             name: order.Product.name,
@@ -1153,6 +1160,7 @@ const getOrderDetail = async (req, res) => {
         temp_vehicle_id: order.temp_vehicle_id,
         created_at: order.created_at,
         updated_at: order.updated_at,
+        product_name: order.Product?.name || 'Product',
         product: order.Product ? {
           product_id: order.Product.product_id,
           name: order.Product.name,
