@@ -1042,6 +1042,18 @@ const getOrderDetail = async (req, res) => {
           as: 'delivery_person',
           attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
           required: false
+        },
+        {
+          model: TransporterUser,
+          as: 'source_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+          required: false
+        },
+        {
+          model: TransporterUser,
+          as: 'destination_transporter',
+          attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+          required: false
         }
       ]
     });
@@ -1061,7 +1073,9 @@ const getOrderDetail = async (req, res) => {
             ]
           },
           { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'mobile_number', 'address', 'image_url'], required: false },
-          { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'], required: false }
+          { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'], required: false },
+          { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'], required: false },
+          { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'], required: false }
         ]
       });
     }
@@ -1073,6 +1087,8 @@ const getOrderDetail = async (req, res) => {
     const farmer = order.Product?.farmer || null;
     const deliveryPerson = order.delivery_person || null;
     const customer = order.customer || null;
+    const srcTrans = order.source_transporter || null;
+    const dstTrans = order.destination_transporter || null;
 
     res.json({
       success: true,
@@ -1090,11 +1106,13 @@ const getOrderDetail = async (req, res) => {
         qr_image_url: order.qr_image_url,
         packing_image_url: order.packing_image_url,
         bill_paste_image_url: order.bill_paste_image_url,
-        created_at: order.created_at,
-        updated_at: order.updated_at,
+        source_transporter_id: order.source_transporter_id,
+        destination_transporter_id: order.destination_transporter_id,
         delivery_person_id: order.delivery_person_id,
         permanent_vehicle_id: order.permanent_vehicle_id,
         temp_vehicle_id: order.temp_vehicle_id,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
         product: order.Product ? {
           product_id: order.Product.product_id,
           name: order.Product.name,
@@ -1131,6 +1149,30 @@ const getOrderDetail = async (req, res) => {
           vehicle_number: deliveryPerson.vehicle_number || '',
           vehicle_type: deliveryPerson.vehicle_type || '',
           image_url: deliveryPerson.image_url || null
+        } : null,
+        source_transporter: srcTrans ? {
+          transporter_id: srcTrans.transporter_id,
+          name: srcTrans.name || '',
+          full_name: srcTrans.name || '',
+          phone: srcTrans.mobile_number || '',
+          mobile_number: srcTrans.mobile_number || '',
+          email: srcTrans.email || '',
+          address: srcTrans.address || '',
+          zone: srcTrans.zone || '',
+          district: srcTrans.district || '',
+          state: srcTrans.state || ''
+        } : null,
+        destination_transporter: dstTrans ? {
+          transporter_id: dstTrans.transporter_id,
+          name: dstTrans.name || '',
+          full_name: dstTrans.name || '',
+          phone: dstTrans.mobile_number || '',
+          mobile_number: dstTrans.mobile_number || '',
+          email: dstTrans.email || '',
+          address: dstTrans.address || '',
+          zone: dstTrans.zone || '',
+          district: dstTrans.district || '',
+          state: dstTrans.state || ''
         } : null
       }
     });
