@@ -5,6 +5,7 @@ const path = require('path');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const { initializeDatabase, sequelize } = require('./config/database');
+const { startOrderStatusAutomation } = require('./services/orderStatusAutomation.service');
 
 // Load environment variables
 dotenv.config();
@@ -72,13 +73,20 @@ app.use((err, req, res, next) => {
 // Initialize database and start server
 const startServer = async () => {
   try {
+    let dbReady = false;
     // Try to initialize database, but continue even if it fails
     try {
-      await initializeDatabase();
+      dbReady = await initializeDatabase();
       require('./models/associations');
       console.log('Database initialized successfully');
     } catch (dbError) {
       console.log('Database initialization failed, but server will continue:', dbError.message);
+    }
+
+    if (dbReady) {
+      startOrderStatusAutomation();
+    } else {
+      console.log('[OrderStatusAutomation] Skipped because database is not ready.');
     }
 
     const PORT = process.env.PORT || 3000;
