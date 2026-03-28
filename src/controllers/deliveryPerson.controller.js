@@ -399,7 +399,8 @@ const updateOrderStatus = async (req, res) => {
   try {
     const { order_id, status } = req.body;
     
-    const validStatuses = ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'COMPLETED'];
+    const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
+    const validStatuses = [...pickupStatuses, 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'COMPLETED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
@@ -415,7 +416,9 @@ const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found or not assigned to you' });
     }
 
-    if (order.source_transporter_id && order.destination_transporter_id) {
+    const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status);
+
+    if (order.source_transporter_id && order.destination_transporter_id && !isPickupStatusUpdate) {
       return res.status(403).json({
         message: 'After transporter assignment, delivery status updates must be done via QR scan only'
       });
