@@ -81,7 +81,7 @@ const getAssignedOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
+        current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
       },
       include: [
         { model: Product, attributes: ['name', 'current_price'] },
@@ -91,8 +91,7 @@ const getAssignedOrders = async (req, res) => {
     });
 
     const ordersWithDetails = await Promise.all(orders.map(async (order) => {
-      const isSourceTransporter = order.source_transporter_id === req.user.transporter_id;
-      const isDestinationTransporter = order.destination_transporter_id === req.user.transporter_id;
+      const isPickup = ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'].includes(order.current_status);
       
       let vehicleInfo = null;
       if (order.permanent_vehicle_id) {
@@ -113,8 +112,8 @@ const getAssignedOrders = async (req, res) => {
       
       return {
         ...order.toJSON(),
-        delivery_type: isSourceTransporter ? 'PICKUP' : 'DELIVERY',
-        task_description: isSourceTransporter ? 'Pickup from farmer and transport to destination' : 'Receive from source and deliver to customer',
+        delivery_type: isPickup ? 'PICKUP' : 'DELIVERY',
+        task_description: isPickup ? 'Pickup from farmer and transport to destination' : 'Receive from source and deliver to customer',
         vehicle_info: vehicleInfo
       };
     }));
@@ -129,7 +128,7 @@ const getAssignedOrders = async (req, res) => {
 
     // Fallback path for schema/association mismatches in some environments.
     try {
-      const statuses = ['ASSIGNED', 'PLACED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'];
+      const statuses = ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'];
       const rawOrders = await fetchOrdersRaw(req.user.delivery_person_id, statuses);
 
       res.json({
@@ -164,7 +163,7 @@ const getPickupOrders = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'SHIPPED'] }
+        current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED'] }
       },
       order: [['created_at', 'DESC']]
     });
@@ -181,7 +180,7 @@ const getPickupOrders = async (req, res) => {
     console.error('[getPickupOrders] Error:', error);
 
     try {
-      const statuses = ['ASSIGNED', 'PLACED', 'SHIPPED'];
+      const statuses = ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED'];
       const rawOrders = await fetchOrdersRaw(req.user.delivery_person_id, statuses);
       res.json({
         success: true,
