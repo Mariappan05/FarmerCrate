@@ -59,7 +59,7 @@ const fetchOrdersRaw = async (deliveryPersonId, statuses) => {
       o.qr_image_url,
       o.bill_url,
       p.name AS product_name,
-      COALESCE(pi.image_url, p.image_url) AS product_image,
+      pi.image_url AS product_image,
       f.name AS farmer_name,
       f.mobile_number AS farmer_phone,
       f.address AS farmer_address,
@@ -103,7 +103,7 @@ const getAssignedOrders = async (req, res) => {
       include: [
         {
           model: Product,
-          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          attributes: ['product_id', 'name', 'current_price'],
           include: [
             {
               model: ProductImage,
@@ -153,7 +153,6 @@ const getAssignedOrders = async (req, res) => {
         product_image:
           order.Product?.images?.find((img) => img?.is_primary)?.image_url ||
           order.Product?.images?.[0]?.image_url ||
-          order.Product?.image_url ||
           null,
         delivery_type: isPickup ? 'PICKUP' : 'DELIVERY',
         task_description: isPickup ? 'Pickup from farmer and transport to destination' : 'Receive from source and deliver to customer',
@@ -211,7 +210,7 @@ const getPickupOrders = async (req, res) => {
       include: [
         {
           model: Product,
-          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          attributes: ['product_id', 'name', 'current_price'],
           include: [
             {
               model: ProductImage,
@@ -246,7 +245,6 @@ const getPickupOrders = async (req, res) => {
         product_image:
           data?.Product?.images?.find((img) => img?.is_primary)?.image_url ||
           data?.Product?.images?.[0]?.image_url ||
-          data?.Product?.image_url ||
           null,
       };
     });
@@ -296,7 +294,7 @@ const getDeliveryOrders = async (req, res) => {
       include: [
         {
           model: Product,
-          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          attributes: ['product_id', 'name', 'current_price'],
           include: [
             {
               model: ProductImage,
@@ -331,7 +329,6 @@ const getDeliveryOrders = async (req, res) => {
         product_image:
           data?.Product?.images?.find((img) => img?.is_primary)?.image_url ||
           data?.Product?.images?.[0]?.image_url ||
-          data?.Product?.image_url ||
           null,
       };
     });
@@ -382,7 +379,7 @@ const getOrderHistory = async (req, res) => {
       include: [
         {
           model: Product,
-          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          attributes: ['product_id', 'name', 'current_price'],
           include: [
             {
               model: ProductImage,
