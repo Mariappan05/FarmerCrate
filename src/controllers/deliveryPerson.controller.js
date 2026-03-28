@@ -3,6 +3,7 @@ const { Op } = Sequelize;
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const ProductImage = require('../models/productImage.model');
+const FarmerUser = require('../models/farmer_user.model');
 const CustomerUser = require('../models/customer_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
 const TransporterUser = require('../models/transporter_user.model');
@@ -57,6 +58,12 @@ const fetchOrdersRaw = async (deliveryPersonId, statuses) => {
       qr_code,
       qr_image_url,
       bill_url,
+      p.name AS product_name,
+      COALESCE(pi.image_url, p.image_url) AS product_image,
+      f.name AS farmer_name,
+      f.mobile_number AS farmer_phone,
+      f.address AS farmer_address,
+      f.image_url AS farmer_image_url,
       pickup_address,
       delivery_address,
       estimated_distance,
@@ -64,6 +71,15 @@ const fetchOrdersRaw = async (deliveryPersonId, statuses) => {
       created_at,
       updated_at
     FROM orders o
+    LEFT JOIN products p ON p.product_id = o.product_id
+    LEFT JOIN farmers f ON f.farmer_id = p.farmer_id
+    LEFT JOIN LATERAL (
+      SELECT image_url
+      FROM product_images
+      WHERE product_id = p.product_id
+      ORDER BY is_primary DESC, created_at ASC
+      LIMIT 1
+    ) pi ON true
     WHERE o.delivery_person_id = :deliveryPersonId
       AND o.current_status IN (${placeholders})
     ORDER BY o.created_at DESC
@@ -85,7 +101,24 @@ const getAssignedOrders = async (req, res) => {
         current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
       },
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false,
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url'],
+              required: false,
+            },
+          ],
+        },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number'] }
       ],
       order: [['created_at', 'DESC']]
@@ -113,6 +146,15 @@ const getAssignedOrders = async (req, res) => {
       
       return {
         ...order.toJSON(),
+        farmer_name: order.Product?.farmer?.name || null,
+        farmer_phone: order.Product?.farmer?.mobile_number || null,
+        farmer_address: order.Product?.farmer?.address || null,
+        farmer_image_url: order.Product?.farmer?.image_url || null,
+        product_image:
+          order.Product?.images?.find((img) => img?.is_primary)?.image_url ||
+          order.Product?.images?.[0]?.image_url ||
+          order.Product?.image_url ||
+          null,
         delivery_type: isPickup ? 'PICKUP' : 'DELIVERY',
         task_description: isPickup ? 'Pickup from farmer and transport to destination' : 'Receive from source and deliver to customer',
         vehicle_info: vehicleInfo
@@ -160,22 +202,59 @@ const getPickupOrders = async (req, res) => {
 
     console.log('[getPickupOrders] Delivery person found:', req.user.name);
 
-    // First try without includes to avoid association issues
+    // First try with includes to provide farmer contact and image in payload.
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
         current_status: { [Op.in]: ['ASSIGNED', 'PLACED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'SHIPPED'] }
       },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false,
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url'],
+              required: false,
+            },
+          ],
+          required: false,
+        },
+      ],
       order: [['created_at', 'DESC']]
     });
 
     console.log('[getPickupOrders] Found orders:', orders.length);
     console.log('[getPickupOrders] Orders data:', orders.map(o => ({ id: o.order_id, status: o.current_status, product_id: o.product_id })));
 
+    const enrichedOrders = orders.map((order) => {
+      const data = order.toJSON();
+      return {
+        ...data,
+        farmer_name: data?.Product?.farmer?.name || null,
+        farmer_phone: data?.Product?.farmer?.mobile_number || null,
+        farmer_address: data?.Product?.farmer?.address || null,
+        farmer_image_url: data?.Product?.farmer?.image_url || null,
+        product_image:
+          data?.Product?.images?.find((img) => img?.is_primary)?.image_url ||
+          data?.Product?.images?.[0]?.image_url ||
+          data?.Product?.image_url ||
+          null,
+      };
+    });
+
     res.json({
       success: true,
-      count: orders.length,
-      data: orders
+      count: enrichedOrders.length,
+      data: enrichedOrders
     });
   } catch (error) {
     console.error('[getPickupOrders] Error:', error);
@@ -208,22 +287,59 @@ const getDeliveryOrders = async (req, res) => {
 
     console.log('[getDeliveryOrders] Delivery person found:', req.user.name);
 
-    // First try without includes to avoid association issues
+    // First try with includes to provide farmer contact and image in payload.
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
         current_status: { [Op.in]: ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'RECEIVED'] }
       },
+      include: [
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false,
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url'],
+              required: false,
+            },
+          ],
+          required: false,
+        },
+      ],
       order: [['created_at', 'DESC']]
     });
 
     console.log('[getDeliveryOrders] Found orders:', orders.length);
     console.log('[getDeliveryOrders] Orders data:', orders.map(o => ({ id: o.order_id, status: o.current_status, product_id: o.product_id })));
 
+    const enrichedOrders = orders.map((order) => {
+      const data = order.toJSON();
+      return {
+        ...data,
+        farmer_name: data?.Product?.farmer?.name || null,
+        farmer_phone: data?.Product?.farmer?.mobile_number || null,
+        farmer_address: data?.Product?.farmer?.address || null,
+        farmer_image_url: data?.Product?.farmer?.image_url || null,
+        product_image:
+          data?.Product?.images?.find((img) => img?.is_primary)?.image_url ||
+          data?.Product?.images?.[0]?.image_url ||
+          data?.Product?.image_url ||
+          null,
+      };
+    });
+
     res.json({
       success: true,
-      count: orders.length,
-      data: orders
+      count: enrichedOrders.length,
+      data: enrichedOrders
     });
   } catch (error) {
     console.error('[getDeliveryOrders] Error:', error);
@@ -272,6 +388,12 @@ const getOrderHistory = async (req, res) => {
               model: ProductImage,
               as: 'images',
               attributes: ['image_url', 'is_primary'],
+              required: false,
+            },
+            {
+              model: FarmerUser,
+              as: 'farmer',
+              attributes: ['farmer_id', 'name', 'mobile_number', 'address', 'image_url'],
               required: false,
             },
           ],
