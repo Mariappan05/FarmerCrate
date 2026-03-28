@@ -36,6 +36,7 @@ router.post('/assign-vehicle',
 
 // Order management routes — specific routes BEFORE generic /orders
 router.get('/orders/active', authenticate, authorize('transporter'), transporterController.getActiveOrders);
+router.post('/orders/resolve-qr', authenticate, authorize('transporter'), transporterController.resolveOrderByQr);
 router.get('/orders/:order_id/track', authenticate, authorize('transporter'), transporterController.trackOrder);
 router.get('/orders/:order_id/updates', authenticate, authorize('transporter'), transporterController.getTrackingUpdates);
 

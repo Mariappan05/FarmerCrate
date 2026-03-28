@@ -43,6 +43,102 @@ const extractOrderProductAndFarmer = (orderPayload) => {
   };
 };
 
+const parseQrPayload = (rawValue) => {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return { orderId: null, qrCode: null };
+
+  // Direct numeric payload.
+  if (/^\d+$/.test(raw)) {
+    return { orderId: Number(raw), qrCode: null };
+  }
+
+  // JSON payload support.
+  try {
+    const parsed = JSON.parse(raw);
+    const orderIdCandidate = pickFirst(parsed?.order_id, parsed?.orderId, parsed?.id);
+    const qrCandidate = pickFirst(parsed?.qr_code, parsed?.qrCode, parsed?.code, parsed?.token);
+    return {
+      orderId: orderIdCandidate && /^\d+$/.test(String(orderIdCandidate)) ? Number(orderIdCandidate) : null,
+      qrCode: qrCandidate ? String(qrCandidate).trim() : null,
+    };
+  } catch (_) {
+    // continue parsing
+  }
+
+  // URL payload support.
+  try {
+    const url = new URL(raw);
+    const orderIdFromUrl = pickFirst(url.searchParams.get('order_id'), url.searchParams.get('orderId'), url.searchParams.get('id'));
+    const qrFromUrl = pickFirst(url.searchParams.get('qr_code'), url.searchParams.get('qrCode'), url.searchParams.get('code'), url.searchParams.get('token'));
+    return {
+      orderId: orderIdFromUrl && /^\d+$/.test(String(orderIdFromUrl)) ? Number(orderIdFromUrl) : null,
+      qrCode: qrFromUrl ? String(qrFromUrl).trim() : null,
+    };
+  } catch (_) {
+    // continue parsing
+  }
+
+  const orderIdMatch = raw.match(/(?:order[_-]?id|id)[:=\s"']*(\d+)/i) || raw.match(/#(\d+)/);
+  if (orderIdMatch) {
+    return { orderId: Number(orderIdMatch[1]), qrCode: null };
+  }
+
+  // UUID-like fallback (common qr_code format).
+  const uuidMatch = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
+  if (uuidMatch) {
+    return { orderId: null, qrCode: uuidMatch[0] };
+  }
+
+  return { orderId: null, qrCode: raw };
+};
+
+const resolveOrderByQr = async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const { qr_code } = req.body || {};
+    const transporterId = req.user?.transporter_id;
+
+    const { orderId, qrCode } = parseQrPayload(qr_code);
+    if (!orderId && !qrCode) {
+      return res.status(400).json({ success: false, message: 'Invalid QR payload' });
+    }
+
+    const baseWhere = {
+      [Op.or]: [
+        { source_transporter_id: transporterId },
+        { destination_transporter_id: transporterId },
+      ],
+    };
+
+    const where = orderId
+      ? { ...baseWhere, order_id: orderId }
+      : { ...baseWhere, qr_code: qrCode };
+
+    const order = await Order.findOne({
+      where,
+      attributes: ['order_id', 'current_status', 'qr_code', 'source_transporter_id', 'destination_transporter_id'],
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found for this QR' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        order_id: order.order_id,
+        status: order.current_status,
+        qr_code: order.qr_code,
+        source_transporter_id: order.source_transporter_id,
+        destination_transporter_id: order.destination_transporter_id,
+      },
+    });
+  } catch (error) {
+    console.error('Resolve QR error:', error);
+    return res.status(500).json({ success: false, message: 'Error resolving QR', error: error.message });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
     const transporter = await TransporterUser.findByPk(req.user.transporter_id);
@@ -1308,6 +1404,7 @@ module.exports = {
   getActiveOrders,
   trackOrder,
   getTrackingUpdates,
+  resolveOrderByQr,
   updatePackingProof,
   getOrderDetail
 };
