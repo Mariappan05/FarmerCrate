@@ -729,6 +729,7 @@ const getAssignedOrders = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
   const { order_id, status } = req.body;
+  const isQrScanRequest = req.body?.is_qr_scan === true || req.body?.is_qr_scan === 'true';
   
   try {
     const validStatuses = [
@@ -765,8 +766,9 @@ const updateOrderStatus = async (req, res) => {
 
     const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status) || isManualReceiveAllowed;
 
-    // Only enforce QR-only rule for non-pickup statuses when both transporters assigned
-    if (order.source_transporter_id && order.destination_transporter_id && !isPickupStatusUpdate) {
+    // Only enforce QR-only rule for non-pickup statuses when both transporters assigned.
+    // Scanner updates should pass `is_qr_scan=true`.
+    if (order.source_transporter_id && order.destination_transporter_id && !isPickupStatusUpdate && !isQrScanRequest) {
       return res.status(403).json({
         message: 'After transporter assignment, status updates must be done via QR scan only'
       });
