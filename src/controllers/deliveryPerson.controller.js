@@ -2,6 +2,7 @@ const { Sequelize } = require('sequelize');
 const { Op } = Sequelize;
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
+const ProductImage = require('../models/productImage.model');
 const CustomerUser = require('../models/customer_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
 const TransporterUser = require('../models/transporter_user.model');
@@ -247,10 +248,34 @@ const getOrderHistory = async (req, res) => {
     const orders = await Order.findAll({
       where: { 
         delivery_person_id: req.user.delivery_person_id,
-        current_status: { [Op.in]: ['COMPLETED', 'CANCELLED'] }
+        current_status: {
+          [Op.in]: [
+            'PICKED_UP',
+            'RECEIVED',
+            'SHIPPED',
+            'OUT_FOR_DELIVERY',
+            'REACHED_DESTINATION',
+            'DELIVERED',
+            'COMPLETED',
+            'CANCELLED',
+            'FAILED',
+            'TRANSFERRED'
+          ]
+        }
       },
       include: [
-        { model: Product, attributes: ['name', 'current_price'] },
+        {
+          model: Product,
+          attributes: ['product_id', 'name', 'current_price', 'image_url'],
+          include: [
+            {
+              model: ProductImage,
+              as: 'images',
+              attributes: ['image_url', 'is_primary'],
+              required: false,
+            },
+          ],
+        },
         { model: CustomerUser, as: 'customer', attributes: ['name', 'mobile_number', 'address'] }
       ],
       order: [['updated_at', 'DESC']]
