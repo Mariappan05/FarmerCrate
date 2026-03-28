@@ -10,6 +10,39 @@ const PermanentVehicle = require('../models/permanentVehicle.model');
 const TemporaryVehicle = require('../models/temporaryVehicle.model');
 const GoogleMapsService = require('../services/googleMaps.service');
 
+const pickFirst = (...values) => values.find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+const extractOrderProductAndFarmer = (orderPayload) => {
+  const order = orderPayload || {};
+  const product = order.Product || order.product || null;
+  const farmer = product?.farmer || order.farmer || null;
+  const productImages = Array.isArray(product?.images) ? product.images : [];
+  const primaryProductImage =
+    productImages.find((img) => img?.is_primary)?.image_url ||
+    productImages[0]?.image_url ||
+    order.product_image ||
+    null;
+
+  return {
+    product,
+    farmer,
+    product_name: pickFirst(order.product_name, product?.name, 'Product'),
+    product_image: primaryProductImage,
+    farmer_name: pickFirst(order.farmer_name, farmer?.name, ''),
+    farmer_phone: pickFirst(order.farmer_phone, farmer?.mobile_number, farmer?.phone, ''),
+    farmer_address: pickFirst(order.farmer_address, farmer?.address, ''),
+    farmer_image_url: pickFirst(
+      order.farmer_image_url,
+      order.farmer_image,
+      order.farmer_profile_image,
+      farmer?.image_url,
+      farmer?.image,
+      farmer?.profile_image,
+      null
+    )
+  };
+};
+
 const getProfile = async (req, res) => {
   try {
     const transporter = await TransporterUser.findByPk(req.user.transporter_id);
@@ -582,7 +615,13 @@ const getAssignedOrders = async (req, res) => {
     
     const enrichedOrders = orders.map(order => {
       const o = order.toJSON();
-      o.product_name = o.Product?.name || 'Product';
+      const normalized = extractOrderProductAndFarmer(o);
+      o.product_name = normalized.product_name;
+      o.product_image = normalized.product_image;
+      o.farmer_name = normalized.farmer_name;
+      o.farmer_phone = normalized.farmer_phone;
+      o.farmer_address = normalized.farmer_address;
+      o.farmer_image_url = normalized.farmer_image_url;
       return o;
     });
 
@@ -864,7 +903,8 @@ const trackOrder = async (req, res) => {
     });
 
     // Get farmer from product association
-    const farmer = order.Product?.farmer || null;
+    const normalized = extractOrderProductAndFarmer(order);
+    const farmer = normalized.farmer;
     const deliveryPerson = order.delivery_person || null;
     const customer = order.customer || null;
     const srcTrans = order.source_transporter || null;
@@ -885,20 +925,28 @@ const trackOrder = async (req, res) => {
           payment_status: order.payment_status,
           created_at: order.created_at,
           updated_at: order.updated_at,
-          product_name: order.Product?.name || 'Product',
-          product: order.Product ? {
-            product_id: order.Product.product_id,
-            name: order.Product.name,
-            current_price: order.Product.current_price,
-            images: order.Product.images || []
+          product_name: normalized.product_name,
+          product_image: normalized.product_image,
+          farmer_name: normalized.farmer_name,
+          farmer_phone: normalized.farmer_phone,
+          farmer_address: normalized.farmer_address,
+          farmer_image_url: normalized.farmer_image_url,
+          product: normalized.product ? {
+            product_id: normalized.product.product_id,
+            name: normalized.product.name,
+            current_price: normalized.product.current_price,
+            images: normalized.product.images || []
           } : null,
           // Farmer mapped with exact field names frontend expects
           farmer: farmer ? {
             farmer_id: farmer.farmer_id,
             name: farmer.name || '',
+            full_name: farmer.name || '',
             phone: farmer.mobile_number || '',
+            mobile_number: farmer.mobile_number || '',
             address: farmer.address || '',
-            image: farmer.image_url || null,
+            image: farmer.image_url || farmer.image || farmer.profile_image || null,
+            image_url: farmer.image_url || farmer.image || farmer.profile_image || null,
             zone: farmer.zone || '',
             district: farmer.district || '',
             state: farmer.state || ''
@@ -1135,7 +1183,8 @@ const getOrderDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    const farmer = order.Product?.farmer || null;
+    const normalized = extractOrderProductAndFarmer(order);
+    const farmer = normalized.farmer;
     const deliveryPerson = order.delivery_person || null;
     const customer = order.customer || null;
     const srcTrans = order.source_transporter || null;
@@ -1164,12 +1213,17 @@ const getOrderDetail = async (req, res) => {
         temp_vehicle_id: order.temp_vehicle_id,
         created_at: order.created_at,
         updated_at: order.updated_at,
-        product_name: order.Product?.name || 'Product',
-        product: order.Product ? {
-          product_id: order.Product.product_id,
-          name: order.Product.name,
-          current_price: order.Product.current_price,
-          images: order.Product.images || []
+        product_name: normalized.product_name,
+        product_image: normalized.product_image,
+        farmer_name: normalized.farmer_name,
+        farmer_phone: normalized.farmer_phone,
+        farmer_address: normalized.farmer_address,
+        farmer_image_url: normalized.farmer_image_url,
+        product: normalized.product ? {
+          product_id: normalized.product.product_id,
+          name: normalized.product.name,
+          current_price: normalized.product.current_price,
+          images: normalized.product.images || []
         } : null,
         farmer: farmer ? {
           farmer_id: farmer.farmer_id,
@@ -1178,7 +1232,8 @@ const getOrderDetail = async (req, res) => {
           phone: farmer.mobile_number || '',
           mobile_number: farmer.mobile_number || '',
           address: farmer.address || '',
-          image_url: farmer.image_url || null,
+          image: farmer.image_url || farmer.image || farmer.profile_image || null,
+          image_url: farmer.image_url || farmer.image || farmer.profile_image || null,
           zone: farmer.zone || '',
           district: farmer.district || '',
           state: farmer.state || ''
