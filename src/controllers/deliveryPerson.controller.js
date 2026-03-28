@@ -397,7 +397,7 @@ const getProfile = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
   try {
-    const { order_id, status } = req.body;
+    const { order_id, status, proof_image_url, signature_url, remarks } = req.body;
     
     const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
     const validStatuses = [...pickupStatuses, 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'COMPLETED'];
@@ -425,7 +425,12 @@ const updateOrderStatus = async (req, res) => {
     }
     
     const previousStatus = order.current_status;
-    await order.update({ current_status: status });
+    const updateData = { current_status: status };
+    if (proof_image_url) updateData.delivery_proof_image_url = proof_image_url;
+    if (signature_url) updateData.delivery_signature_url = signature_url;
+    if (remarks) updateData.delivery_remarks = remarks;
+
+    await order.update(updateData);
     
     if (status === 'COMPLETED') {
       const deliveryPerson = await DeliveryPerson.findByPk(req.user.delivery_person_id);

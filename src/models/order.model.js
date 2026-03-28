@@ -83,7 +83,11 @@ const Order = sequelize.define('orders', {
   estimated_delivery_time: { type: DataTypes.DATE },
   // Packing proof images
   packing_image_url: { type: DataTypes.TEXT, allowNull: true },
-  bill_paste_image_url: { type: DataTypes.TEXT, allowNull: true }
+  bill_paste_image_url: { type: DataTypes.TEXT, allowNull: true },
+  // Delivery updates proof
+  delivery_proof_image_url: { type: DataTypes.TEXT, allowNull: true },
+  delivery_signature_url: { type: DataTypes.TEXT, allowNull: true },
+  delivery_remarks: { type: DataTypes.TEXT, allowNull: true }
 }, {
   tableName: 'orders',
   timestamps: true,
