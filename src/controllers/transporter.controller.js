@@ -785,6 +785,14 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+const updateOrderStatusByOrderIdParam = async (req, res) => {
+  req.body = {
+    ...(req.body || {}),
+    order_id: Number(req.params?.order_id),
+  };
+  return updateOrderStatus(req, res);
+};
+
 const getDeliveryPersons = async (req, res) => {
   try {
     const deliveryPersons = await DeliveryPerson.findAll({
@@ -1399,6 +1407,7 @@ module.exports = {
   receiveOrderAndAssignDelivery,
   getAssignedOrders,
   updateOrderStatus,
+  updateOrderStatusByOrderIdParam,
   getDeliveryPersons,
   getVehicles,
   getActiveOrders,

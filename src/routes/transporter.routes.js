@@ -73,6 +73,20 @@ router.put('/order-status',
   transporterController.updateOrderStatus
 );
 
+router.put('/orders/:order_id/status',
+  authenticate,
+  authorize('transporter'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  body('status').isIn([
+    'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED',
+    'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP',
+    'RECEIVED', 'SHIPPED', 'IN_TRANSIT',
+    'REACHED_DESTINATION', 'OUT_FOR_DELIVERY',
+    'DELIVERED', 'COMPLETED', 'CANCELLED'
+  ]).withMessage('Invalid status'),
+  transporterController.updateOrderStatusByOrderIdParam
+);
+
 // Pickup and delivery assignment routes
 router.post('/assign-pickup', 
   authenticate, 
