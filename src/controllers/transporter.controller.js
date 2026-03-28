@@ -624,7 +624,11 @@ const updateOrderStatus = async (req, res) => {
 
     // Pickup delivery person statuses can always be updated manually
     const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
-    const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status);
+    
+    // Allow manual packing (RECEIVED) by the source transporter
+    const isManualReceiveAllowed = status === 'RECEIVED' && order.source_transporter_id === req.user.transporter_id;
+
+    const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status) || isManualReceiveAllowed;
 
     // Only enforce QR-only rule for non-pickup statuses when both transporters assigned
     if (order.source_transporter_id && order.destination_transporter_id && !isPickupStatusUpdate) {
