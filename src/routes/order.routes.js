@@ -101,7 +101,7 @@ router.put('/:order_id/qr-status',
   authenticate,
   authorize(['transporter', 'delivery']),
   param('order_id').isInt().withMessage('Valid order ID required'),
-  body('status').optional().isIn(['SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY', 'COMPLETED']).withMessage('Invalid QR status'),
+  body('status').optional().isIn(['SHIPPED', 'IN_TRANSIT', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 'COMPLETED']).withMessage('Invalid QR status'),
   body('location_lat').optional().isFloat(),
   body('location_lng').optional().isFloat(),
   orderController.updateOrderStatusByQR

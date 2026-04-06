@@ -729,6 +729,7 @@ const getAssignedOrders = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
   const { order_id, status } = req.body;
+  const normalizedStatus = String(status || '').toUpperCase();
   const isQrScanRequest = req.body?.is_qr_scan === true || req.body?.is_qr_scan === 'true';
   
   try {
@@ -739,7 +740,7 @@ const updateOrderStatus = async (req, res) => {
       'REACHED_DESTINATION', 'OUT_FOR_DELIVERY', 
       'COMPLETED', 'CANCELLED'
     ];
-    if (!validStatuses.includes(status)) {
+    if (!validStatuses.includes(normalizedStatus)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
     
@@ -762,9 +763,9 @@ const updateOrderStatus = async (req, res) => {
     const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
     
     // Allow manual packing (RECEIVED) by the source transporter
-    const isManualReceiveAllowed = status === 'RECEIVED' && order.source_transporter_id === req.user.transporter_id;
+    const isManualReceiveAllowed = normalizedStatus === 'RECEIVED' && order.source_transporter_id === req.user.transporter_id;
 
-    const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status) || isManualReceiveAllowed;
+    const isPickupStatusUpdate = pickupStatuses.includes(normalizedStatus) || pickupStatuses.includes(order.current_status) || isManualReceiveAllowed;
 
     // Only enforce QR-only rule for non-pickup statuses when both transporters assigned.
     // Scanner updates should pass `is_qr_scan=true`.
@@ -775,12 +776,20 @@ const updateOrderStatus = async (req, res) => {
     }
 
     const previousStatus = order.current_status;
-    await order.update({ current_status: status });
+    let appliedStatus = normalizedStatus;
+
+    await order.update({ current_status: normalizedStatus });
+
+    // Auto-progress after shipping without additional manual intervention.
+    if (normalizedStatus === 'SHIPPED') {
+      await order.update({ current_status: 'IN_TRANSIT' });
+      appliedStatus = 'IN_TRANSIT';
+    }
     
     res.json({ 
       success: true,
       message: 'Order status updated successfully',
-      data: { order_id, status, previous_status: previousStatus }
+      data: { order_id, status: appliedStatus, previous_status: previousStatus }
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

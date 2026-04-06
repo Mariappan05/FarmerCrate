@@ -12,8 +12,8 @@ class OrderTrackingService {
     return {
       ASSIGNED: 'SHIPPED',
       SHIPPED: 'IN_TRANSIT',
-      IN_TRANSIT: 'RECEIVED',
-      RECEIVED: 'OUT_FOR_DELIVERY',
+      IN_TRANSIT: 'REACHED_DESTINATION',
+      REACHED_DESTINATION: 'OUT_FOR_DELIVERY',
       OUT_FOR_DELIVERY: 'COMPLETED'
     };
   }
@@ -27,7 +27,7 @@ class OrderTrackingService {
       return order.source_transporter_id;
     }
 
-    if (currentStatus === 'IN_TRANSIT' || currentStatus === 'RECEIVED') {
+    if (currentStatus === 'IN_TRANSIT' || currentStatus === 'REACHED_DESTINATION') {
       return order.destination_transporter_id;
     }
 
@@ -58,7 +58,7 @@ class OrderTrackingService {
         throw new Error('Assign a vehicle before scanning to IN_TRANSIT');
       }
 
-      if (currentStatus === 'RECEIVED') {
+      if (currentStatus === 'REACHED_DESTINATION') {
         if (!order.delivery_person_id) {
           throw new Error('Assign destination delivery person before scanning to OUT_FOR_DELIVERY');
         }

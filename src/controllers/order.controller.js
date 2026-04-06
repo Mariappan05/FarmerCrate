@@ -761,6 +761,7 @@ exports.checkTransporterAvailability = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { order_id, status } = req.body;
+    const normalizedStatus = String(status || '').toUpperCase();
 
     const validStatuses = [
       'PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED',
@@ -769,7 +770,7 @@ exports.updateOrderStatus = async (req, res) => {
       'REACHED_DESTINATION', 'OUT_FOR_DELIVERY',
       'COMPLETED', 'CANCELLED'
     ];
-    if (!validStatuses.includes(status)) {
+    if (!validStatuses.includes(normalizedStatus)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
@@ -780,7 +781,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     // Allow manual updates for pickup statuses, block others when both transporters assigned
     const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
-    const isPickupUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status);
+    const isPickupUpdate = pickupStatuses.includes(normalizedStatus) || pickupStatuses.includes(order.current_status);
 
     if (order.source_transporter_id && order.destination_transporter_id && !isPickupUpdate) {
       return res.status(403).json({
@@ -789,7 +790,14 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     const previousStatus = order.current_status;
-    await order.update({ current_status: status });
+    let appliedStatus = normalizedStatus;
+    await order.update({ current_status: normalizedStatus });
+
+    // Auto-progress after shipping without additional manual intervention.
+    if (normalizedStatus === 'SHIPPED') {
+      await order.update({ current_status: 'IN_TRANSIT' });
+      appliedStatus = 'IN_TRANSIT';
+    }
 
     res.json({
       success: true,
@@ -797,7 +805,7 @@ exports.updateOrderStatus = async (req, res) => {
       data: {
         order_id,
         previous_status: previousStatus,
-        new_status: status
+        new_status: appliedStatus
       }
     });
   } catch (error) {
