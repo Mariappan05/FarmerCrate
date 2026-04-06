@@ -929,7 +929,7 @@ exports.getActiveShipments = async (req, res) => {
       where: {
         customer_id: req.user.customer_id,
         current_status: {
-          [Op.in]: ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+          [Op.in]: ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY']
         }
       },
       include: [
@@ -1019,12 +1019,15 @@ exports.trackOrder = async (req, res) => {
       { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
       { status: 'SHIPPED', label: 'Picked Up', icon: '📤' },
       { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
-      { status: 'RECEIVED', label: 'Reached Hub', icon: '🏢' },
+      { status: 'REACHED_DESTINATION', label: 'Reached Destination Hub', icon: '🏢' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
       { status: 'COMPLETED', label: 'Delivered', icon: '✅' }
     ];
 
-    const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
+    const trackingStatus = (String(order.current_status || '').toUpperCase() === 'RECEIVED')
+      ? 'REACHED_DESTINATION'
+      : String(order.current_status || '').toUpperCase();
+    const currentStepIndex = trackingSteps.findIndex(step => step.status === trackingStatus);
     
     const enrichedSteps = trackingSteps.map((step, index) => {
       const trackingEvent = trackingHistory.find(t => t.status === step.status);

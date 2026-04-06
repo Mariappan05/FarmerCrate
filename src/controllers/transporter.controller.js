@@ -531,8 +531,9 @@ const manualReceiveOrder = async (req, res) => {
     let newStatus = 'ASSIGNED';
     if (order.current_status === 'PLACED' || order.current_status === 'PENDING') {
       newStatus = 'ASSIGNED';
-    } else if (order.current_status === 'ASSIGNED' || order.current_status === 'SHIPPED') {
-      newStatus = 'RECEIVED';
+    } else if (order.current_status === 'ASSIGNED' || order.current_status === 'SHIPPED' || order.current_status === 'IN_TRANSIT') {
+      const isDestinationContext = order.destination_transporter_id === req.user.transporter_id;
+      newStatus = isDestinationContext ? 'REACHED_DESTINATION' : 'RECEIVED';
     } else {
       newStatus = order.current_status; // Keep current status if already advanced
     }
@@ -636,7 +637,7 @@ const receiveOrderAndAssignDelivery = async (req, res) => {
     }
     
     await order.update({
-      current_status: 'RECEIVED',
+      current_status: 'REACHED_DESTINATION',
       delivery_person_id: selectedDeliveryPerson.delivery_person_id
     });
     
@@ -648,10 +649,10 @@ const receiveOrderAndAssignDelivery = async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Order received and assigned to nearest available delivery person',
+      message: 'Order received at destination and assigned to nearest available delivery person',
       data: {
         order_id,
-        status: 'RECEIVED',
+        status: 'REACHED_DESTINATION',
         delivery_person_id: selectedDeliveryPerson.delivery_person_id,
         delivery_person_name: selectedDeliveryPerson.name,
         distance: shortestDistance !== Infinity ? shortestDistance + 'km' : 'N/A',
@@ -999,12 +1000,15 @@ const trackOrder = async (req, res) => {
       { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
       { status: 'SHIPPED', label: 'Picked Up', icon: '📤' },
       { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
-      { status: 'RECEIVED', label: 'Reached Hub', icon: '🏢' },
+      { status: 'REACHED_DESTINATION', label: 'Reached Destination Hub', icon: '🏢' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
       { status: 'COMPLETED', label: 'Delivered', icon: '✅' }
     ];
 
-    const currentStepIndex = trackingSteps.findIndex(step => step.status === order.current_status);
+    const trackingStatus = (String(order.current_status || '').toUpperCase() === 'RECEIVED')
+      ? 'REACHED_DESTINATION'
+      : String(order.current_status || '').toUpperCase();
+    const currentStepIndex = trackingSteps.findIndex(step => step.status === trackingStatus);
     const enrichedSteps = trackingSteps.map((step, index) => {
       const trackingEvent = trackingHistory.find(t => t.status === step.status);
       return {
