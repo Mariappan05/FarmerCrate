@@ -23,21 +23,13 @@ const DeliveryTracking = sequelize.define('delivery_tracking', {
     ),
     allowNull: false
   },
-  qr_code_scanned: {
-    type: DataTypes.STRING
-  },
-  scanned_by_id: {
-    type: DataTypes.INTEGER
-  },
-  scanned_by_role: {
-    type: DataTypes.ENUM('transporter', 'delivery', 'customer'),
-    allowNull: false
-  },
   location_lat: {
-    type: DataTypes.DECIMAL(10, 8)
+    type: DataTypes.DECIMAL(10, 8),
+    field: 'latitude'
   },
   location_lng: {
-    type: DataTypes.DECIMAL(11, 8)
+    type: DataTypes.DECIMAL(11, 8),
+    field: 'longitude'
   },
   location_address: {
     type: DataTypes.TEXT

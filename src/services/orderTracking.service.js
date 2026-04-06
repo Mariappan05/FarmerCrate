@@ -184,16 +184,20 @@ class OrderTrackingService {
 
   // Log tracking events
   static async logTrackingEvent(orderId, status, trackingData) {
+    const scannerMeta = [];
+    if (trackingData.scanned_by_role) scannerMeta.push(`role=${trackingData.scanned_by_role}`);
+    if (trackingData.scanned_by_id) scannerMeta.push(`id=${trackingData.scanned_by_id}`);
+    if (trackingData.qr_code) scannerMeta.push(`qr=${trackingData.qr_code}`);
+
+    const metaPrefix = scannerMeta.length ? `[scan:${scannerMeta.join(', ')}] ` : '';
+
     return await DeliveryTracking.create({
       order_id: orderId,
       status,
-      qr_code_scanned: trackingData.qr_code,
-      scanned_by_id: trackingData.scanned_by_id,
-      scanned_by_role: trackingData.scanned_by_role,
       location_lat: trackingData.location_lat,
       location_lng: trackingData.location_lng,
       location_address: trackingData.location_address,
-      notes: trackingData.notes
+      notes: `${metaPrefix}${trackingData.notes || ''}`.trim()
     });
   }
 
