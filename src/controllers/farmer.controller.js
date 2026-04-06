@@ -768,8 +768,10 @@ exports.trackOrder = async (req, res) => {
 
     const trackingSteps = [
       { status: 'PENDING', label: 'Order Placed', icon: '🛒' },
-      { status: 'ASSIGNED', label: 'Farmer Accepted + Transporters Assigned', icon: '🚛' },
+      { status: 'CONFIRMED', label: 'Farmer Accepted', icon: '✅' },
+      { status: 'ASSIGNED', label: 'Transporters Assigned', icon: '🚛' },
       { status: 'PICKUP_ASSIGNED', label: 'Pickup Person Assigned', icon: '👤' },
+      { status: 'PICKUP_IN_PROGRESS', label: 'Pickup In Progress', icon: '🚴' },
       { status: 'PICKED_UP', label: 'Picked Up from Farmer', icon: '📦' },
       { status: 'RECEIVED', label: 'Received at Source Office', icon: '🏢' },
       { status: 'SHIPPED', label: 'Shipped from Source', icon: '📤' },
@@ -782,15 +784,18 @@ exports.trackOrder = async (req, res) => {
     // Map status to step index — support alternate status names
     const STATUS_TO_INDEX = {
       PENDING: 0, PLACED: 0,
-      CONFIRMED: 1, ACCEPTED: 1, ASSIGNED: 1,
-      PICKUP_ASSIGNED: 2, PICKUP_IN_PROGRESS: 2,
-      PICKED_UP: 3,
-      RECEIVED: 4,
-      SHIPPED: 5,
-      IN_TRANSIT: 6,
-      REACHED_DESTINATION: 7,
-      OUT_FOR_DELIVERY: 8,
-      DELIVERED: 9, COMPLETED: 9
+      CONFIRMED: 1, ACCEPTED: 1,
+      ASSIGNED: 2,
+      PICKUP_ASSIGNED: 3,
+      PICKUP_IN_PROGRESS: 4,
+      PICKED_UP: 5,
+      RECEIVED: 6,
+      SHIPPED: 7,
+      IN_TRANSIT: 8,
+      REACHED_DESTINATION: 9,
+      OUT_FOR_DELIVERY: 10,
+      DELIVERED: 11, COMPLETED: 11,
+      CANCELLED: -1
     };
 
     const currentStatus = (order.current_status || '').toUpperCase();
