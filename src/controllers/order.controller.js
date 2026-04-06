@@ -28,6 +28,7 @@ const getScannerIdFromRequest = (req) => {
 
 const canViewQrForOrder = (req, order) => {
   if (!req?.role || !req?.user || !order) return false;
+  const normalizedStatus = (order.current_status === 'OUT_OF_DELIVERY') ? 'OUT_FOR_DELIVERY' : order.current_status;
 
   if (req.role === 'transporter') {
     const transporterId = req.user.transporter_id;
@@ -42,7 +43,7 @@ const canViewQrForOrder = (req, order) => {
       order.delivery_person.transporter_id &&
       order.destination_transporter_id === order.delivery_person.transporter_id;
 
-    return Boolean(isAssignedDelivery && isDestinationDelivery && order.current_status === 'OUT_FOR_DELIVERY');
+    return Boolean(isAssignedDelivery && isDestinationDelivery && normalizedStatus === 'OUT_FOR_DELIVERY');
   }
 
   return false;

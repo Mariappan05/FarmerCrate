@@ -8,6 +8,12 @@ const GoogleMapsService = require('./googleMaps.service');
 const { v4: uuidv4 } = require('uuid');
 
 class OrderTrackingService {
+  static normalizeStatus(status) {
+    if (!status) return status;
+    if (status === 'OUT_OF_DELIVERY') return 'OUT_FOR_DELIVERY';
+    return status;
+  }
+
   static getStatusFlow() {
     return {
       ASSIGNED: 'SHIPPED',
@@ -19,15 +25,17 @@ class OrderTrackingService {
   }
 
   static getNextStatus(currentStatus) {
-    return this.getStatusFlow()[currentStatus];
+    return this.getStatusFlow()[this.normalizeStatus(currentStatus)];
   }
 
   static getRequiredTransporterForTransition(order, currentStatus) {
-    if (currentStatus === 'ASSIGNED' || currentStatus === 'SHIPPED') {
+    const normalizedStatus = this.normalizeStatus(currentStatus);
+
+    if (normalizedStatus === 'ASSIGNED' || normalizedStatus === 'SHIPPED') {
       return order.source_transporter_id;
     }
 
-    if (currentStatus === 'IN_TRANSIT' || currentStatus === 'REACHED_DESTINATION') {
+    if (normalizedStatus === 'IN_TRANSIT' || normalizedStatus === 'REACHED_DESTINATION') {
       return order.destination_transporter_id;
     }
 
@@ -35,6 +43,7 @@ class OrderTrackingService {
   }
 
   static async validateScannerPermission(order, scannerData, currentStatus, nextStatus) {
+    const normalizedCurrentStatus = this.normalizeStatus(currentStatus);
     const role = scannerData.scanned_by_role;
     const scannerId = scannerData.scanned_by_id;
 
@@ -49,16 +58,16 @@ class OrderTrackingService {
         throw new Error('Only assigned source or destination transporter can scan this QR');
       }
 
-      const requiredTransporterId = this.getRequiredTransporterForTransition(order, currentStatus);
+      const requiredTransporterId = this.getRequiredTransporterForTransition(order, normalizedCurrentStatus);
       if (!requiredTransporterId || scannerId !== requiredTransporterId) {
         throw new Error(`Only the assigned ${requiredTransporterId === order.source_transporter_id ? 'source' : 'destination'} transporter can perform this scan`);
       }
 
-      if (currentStatus === 'SHIPPED' && !order.permanent_vehicle_id && !order.temp_vehicle_id) {
+      if (normalizedCurrentStatus === 'SHIPPED' && !order.permanent_vehicle_id && !order.temp_vehicle_id) {
         throw new Error('Assign a vehicle before scanning to IN_TRANSIT');
       }
 
-      if (currentStatus === 'REACHED_DESTINATION') {
+      if (normalizedCurrentStatus === 'REACHED_DESTINATION') {
         if (!order.delivery_person_id) {
           throw new Error('Assign destination delivery person before scanning to OUT_FOR_DELIVERY');
         }
@@ -73,7 +82,7 @@ class OrderTrackingService {
     }
 
     if (role === 'delivery') {
-      if (currentStatus !== 'OUT_FOR_DELIVERY' || nextStatus !== 'COMPLETED') {
+      if (normalizedCurrentStatus !== 'OUT_FOR_DELIVERY' || nextStatus !== 'COMPLETED') {
         throw new Error('Delivery person can scan only at final customer delivery step');
       }
 
@@ -233,6 +242,15 @@ class OrderTrackingService {
       const order = await Order.findOne({ where: { qr_code: qrCode } });
       if (!order) throw new Error('Invalid QR code');
 
+      const normalizedCurrentStatus = this.normalizeStatus(order.current_status);
+      if (normalizedCurrentStatus !== order.current_status) {
+        await Order.update(
+          { current_status: normalizedCurrentStatus },
+          { where: { order_id: order.order_id } }
+        );
+        order.current_status = normalizedCurrentStatus;
+      }
+
       const nextStatus = this.getNextStatus(order.current_status);
       if (!nextStatus) throw new Error('QR scan not allowed for current order status');
 
@@ -260,6 +278,15 @@ class OrderTrackingService {
 
     if (!order.qr_code) {
       throw new Error('QR code is not available for this order');
+    }
+
+    const normalizedCurrentStatus = this.normalizeStatus(order.current_status);
+    if (normalizedCurrentStatus !== order.current_status) {
+      await Order.update(
+        { current_status: normalizedCurrentStatus },
+        { where: { order_id: order.order_id } }
+      );
+      order.current_status = normalizedCurrentStatus;
     }
 
     const nextStatus = this.getNextStatus(order.current_status);
