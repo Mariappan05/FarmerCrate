@@ -1019,7 +1019,7 @@ exports.trackOrder = async (req, res) => {
       { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
       { status: 'SHIPPED', label: 'Picked Up', icon: '📤' },
       { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
-      { status: 'REACHED_DESTINATION', label: 'Reached Destination Hub', icon: '🏢' },
+      { status: 'REACHED_DESTINATION', label: 'Received at Destination', icon: '🏢' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
       { status: 'COMPLETED', label: 'Delivered', icon: '✅' }
     ];

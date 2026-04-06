@@ -261,7 +261,7 @@ exports.getAllCustomers = async (req, res) => {
       const totalOrders = orders.length;
       const completedOrders = orders.filter(order => order.current_status === 'COMPLETED').length;
       const activeOrders = orders.filter(order => 
-        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY'].includes(order.current_status)
+        ['PENDING', 'PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY'].includes(order.current_status)
       ).length;
       const totalSpent = orders
         .filter(order => order.current_status === 'COMPLETED')

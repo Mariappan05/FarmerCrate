@@ -104,7 +104,7 @@ exports.getAcceptedOrders = async (req, res) => {
       }],
       where: {
         current_status: {
-          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY']
         }
       },
       order: [['created_at', 'DESC']]
@@ -774,7 +774,7 @@ exports.trackOrder = async (req, res) => {
       { status: 'RECEIVED', label: 'Received at Source Office', icon: '🏢' },
       { status: 'SHIPPED', label: 'Shipped from Source', icon: '📤' },
       { status: 'IN_TRANSIT', label: 'In Transit to Destination', icon: '🚚' },
-      { status: 'REACHED_DESTINATION', label: 'Reached Destination', icon: '🏭' },
+      { status: 'REACHED_DESTINATION', label: 'Received at Destination', icon: '🏭' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
       { status: 'DELIVERED', label: 'Delivered to Customer', icon: '✅' }
     ];
@@ -907,7 +907,7 @@ exports.getActiveShipments = async (req, res) => {
       }],
       where: {
         current_status: {
-          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY']
         }
       },
       order: [['created_at', 'DESC']]

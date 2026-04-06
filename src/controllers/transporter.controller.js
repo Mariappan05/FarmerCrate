@@ -882,7 +882,7 @@ const getActiveOrders = async (req, res) => {
           { destination_transporter_id: req.user.transporter_id }
         ],
         current_status: {
-          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'OUT_FOR_DELIVERY']
+          [Op.in]: ['PLACED', 'ASSIGNED', 'SHIPPED', 'IN_TRANSIT', 'RECEIVED', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY']
         }
       },
       include: [
@@ -1000,7 +1000,7 @@ const trackOrder = async (req, res) => {
       { status: 'ASSIGNED', label: 'Transporter Assigned', icon: '🚛' },
       { status: 'SHIPPED', label: 'Picked Up', icon: '📤' },
       { status: 'IN_TRANSIT', label: 'In Transit', icon: '🚚' },
-      { status: 'REACHED_DESTINATION', label: 'Reached Destination Hub', icon: '🏢' },
+      { status: 'REACHED_DESTINATION', label: 'Received at Destination', icon: '🏢' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
       { status: 'COMPLETED', label: 'Delivered', icon: '✅' }
     ];

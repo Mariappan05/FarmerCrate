@@ -14,6 +14,17 @@ class OrderTrackingService {
     return status;
   }
 
+  static normalizeRequestedStatusForTransition(requestedStatus, nextStatus) {
+    const normalizedRequested = this.normalizeStatus(requestedStatus);
+
+    // Backward compatibility: some clients still send RECEIVED at destination hub stage.
+    if (normalizedRequested === 'RECEIVED' && nextStatus === 'REACHED_DESTINATION') {
+      return 'REACHED_DESTINATION';
+    }
+
+    return normalizedRequested;
+  }
+
   static getStatusFlow() {
     return {
       ASSIGNED: 'SHIPPED',
@@ -292,7 +303,7 @@ class OrderTrackingService {
     const nextStatus = this.getNextStatus(order.current_status);
     if (!nextStatus) throw new Error('QR scan not allowed for current order status');
 
-    const normalizedRequestedStatus = this.normalizeStatus(requestedStatus);
+    const normalizedRequestedStatus = this.normalizeRequestedStatusForTransition(requestedStatus, nextStatus);
     if (normalizedRequestedStatus && normalizedRequestedStatus !== nextStatus) {
       throw new Error(`Invalid QR transition. Expected next status: ${nextStatus}`);
     }

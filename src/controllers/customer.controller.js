@@ -205,7 +205,7 @@ exports.trackOrder = async (req, res) => {
       { status: 'RECEIVED', label: 'Received at Source Office', icon: '🏢' },
       { status: 'SHIPPED', label: 'Shipped from Source', icon: '📤' },
       { status: 'IN_TRANSIT', label: 'In Transit to Destination', icon: '🚚' },
-      { status: 'REACHED_DESTINATION', label: 'Reached Destination', icon: '🏭' },
+      { status: 'REACHED_DESTINATION', label: 'Received at Destination', icon: '🏭' },
       { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🚴' },
       { status: 'DELIVERED', label: 'Delivered to Customer', icon: '✅' }
     ];
