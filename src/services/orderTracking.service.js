@@ -11,6 +11,7 @@ class OrderTrackingService {
   static normalizeStatus(status) {
     if (!status) return status;
     if (status === 'OUT_OF_DELIVERY') return 'OUT_FOR_DELIVERY';
+    if (status === 'REACHED_DESTINATION') return 'RECEIVED';
     return status;
   }
 
@@ -18,8 +19,8 @@ class OrderTrackingService {
     return {
       ASSIGNED: 'SHIPPED',
       SHIPPED: 'IN_TRANSIT',
-      IN_TRANSIT: 'REACHED_DESTINATION',
-      REACHED_DESTINATION: 'OUT_FOR_DELIVERY',
+      IN_TRANSIT: 'RECEIVED',
+      RECEIVED: 'OUT_FOR_DELIVERY',
       OUT_FOR_DELIVERY: 'COMPLETED'
     };
   }
@@ -35,7 +36,7 @@ class OrderTrackingService {
       return order.source_transporter_id;
     }
 
-    if (normalizedStatus === 'IN_TRANSIT' || normalizedStatus === 'REACHED_DESTINATION') {
+    if (normalizedStatus === 'IN_TRANSIT' || normalizedStatus === 'RECEIVED') {
       return order.destination_transporter_id;
     }
 
@@ -67,7 +68,7 @@ class OrderTrackingService {
         throw new Error('Assign a vehicle before scanning to IN_TRANSIT');
       }
 
-      if (normalizedCurrentStatus === 'REACHED_DESTINATION') {
+      if (normalizedCurrentStatus === 'RECEIVED') {
         if (!order.delivery_person_id) {
           throw new Error('Assign destination delivery person before scanning to OUT_FOR_DELIVERY');
         }
@@ -292,7 +293,8 @@ class OrderTrackingService {
     const nextStatus = this.getNextStatus(order.current_status);
     if (!nextStatus) throw new Error('QR scan not allowed for current order status');
 
-    if (requestedStatus && requestedStatus !== nextStatus) {
+    const normalizedRequestedStatus = this.normalizeStatus(requestedStatus);
+    if (normalizedRequestedStatus && normalizedRequestedStatus !== nextStatus) {
       throw new Error(`Invalid QR transition. Expected next status: ${nextStatus}`);
     }
 

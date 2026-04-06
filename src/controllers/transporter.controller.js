@@ -310,7 +310,7 @@ const assignOrderToDeliveryPerson = async (req, res) => {
     let newStatus = order.current_status;
     if (order.current_status === 'ASSIGNED' && order.source_transporter_id === req.user.transporter_id) {
       newStatus = 'PICKUP_ASSIGNED';
-    } else if (order.current_status === 'REACHED_DESTINATION') { // destination transporter
+    } else if (order.current_status === 'REACHED_DESTINATION' || order.current_status === 'RECEIVED') { // destination transporter
       newStatus = 'OUT_FOR_DELIVERY';
     }
 
