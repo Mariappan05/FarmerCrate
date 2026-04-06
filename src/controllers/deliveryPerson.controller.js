@@ -636,12 +636,10 @@ const updateLocation = async (req, res) => {
         await DeliveryTracking.create({
           order_id,
           status: order.current_status,
-          scanned_by_id: req.user.delivery_person_id,
-          scanned_by_role: 'delivery',
           location_lat: latitude,
           location_lng: longitude,
           location_address: address,
-          notes: 'Location updated by delivery person'
+          notes: `Location updated by delivery person [scan:role=delivery, id=${req.user.delivery_person_id}]`
         });
       }
     }
