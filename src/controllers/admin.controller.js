@@ -47,6 +47,7 @@ const settleOrderPayoutsIfNeeded = async (order) => {
     farmer: null,
     source_transporter: null,
     destination_transporter: null,
+    delivery_person: null,
     admin_commission: null,
   };
 
@@ -80,14 +81,38 @@ const settleOrderPayoutsIfNeeded = async (order) => {
     }
   }
 
-  const transportHalf = parseAmount(order.transport_charge) / 2;
-  if (transportHalf > 0) {
+  const transportTotal = parseAmount(order.transport_charge);
+  if (transportTotal > 0) {
     const sourceTransporter = await TransporterUser.findByPk(order.source_transporter_id || null);
-    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code) {
+    const destinationTransporter = await TransporterUser.findByPk(order.destination_transporter_id || null);
+    const deliveryPerson = await DeliveryPerson.findByPk(order.delivery_person_id || null);
+
+    const transporterRecipients = [sourceTransporter, destinationTransporter].filter(
+      (t) => t?.account_number && t?.ifsc_code,
+    );
+
+    // Split rule:
+    // - If a delivery person is assigned, reserve 40% of transport charge for delivery person.
+    // - Remaining 60% is split equally across available transporters.
+    // - If no payable transporters are available, delivery person receives full transport charge.
+    const hasDeliveryPerson = !!deliveryPerson;
+    let deliveryShare = hasDeliveryPerson ? Number((transportTotal * 0.4).toFixed(2)) : 0;
+    let transporterPool = Number((transportTotal - deliveryShare).toFixed(2));
+
+    if (hasDeliveryPerson && transporterRecipients.length === 0) {
+      deliveryShare = transportTotal;
+      transporterPool = 0;
+    }
+
+    const perTransporterAmount = transporterRecipients.length
+      ? Number((transporterPool / transporterRecipients.length).toFixed(2))
+      : 0;
+
+    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code && perTransporterAmount > 0) {
       const transfer = await RazorpayService.transferFunds({
         account_number: sourceTransporter.account_number,
         ifsc_code: sourceTransporter.ifsc_code,
-        amount: transportHalf,
+        amount: perTransporterAmount,
         purpose: 'Order payout - source transport settlement',
         reference: `order_${order.order_id}_source_transport_admin_review`,
       });
@@ -96,7 +121,7 @@ const settleOrderPayoutsIfNeeded = async (order) => {
         user_type: 'transporter',
         user_id: sourceTransporter.transporter_id,
         order_id: order.order_id,
-        amount: transportHalf,
+        amount: perTransporterAmount,
         type: 'credit',
         status: transfer.success ? 'completed' : 'failed',
         description: `Source transporter payout after admin review for order #${order.order_id}`,
@@ -104,16 +129,15 @@ const settleOrderPayoutsIfNeeded = async (order) => {
 
       payoutResult.source_transporter = {
         transferred: !!transfer.success,
-        amount: transportHalf,
+        amount: perTransporterAmount,
       };
     }
 
-    const destinationTransporter = await TransporterUser.findByPk(order.destination_transporter_id || null);
-    if (destinationTransporter?.account_number && destinationTransporter?.ifsc_code) {
+    if (destinationTransporter?.account_number && destinationTransporter?.ifsc_code && perTransporterAmount > 0) {
       const transfer = await RazorpayService.transferFunds({
         account_number: destinationTransporter.account_number,
         ifsc_code: destinationTransporter.ifsc_code,
-        amount: transportHalf,
+        amount: perTransporterAmount,
         purpose: 'Order payout - destination transport settlement',
         reference: `order_${order.order_id}_destination_transport_admin_review`,
       });
@@ -122,7 +146,7 @@ const settleOrderPayoutsIfNeeded = async (order) => {
         user_type: 'transporter',
         user_id: destinationTransporter.transporter_id,
         order_id: order.order_id,
-        amount: transportHalf,
+        amount: perTransporterAmount,
         type: 'credit',
         status: transfer.success ? 'completed' : 'failed',
         description: `Destination transporter payout after admin review for order #${order.order_id}`,
@@ -130,7 +154,25 @@ const settleOrderPayoutsIfNeeded = async (order) => {
 
       payoutResult.destination_transporter = {
         transferred: !!transfer.success,
-        amount: transportHalf,
+        amount: perTransporterAmount,
+      };
+    }
+
+    if (deliveryPerson && deliveryShare > 0) {
+      // Delivery person currently has no bank fields in schema, so credit is recorded as a completed ledger entry.
+      await createTxn({
+        user_type: 'transporter',
+        user_id: deliveryPerson.delivery_person_id,
+        order_id: order.order_id,
+        amount: deliveryShare,
+        type: 'credit',
+        status: 'completed',
+        description: `Delivery person payout after admin review for order #${order.order_id}`,
+      });
+
+      payoutResult.delivery_person = {
+        transferred: true,
+        amount: deliveryShare,
       };
     }
   }
