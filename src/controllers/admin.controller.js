@@ -1068,6 +1068,19 @@ exports.reviewReturnRequest = async (req, res) => {
     let returnRequest;
     try {
       returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
+        attributes: [
+          'return_request_id',
+          'order_id',
+          'customer_id',
+          'status',
+          'report',
+          'opening_video_url',
+          'related_photos',
+          'proof_evidence_photos',
+          'submitted_at',
+          'created_at',
+          'updated_at',
+        ],
         include: [
           {
             model: Order,
@@ -1079,7 +1092,21 @@ exports.reviewReturnRequest = async (req, res) => {
     } catch (includeError) {
       // Keep endpoint functional even when eager-loading associations are out of sync.
       console.warn('[AdminReturnReview] reviewReturnRequest include fallback:', includeError?.message || includeError);
-      returnRequest = await CustomerReturnRequest.findByPk(returnRequestId);
+      returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
+        attributes: [
+          'return_request_id',
+          'order_id',
+          'customer_id',
+          'status',
+          'report',
+          'opening_video_url',
+          'related_photos',
+          'proof_evidence_photos',
+          'submitted_at',
+          'created_at',
+          'updated_at',
+        ],
+      });
     }
 
     if (!returnRequest) {
@@ -1192,6 +1219,19 @@ exports.confirmReturnedPackageReceived = async (req, res) => {
     }
 
     const returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
+      attributes: [
+        'return_request_id',
+        'order_id',
+        'customer_id',
+        'status',
+        'report',
+        'opening_video_url',
+        'related_photos',
+        'proof_evidence_photos',
+        'submitted_at',
+        'created_at',
+        'updated_at',
+      ],
       include: [{ model: Order, as: 'order' }],
     });
 
