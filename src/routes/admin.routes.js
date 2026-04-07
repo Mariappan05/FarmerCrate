@@ -14,6 +14,12 @@ router.get('/profile', adminController.getAdminProfile);
 router.get('/dashboard-stats', adminController.getDashboardStats);
 router.get('/dashboard-metrics', adminController.getDashboardMetrics);
 
+// Return proof review and payout/refund workflow
+router.get('/return-requests', adminController.getReturnRequests);
+router.get('/return-requests/by-order/:order_id', adminController.getReturnRequestByOrder);
+router.put('/return-requests/:return_request_id/review', adminController.reviewReturnRequest);
+router.put('/return-requests/:return_request_id/package-received', adminController.confirmReturnedPackageReceived);
+
 // Farmer management
 router.get('/farmers/pending', adminController.getPendingFarmers);
 router.get('/farmers/verified', adminController.getVerifiedFarmers);

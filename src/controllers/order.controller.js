@@ -9,6 +9,7 @@ const ProductImage = require('../models/productImage.model');
 const OrderItem = require('../models/orderItem.model');
 const Cart = require('../models/cart.model');
 const Transaction = require('../models/transaction.model');
+const CustomerReturnRequest = require('../models/customerReturnRequest.model');
 const DeliveryTracking = require('../models/deliveryTracking.model');
 const OrderTrackingService = require('../services/orderTracking.service');
 const GoogleMapsService = require('../services/googleMaps.service');
@@ -498,7 +499,12 @@ exports.getAllOrders = async (req, res) => {
         { model: CustomerUser, as: 'customer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
         { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
         { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
-        { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] },
+        {
+          model: CustomerReturnRequest,
+          as: 'return_request',
+          required: false,
+        }
       ],
       order: [['created_at', 'DESC']]
     });

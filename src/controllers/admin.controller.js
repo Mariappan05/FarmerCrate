@@ -5,7 +5,156 @@ const AdminUser = require('../models/admin_user.model');
 const DeliveryPerson = require('../models/deliveryPerson.model');
 const Product = require('../models/product.model');
 const Order = require('../models/order.model');
+const Transaction = require('../models/transaction.model');
+const CustomerReturnRequest = require('../models/customerReturnRequest.model');
+const RazorpayService = require('../services/razorpay.service');
 const { generateVerificationCode } = require('../utils/sms.util');
+
+const parseAmount = (value) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const createTxn = async (payload) => {
+  try {
+    return await Transaction.create(payload);
+  } catch (error) {
+    console.error('[AdminReturnReview] Transaction create failed:', error.message);
+    return null;
+  }
+};
+
+const settleOrderPayoutsIfNeeded = async (order) => {
+  const payoutTypes = ['farmer', 'transporter', 'admin'];
+  const existing = await Transaction.findAll({
+    where: {
+      order_id: order.order_id,
+      user_type: payoutTypes,
+      status: 'completed',
+    },
+  });
+
+  if (existing.length > 0) {
+    return {
+      skipped: true,
+      reason: 'Payout transactions already exist',
+      count: existing.length,
+    };
+  }
+
+  const payoutResult = {
+    skipped: false,
+    farmer: null,
+    source_transporter: null,
+    destination_transporter: null,
+    admin_commission: null,
+  };
+
+  const farmer = await FarmerUser.findByPk(order.product?.farmer_id || null);
+  if (farmer) {
+    const farmerAmount = parseAmount(order.farmer_amount);
+    if (farmer.account_number && farmer.ifsc_code && farmerAmount > 0) {
+      const transfer = await RazorpayService.transferFunds({
+        account_number: farmer.account_number,
+        ifsc_code: farmer.ifsc_code,
+        amount: farmerAmount,
+        purpose: 'Order payout - farmer settlement',
+        reference: `order_${order.order_id}_farmer_admin_review`,
+      });
+
+      await createTxn({
+        farmer_id: farmer.farmer_id,
+        user_type: 'farmer',
+        user_id: farmer.farmer_id,
+        order_id: order.order_id,
+        amount: farmerAmount,
+        type: 'credit',
+        status: transfer.success ? 'completed' : 'failed',
+        description: `Farmer payout after admin review for order #${order.order_id}`,
+      });
+
+      payoutResult.farmer = {
+        transferred: !!transfer.success,
+        amount: farmerAmount,
+      };
+    }
+  }
+
+  const transportHalf = parseAmount(order.transport_charge) / 2;
+  if (transportHalf > 0) {
+    const sourceTransporter = await TransporterUser.findByPk(order.source_transporter_id || null);
+    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code) {
+      const transfer = await RazorpayService.transferFunds({
+        account_number: sourceTransporter.account_number,
+        ifsc_code: sourceTransporter.ifsc_code,
+        amount: transportHalf,
+        purpose: 'Order payout - source transport settlement',
+        reference: `order_${order.order_id}_source_transport_admin_review`,
+      });
+
+      await createTxn({
+        user_type: 'transporter',
+        user_id: sourceTransporter.transporter_id,
+        order_id: order.order_id,
+        amount: transportHalf,
+        type: 'credit',
+        status: transfer.success ? 'completed' : 'failed',
+        description: `Source transporter payout after admin review for order #${order.order_id}`,
+      });
+
+      payoutResult.source_transporter = {
+        transferred: !!transfer.success,
+        amount: transportHalf,
+      };
+    }
+
+    const destinationTransporter = await TransporterUser.findByPk(order.destination_transporter_id || null);
+    if (destinationTransporter?.account_number && destinationTransporter?.ifsc_code) {
+      const transfer = await RazorpayService.transferFunds({
+        account_number: destinationTransporter.account_number,
+        ifsc_code: destinationTransporter.ifsc_code,
+        amount: transportHalf,
+        purpose: 'Order payout - destination transport settlement',
+        reference: `order_${order.order_id}_destination_transport_admin_review`,
+      });
+
+      await createTxn({
+        user_type: 'transporter',
+        user_id: destinationTransporter.transporter_id,
+        order_id: order.order_id,
+        amount: transportHalf,
+        type: 'credit',
+        status: transfer.success ? 'completed' : 'failed',
+        description: `Destination transporter payout after admin review for order #${order.order_id}`,
+      });
+
+      payoutResult.destination_transporter = {
+        transferred: !!transfer.success,
+        amount: transportHalf,
+      };
+    }
+  }
+
+  const adminCommission = parseAmount(order.admin_commission);
+  if (adminCommission > 0) {
+    await createTxn({
+      user_type: 'admin',
+      user_id: 1,
+      order_id: order.order_id,
+      amount: adminCommission,
+      type: 'commission',
+      status: 'completed',
+      description: `Admin commission retained for order #${order.order_id}`,
+    });
+
+    payoutResult.admin_commission = {
+      retained: true,
+      amount: adminCommission,
+    };
+  }
+
+  return payoutResult;
+};
 
 exports.getAdminProfile = async (req, res) => {
   try {
@@ -777,5 +926,237 @@ exports.getDashboardMetrics = async (req, res) => {
   } catch (error) {
     console.error('Error fetching dashboard metrics:', error);
     res.status(500).json({ message: 'Error fetching dashboard metrics' });
+  }
+};
+
+exports.getReturnRequests = async (req, res) => {
+  try {
+    const rows = await CustomerReturnRequest.findAll({
+      include: [
+        {
+          model: Order,
+          as: 'order',
+          include: [
+            {
+              model: Product,
+              attributes: ['product_id', 'name', 'current_price', 'farmer_id'],
+            },
+            {
+              model: CustomerUser,
+              as: 'customer',
+              attributes: ['customer_id', 'name', 'email', 'mobile_number'],
+            },
+          ],
+        },
+      ],
+      order: [['submitted_at', 'DESC']],
+    });
+
+    res.json({ success: true, count: rows.length, data: rows });
+  } catch (error) {
+    console.error('[AdminReturnReview] getReturnRequests error:', error);
+    res.status(500).json({ message: 'Error fetching return requests' });
+  }
+};
+
+exports.getReturnRequestByOrder = async (req, res) => {
+  try {
+    const orderId = Number(req.params.order_id);
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      return res.status(400).json({ message: 'Valid order_id is required' });
+    }
+
+    const row = await CustomerReturnRequest.findOne({
+      where: { order_id: orderId },
+      include: [
+        {
+          model: Order,
+          as: 'order',
+          include: [
+            {
+              model: Product,
+              attributes: ['product_id', 'name', 'current_price', 'farmer_id'],
+            },
+            {
+              model: CustomerUser,
+              as: 'customer',
+              attributes: ['customer_id', 'name', 'email', 'mobile_number'],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!row) {
+      return res.status(404).json({ message: 'No return request found for this order' });
+    }
+
+    res.json({ success: true, data: row });
+  } catch (error) {
+    console.error('[AdminReturnReview] getReturnRequestByOrder error:', error);
+    res.status(500).json({ message: 'Error fetching return request' });
+  }
+};
+
+exports.reviewReturnRequest = async (req, res) => {
+  try {
+    const returnRequestId = Number(req.params.return_request_id);
+    const decision = String(req.body.decision || '').trim().toUpperCase();
+    const adminNotes = String(req.body.notes || '').trim();
+
+    if (!Number.isInteger(returnRequestId) || returnRequestId <= 0) {
+      return res.status(400).json({ message: 'Valid return_request_id is required' });
+    }
+
+    if (!['APPROVE', 'REJECT'].includes(decision)) {
+      return res.status(400).json({ message: 'decision must be APPROVE or REJECT' });
+    }
+
+    const returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
+      include: [
+        {
+          model: Order,
+          as: 'order',
+          include: [{ model: Product, attributes: ['product_id', 'farmer_id', 'name'] }],
+        },
+      ],
+    });
+
+    if (!returnRequest) {
+      return res.status(404).json({ message: 'Return request not found' });
+    }
+
+    const order = returnRequest.order;
+    if (!order) {
+      return res.status(400).json({ message: 'Order not found for this return request' });
+    }
+
+    if (decision === 'REJECT') {
+      const payoutResult = await settleOrderPayoutsIfNeeded(order);
+
+      await returnRequest.update({
+        status: 'REJECTED',
+        admin_review_status: 'REJECTED',
+        admin_review_notes: adminNotes || null,
+        reviewed_by_admin_id: req.user?.admin_id || null,
+        reviewed_at: new Date(),
+        payment_release_status: 'PAYOUT_RELEASED',
+      });
+
+      await order.update({
+        current_status: order.current_status === 'COMPLETED' ? order.current_status : 'COMPLETED',
+        payment_status: 'completed',
+      });
+
+      return res.json({
+        success: true,
+        message: 'Return proof rejected. Order payout flow released to stakeholders.',
+        data: {
+          return_request_id: returnRequest.return_request_id,
+          order_id: order.order_id,
+          review_status: 'REJECTED',
+          payout_result: payoutResult,
+        },
+      });
+    }
+
+    await returnRequest.update({
+      status: 'APPROVED',
+      admin_review_status: 'APPROVED',
+      admin_review_notes: adminNotes || null,
+      reviewed_by_admin_id: req.user?.admin_id || null,
+      reviewed_at: new Date(),
+      payment_release_status: 'AWAITING_PACKAGE_RECEIPT',
+    });
+
+    await order.update({ payment_status: 'pending' });
+
+    return res.json({
+      success: true,
+      message: 'Return proof approved. Customer refund will be processed after package receipt confirmation.',
+      data: {
+        return_request_id: returnRequest.return_request_id,
+        order_id: order.order_id,
+        review_status: 'APPROVED',
+        next_step: 'MARK_PACKAGE_RECEIVED',
+      },
+    });
+  } catch (error) {
+    console.error('[AdminReturnReview] reviewReturnRequest error:', error);
+    res.status(500).json({ message: 'Error reviewing return request' });
+  }
+};
+
+exports.confirmReturnedPackageReceived = async (req, res) => {
+  try {
+    const returnRequestId = Number(req.params.return_request_id);
+    const refundReference = String(req.body.refund_reference || '').trim();
+
+    if (!Number.isInteger(returnRequestId) || returnRequestId <= 0) {
+      return res.status(400).json({ message: 'Valid return_request_id is required' });
+    }
+
+    const returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
+      include: [{ model: Order, as: 'order' }],
+    });
+
+    if (!returnRequest) {
+      return res.status(404).json({ message: 'Return request not found' });
+    }
+
+    if (returnRequest.admin_review_status !== 'APPROVED') {
+      return res.status(400).json({ message: 'Package receipt can be marked only after admin approval' });
+    }
+
+    const order = returnRequest.order;
+    if (!order) {
+      return res.status(400).json({ message: 'Order not found for this return request' });
+    }
+
+    const refundAmount = parseAmount(order.total_price);
+    const existingRefund = await Transaction.findOne({
+      where: {
+        order_id: order.order_id,
+        user_type: 'customer',
+        type: 'refund',
+        status: 'completed',
+      },
+    });
+
+    if (!existingRefund && refundAmount > 0) {
+      await createTxn({
+        user_type: 'customer',
+        user_id: order.customer_id,
+        order_id: order.order_id,
+        amount: refundAmount,
+        type: 'refund',
+        status: 'completed',
+        description: `Customer refund processed after return package receipt for order #${order.order_id}`,
+      });
+    }
+
+    await returnRequest.update({
+      status: 'COMPLETED',
+      payment_release_status: 'REFUND_COMPLETED',
+      package_received_from_customer_at: new Date(),
+      refund_processed_at: new Date(),
+      refund_reference: refundReference || null,
+    });
+
+    await order.update({ payment_status: 'failed' });
+
+    res.json({
+      success: true,
+      message: 'Package receipt confirmed and customer refund marked as completed.',
+      data: {
+        return_request_id: returnRequest.return_request_id,
+        order_id: order.order_id,
+        refund_amount: refundAmount,
+        refund_reference: refundReference || null,
+      },
+    });
+  } catch (error) {
+    console.error('[AdminReturnReview] confirmReturnedPackageReceived error:', error);
+    res.status(500).json({ message: 'Error confirming package receipt for return request' });
   }
 };

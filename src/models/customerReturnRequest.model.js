@@ -48,6 +48,40 @@ const CustomerReturnRequest = sequelize.define('customer_return_requests', {
     allowNull: false,
     defaultValue: DataTypes.NOW,
   },
+  admin_review_status: {
+    type: DataTypes.ENUM('PENDING', 'APPROVED', 'REJECTED'),
+    allowNull: false,
+    defaultValue: 'PENDING',
+  },
+  admin_review_notes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  reviewed_by_admin_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  reviewed_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  payment_release_status: {
+    type: DataTypes.ENUM('HOLD', 'PAYOUT_RELEASED', 'AWAITING_PACKAGE_RECEIPT', 'REFUND_COMPLETED'),
+    allowNull: false,
+    defaultValue: 'HOLD',
+  },
+  package_received_from_customer_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  refund_processed_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  refund_reference: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   tableName: 'customer_return_requests',
   timestamps: true,
