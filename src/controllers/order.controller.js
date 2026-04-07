@@ -68,14 +68,36 @@ const settleStakeholderPayouts = async (order, productFarmerId) => {
     });
   }
 
-  const halfTransport = toAmount(order.transport_charge) / 2;
-  if (halfTransport > 0) {
+  const transportTotal = toAmount(order.transport_charge);
+  if (transportTotal > 0) {
     const sourceTransporter = await TransporterUser.findByPk(order.source_transporter_id || null);
-    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code) {
+    const destinationTransporter = await TransporterUser.findByPk(order.destination_transporter_id || null);
+    const deliveryPerson = await DeliveryPerson.findByPk(order.delivery_person_id || null);
+
+    const transporterRecipients = [sourceTransporter, destinationTransporter].filter(
+      (t) => t?.account_number && t?.ifsc_code,
+    );
+
+    // Split transport charges among destination participants.
+    // 40% reserved for delivery person when assigned; remaining 60% split between available transporters.
+    const hasDeliveryPerson = !!deliveryPerson;
+    let deliveryShare = hasDeliveryPerson ? Number((transportTotal * 0.4).toFixed(2)) : 0;
+    let transporterPool = Number((transportTotal - deliveryShare).toFixed(2));
+
+    if (hasDeliveryPerson && transporterRecipients.length === 0) {
+      deliveryShare = transportTotal;
+      transporterPool = 0;
+    }
+
+    const perTransporterAmount = transporterRecipients.length
+      ? Number((transporterPool / transporterRecipients.length).toFixed(2))
+      : 0;
+
+    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code && perTransporterAmount > 0) {
       const result = await RazorpayService.transferFunds({
         account_number: sourceTransporter.account_number,
         ifsc_code: sourceTransporter.ifsc_code,
-        amount: halfTransport,
+        amount: perTransporterAmount,
         purpose: 'Source transporter settlement',
         reference: `order_${order.order_id}_source_transport_settlement`,
       });
@@ -83,19 +105,18 @@ const settleStakeholderPayouts = async (order, productFarmerId) => {
         user_type: 'transporter',
         user_id: sourceTransporter.transporter_id,
         order_id: order.order_id,
-        amount: halfTransport,
+        amount: perTransporterAmount,
         type: 'credit',
         status: result.success ? 'completed' : 'failed',
         description: `Source transporter payout settlement for order #${order.order_id}`,
       });
     }
 
-    const destinationTransporter = await TransporterUser.findByPk(order.destination_transporter_id || null);
-    if (destinationTransporter?.account_number && destinationTransporter?.ifsc_code) {
+    if (destinationTransporter?.account_number && destinationTransporter?.ifsc_code && perTransporterAmount > 0) {
       const result = await RazorpayService.transferFunds({
         account_number: destinationTransporter.account_number,
         ifsc_code: destinationTransporter.ifsc_code,
-        amount: halfTransport,
+        amount: perTransporterAmount,
         purpose: 'Destination transporter settlement',
         reference: `order_${order.order_id}_destination_transport_settlement`,
       });
@@ -103,10 +124,23 @@ const settleStakeholderPayouts = async (order, productFarmerId) => {
         user_type: 'transporter',
         user_id: destinationTransporter.transporter_id,
         order_id: order.order_id,
-        amount: halfTransport,
+        amount: perTransporterAmount,
         type: 'credit',
         status: result.success ? 'completed' : 'failed',
         description: `Destination transporter payout settlement for order #${order.order_id}`,
+      });
+    }
+
+    if (deliveryPerson && deliveryShare > 0) {
+      // Delivery person has no bank fields in current schema; keep payout ledger entry explicit.
+      await createTxnSafe({
+        user_type: 'transporter',
+        user_id: deliveryPerson.delivery_person_id,
+        order_id: order.order_id,
+        amount: deliveryShare,
+        type: 'credit',
+        status: 'completed',
+        description: `Delivery person payout settlement for order #${order.order_id}`,
       });
     }
   }
@@ -134,11 +168,19 @@ const evaluateAndReleasePayoutForOrder = async (order, options = {}) => {
     return { released: false, reason: 'not_completed' };
   }
 
-  const returnRequest = await CustomerReturnRequest.findOne({ where: { order_id: order.order_id } });
+  let returnRequest = null;
+  try {
+    returnRequest = await CustomerReturnRequest.findOne({
+      where: { order_id: order.order_id },
+      attributes: ['return_request_id', 'order_id', 'status'],
+    });
+  } catch (error) {
+    console.warn('[OrderPayoutPolicy] return request read failed; assuming no hold:', error.message);
+  }
   const hasReturnPolicyRequest = !!returnRequest;
 
   if (hasReturnPolicyRequest) {
-    const decision = String(returnRequest.admin_review_status || returnRequest.status || '').toUpperCase();
+    const decision = String(returnRequest.status || '').toUpperCase();
     if (decision !== 'REJECTED') {
       return { released: false, reason: 'awaiting_admin_return_decision_or_refund' };
     }
@@ -163,6 +205,18 @@ const processEligibleAutoPayouts = async (orders) => {
       console.error('[OrderPayoutPolicy] auto evaluation failed for order', order?.order_id, error.message);
     }
   }
+};
+
+const scheduleDelayedPayoutEvaluation = (orderId) => {
+  if (!orderId) return;
+  setTimeout(async () => {
+    try {
+      const latest = await Order.findByPk(orderId);
+      await evaluateAndReleasePayoutForOrder(latest);
+    } catch (error) {
+      console.error('[OrderPayoutPolicy] delayed evaluation failed for order', orderId, error.message);
+    }
+  }, PAYOUT_RELEASE_DELAY_MS);
 };
 
 const getScannerIdFromRequest = (req) => {
@@ -731,6 +785,9 @@ exports.updateOrderStatusByQR = async (req, res) => {
 
     const updatedOrder = await Order.findByPk(order_id);
     await evaluateAndReleasePayoutForOrder(updatedOrder);
+    if (String(updatedOrder?.current_status || '').toUpperCase() === 'COMPLETED') {
+      scheduleDelayedPayoutEvaluation(updatedOrder.order_id);
+    }
 
     res.json({
       success: true,
@@ -975,6 +1032,9 @@ exports.updateOrderStatus = async (req, res) => {
 
     const refreshedOrder = await Order.findByPk(order_id);
     await evaluateAndReleasePayoutForOrder(refreshedOrder);
+    if (String(refreshedOrder?.current_status || '').toUpperCase() === 'COMPLETED') {
+      scheduleDelayedPayoutEvaluation(refreshedOrder.order_id);
+    }
 
     res.json({
       success: true,

@@ -368,6 +368,7 @@ exports.getDashboardStats = async (req, res) => {
       verifiedFarmers,
       totalCustomers,
       totalTransporters,
+      totalDeliveryPersons,
       totalOrders,
       pendingTransporters,
       activeOrders,
@@ -378,6 +379,7 @@ exports.getDashboardStats = async (req, res) => {
       FarmerUser.count({ where: { is_verified_by_gov: true } }),
       CustomerUser.count(),
       TransporterUser.count(),
+      DeliveryPerson.count(),
       Order.count(),
       TransporterUser.count({ where: { verified_status: 'pending' } }),
       Order.count({
@@ -404,6 +406,7 @@ exports.getDashboardStats = async (req, res) => {
         verified_farmers: verifiedFarmers,
         total_customers: totalCustomers,
         total_transporters: totalTransporters,
+        total_delivery_persons: totalDeliveryPersons,
         total_orders: totalOrders,
         active_orders: activeOrders,
         completed_orders: completedOrders,
@@ -439,9 +442,16 @@ exports.getAllFarmers = async (req, res) => {
       });
       
       const totalOrders = orders.length;
-      const totalEarnings = orders
-        .filter(order => order.current_status === 'COMPLETED')
-        .reduce((sum, order) => sum + parseFloat(order.farmer_amount || 0), 0);
+      const transactions = await Transaction.findAll({
+        where: {
+          user_type: 'farmer',
+          user_id: farmer.farmer_id,
+          status: 'completed'
+        },
+        attributes: ['amount']
+      });
+
+      const totalEarnings = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
       
       const { products, ...farmerData } = farmer.toJSON();
       return {
@@ -525,7 +535,9 @@ exports.getAllTransporters = async (req, res) => {
         }
       });
       
-      const totalAmount = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      const totalAmount = transactions
+        .filter((t) => !String(t.description || '').toLowerCase().includes('delivery person payout'))
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
       
       return {
         ...transporter.toJSON(),
@@ -560,13 +572,16 @@ exports.getAllDeliveryPersons = async (req, res) => {
       
       const transactions = await Transaction.findAll({
         where: {
-          user_type: 'delivery_person',
+          user_type: 'transporter',
           user_id: person.delivery_person_id,
           status: 'completed'
-        }
+        },
+        attributes: ['amount', 'description']
       });
-      
-      const totalAmount = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+      const totalAmount = transactions
+        .filter((t) => String(t.description || '').toLowerCase().includes('delivery person payout'))
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
       
       return {
         ...person.toJSON(),
@@ -1171,15 +1186,7 @@ exports.reviewReturnRequest = async (req, res) => {
     }
 
     if (decision === 'APPROVE') {
-      // Business rule: on APPROVE, split and release payouts automatically.
-      let payoutResult = null;
-      try {
-        payoutResult = await settleOrderPayoutsIfNeeded(order);
-      } catch (payoutError) {
-        console.warn('[AdminReturnReview] payout settlement warning:', payoutError?.message || payoutError);
-        payoutResult = { skipped: true, reason: payoutError?.message || 'payout settlement failed' };
-      }
-
+      // Business rule: on APPROVE, wait for returned package; refund after package receipt confirmation.
       try {
         await returnRequest.update({
           status: 'APPROVED',
@@ -1187,34 +1194,39 @@ exports.reviewReturnRequest = async (req, res) => {
           admin_review_notes: adminNotes || null,
           reviewed_by_admin_id: req.user?.admin_id || null,
           reviewed_at: new Date(),
-          payment_release_status: 'PAYOUT_RELEASED',
+          payment_release_status: 'AWAITING_PACKAGE_RECEIPT',
         });
       } catch (_) {
         await returnRequest.update({ status: 'APPROVED' });
       }
 
       try {
-        await order.update({
-          current_status: order.current_status === 'COMPLETED' ? order.current_status : 'COMPLETED',
-          payment_status: 'completed',
-        });
+        await order.update({ payment_status: 'pending' });
       } catch (orderUpdateError) {
         console.warn('[AdminReturnReview] order update warning (approve):', orderUpdateError?.message || orderUpdateError);
       }
 
       return res.json({
         success: true,
-        message: 'Approved: payouts have been split and released to stakeholders.',
+        message: 'Approved: customer refund will be processed after package receipt confirmation.',
         data: {
           return_request_id: returnRequest.return_request_id,
           order_id: order.order_id,
           review_status: 'APPROVED',
-          payout_result: payoutResult,
+          next_step: 'MARK_PACKAGE_RECEIVED',
         },
       });
     }
 
-    // Business rule: on REJECT, wait for returned package; refund after package receipt confirmation.
+    // Business rule: on REJECT, split and release payouts to stakeholders.
+    let payoutResult = null;
+    try {
+      payoutResult = await settleOrderPayoutsIfNeeded(order);
+    } catch (payoutError) {
+      console.warn('[AdminReturnReview] payout settlement warning:', payoutError?.message || payoutError);
+      payoutResult = { skipped: true, reason: payoutError?.message || 'payout settlement failed' };
+    }
+
     try {
       await returnRequest.update({
         status: 'REJECTED',
@@ -1222,26 +1234,29 @@ exports.reviewReturnRequest = async (req, res) => {
         admin_review_notes: adminNotes || null,
         reviewed_by_admin_id: req.user?.admin_id || null,
         reviewed_at: new Date(),
-        payment_release_status: 'AWAITING_PACKAGE_RECEIPT',
+        payment_release_status: 'PAYOUT_RELEASED',
       });
     } catch (_) {
       await returnRequest.update({ status: 'REJECTED' });
     }
 
     try {
-      await order.update({ payment_status: 'pending' });
+      await order.update({
+        current_status: order.current_status === 'COMPLETED' ? order.current_status : 'COMPLETED',
+        payment_status: 'completed',
+      });
     } catch (orderUpdateError) {
       console.warn('[AdminReturnReview] order update warning (reject):', orderUpdateError?.message || orderUpdateError);
     }
 
     return res.json({
       success: true,
-      message: 'Rejected: customer refund will be processed after package receipt confirmation.',
+      message: 'Rejected: payouts have been split and released to stakeholders.',
       data: {
         return_request_id: returnRequest.return_request_id,
         order_id: order.order_id,
         review_status: 'REJECTED',
-        next_step: 'MARK_PACKAGE_RECEIVED',
+        payout_result: payoutResult,
       },
     });
   } catch (error) {
@@ -1283,10 +1298,10 @@ exports.confirmReturnedPackageReceived = async (req, res) => {
       return res.status(404).json({ message: 'Return request not found' });
     }
 
-    const eligibleForPackageReceipt =
-      ['APPROVED', 'REJECTED'].includes(String(returnRequest.status || '').toUpperCase()) ||
-      ['APPROVED', 'REJECTED'].includes(String(returnRequest.admin_review_status || '').toUpperCase());
-    if (!eligibleForPackageReceipt) {
+    const approvedByLegacyOrNew =
+      String(returnRequest.status || '').toUpperCase() === 'APPROVED' ||
+      String(returnRequest.admin_review_status || '').toUpperCase() === 'APPROVED';
+    if (!approvedByLegacyOrNew) {
       return res.status(400).json({ message: 'Package receipt can be marked only after admin approval' });
     }
 
