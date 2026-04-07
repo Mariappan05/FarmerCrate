@@ -1050,7 +1050,11 @@ exports.getReturnRequestByOrder = async (req, res) => {
 exports.reviewReturnRequest = async (req, res) => {
   try {
     const returnRequestId = Number(req.params.return_request_id);
-    const decision = String(req.body.decision || '').trim().toUpperCase();
+    const decisionRaw = String(req.body.decision || req.body.action || req.body.status || '').trim().toUpperCase();
+    const decision =
+      decisionRaw === 'APPROVED' ? 'APPROVE' :
+      decisionRaw === 'REJECTED' ? 'REJECT' :
+      decisionRaw;
     const adminNotes = String(req.body.notes || '').trim();
 
     if (!Number.isInteger(returnRequestId) || returnRequestId <= 0) {
