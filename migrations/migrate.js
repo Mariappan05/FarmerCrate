@@ -24,6 +24,7 @@ async function migrate() {
     require('../src/models/notification.model');
     require('../src/models/productImage.model');
     require('../src/models/deliveryTracking.model');
+    require('../src/models/customerReturnRequest.model');
 
     // Set up associations
     require('../src/models/associations');

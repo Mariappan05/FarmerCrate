@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, param } = require('express-validator');
 const orderController = require('../controllers/order.controller');
 const billController = require('../controllers/bill.controller');
+const returnRequestController = require('../controllers/returnRequest.controller');
 const authenticate = require('../middleware/auth');
 
 // Simple authorize middleware
@@ -141,6 +142,20 @@ router.get('/details/:order_id',
   authenticate,
   param('order_id').isInt().withMessage('Valid order ID required'),
   orderController.getOrderDetailsById
+);
+
+router.post('/:order_id/return-request',
+  authenticate,
+  authorize('customer'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  returnRequestController.submitReturnRequest
+);
+
+router.get('/:order_id/return-request',
+  authenticate,
+  authorize('customer'),
+  param('order_id').isInt().withMessage('Valid order ID required'),
+  returnRequestController.getMyReturnRequestByOrder
 );
 
 // Wildcard /:id LAST

@@ -9,6 +9,7 @@ const Cart = require('./cart.model');
 const Transaction = require('./transaction.model');
 const DeliveryPerson = require('./deliveryPerson.model');
 const Wishlist = require('./wishlist.model');
+const CustomerReturnRequest = require('./customerReturnRequest.model');
 
 // Vehicle Models
 const PermanentVehicle = require('./permanentVehicle.model');
@@ -56,6 +57,32 @@ TransporterUser.hasMany(Order, { as: 'destination_orders', foreignKey: 'destinat
 // DeliveryPerson - Order relationship
 Order.belongsTo(DeliveryPerson, { as: 'delivery_person', foreignKey: 'delivery_person_id', targetKey: 'delivery_person_id', onDelete: 'SET NULL' });
 DeliveryPerson.hasMany(Order, { as: 'orders', foreignKey: 'delivery_person_id', sourceKey: 'delivery_person_id', onDelete: 'SET NULL' });
+
+// Customer return request relationships
+Order.hasOne(CustomerReturnRequest, {
+  as: 'return_request',
+  foreignKey: 'order_id',
+  sourceKey: 'order_id',
+  onDelete: 'CASCADE',
+});
+CustomerReturnRequest.belongsTo(Order, {
+  as: 'order',
+  foreignKey: 'order_id',
+  targetKey: 'order_id',
+  onDelete: 'CASCADE',
+});
+CustomerUser.hasMany(CustomerReturnRequest, {
+  as: 'return_requests',
+  foreignKey: 'customer_id',
+  sourceKey: 'customer_id',
+  onDelete: 'CASCADE',
+});
+CustomerReturnRequest.belongsTo(CustomerUser, {
+  as: 'customer',
+  foreignKey: 'customer_id',
+  targetKey: 'customer_id',
+  onDelete: 'CASCADE',
+});
 
 // Customer - Cart relationship
 Cart.belongsTo(CustomerUser, { as: 'customer', foreignKey: 'customer_id', targetKey: 'customer_id', onDelete: 'CASCADE' });

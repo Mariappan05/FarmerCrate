@@ -37,6 +37,7 @@ const initializeDatabase = async () => {
     require('../models/productPriceHistory.model');
     require('../models/farmerVerificationHistory.model');
     require('../models/deliveryTracking.model');
+      require('../models/customerReturnRequest.model');
     
     // Vehicle Management Models
     require('../models/permanentVehicle.model');
