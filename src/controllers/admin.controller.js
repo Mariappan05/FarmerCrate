@@ -1102,7 +1102,13 @@ exports.reviewReturnRequest = async (req, res) => {
     }
 
     if (decision === 'REJECT') {
-      const payoutResult = await settleOrderPayoutsIfNeeded(order);
+      let payoutResult = null;
+      try {
+        payoutResult = await settleOrderPayoutsIfNeeded(order);
+      } catch (payoutError) {
+        console.warn('[AdminReturnReview] payout settlement warning:', payoutError?.message || payoutError);
+        payoutResult = { skipped: true, reason: payoutError?.message || 'payout settlement failed' };
+      }
 
       try {
         await returnRequest.update({
@@ -1117,10 +1123,14 @@ exports.reviewReturnRequest = async (req, res) => {
         await returnRequest.update({ status: 'REJECTED' });
       }
 
-      await order.update({
-        current_status: order.current_status === 'COMPLETED' ? order.current_status : 'COMPLETED',
-        payment_status: 'completed',
-      });
+      try {
+        await order.update({
+          current_status: order.current_status === 'COMPLETED' ? order.current_status : 'COMPLETED',
+          payment_status: 'completed',
+        });
+      } catch (orderUpdateError) {
+        console.warn('[AdminReturnReview] order update warning (reject):', orderUpdateError?.message || orderUpdateError);
+      }
 
       return res.json({
         success: true,
@@ -1147,7 +1157,11 @@ exports.reviewReturnRequest = async (req, res) => {
       await returnRequest.update({ status: 'APPROVED' });
     }
 
-    await order.update({ payment_status: 'pending' });
+    try {
+      await order.update({ payment_status: 'pending' });
+    } catch (orderUpdateError) {
+      console.warn('[AdminReturnReview] order update warning (approve):', orderUpdateError?.message || orderUpdateError);
+    }
 
     return res.json({
       success: true,
@@ -1161,7 +1175,10 @@ exports.reviewReturnRequest = async (req, res) => {
     });
   } catch (error) {
     console.error('[AdminReturnReview] reviewReturnRequest error:', error);
-    res.status(500).json({ message: 'Error reviewing return request' });
+    res.status(500).json({
+      message: 'Error reviewing return request',
+      error: error?.message || 'unknown error',
+    });
   }
 };
 
