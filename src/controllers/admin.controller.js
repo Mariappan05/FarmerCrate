@@ -1128,7 +1128,8 @@ exports.reviewReturnRequest = async (req, res) => {
       return res.status(400).json({ message: 'Order not found for this return request' });
     }
 
-    if (decision === 'REJECT') {
+    if (decision === 'APPROVE') {
+      // Business rule: on APPROVE, split and release payouts automatically.
       let payoutResult = null;
       try {
         payoutResult = await settleOrderPayoutsIfNeeded(order);
@@ -1139,15 +1140,15 @@ exports.reviewReturnRequest = async (req, res) => {
 
       try {
         await returnRequest.update({
-          status: 'REJECTED',
-          admin_review_status: 'REJECTED',
+          status: 'APPROVED',
+          admin_review_status: 'APPROVED',
           admin_review_notes: adminNotes || null,
           reviewed_by_admin_id: req.user?.admin_id || null,
           reviewed_at: new Date(),
           payment_release_status: 'PAYOUT_RELEASED',
         });
       } catch (_) {
-        await returnRequest.update({ status: 'REJECTED' });
+        await returnRequest.update({ status: 'APPROVED' });
       }
 
       try {
@@ -1156,47 +1157,48 @@ exports.reviewReturnRequest = async (req, res) => {
           payment_status: 'completed',
         });
       } catch (orderUpdateError) {
-        console.warn('[AdminReturnReview] order update warning (reject):', orderUpdateError?.message || orderUpdateError);
+        console.warn('[AdminReturnReview] order update warning (approve):', orderUpdateError?.message || orderUpdateError);
       }
 
       return res.json({
         success: true,
-        message: 'Return proof rejected. Order payout flow released to stakeholders.',
+        message: 'Approved: payouts have been split and released to stakeholders.',
         data: {
           return_request_id: returnRequest.return_request_id,
           order_id: order.order_id,
-          review_status: 'REJECTED',
+          review_status: 'APPROVED',
           payout_result: payoutResult,
         },
       });
     }
 
+    // Business rule: on REJECT, wait for returned package; refund after package receipt confirmation.
     try {
       await returnRequest.update({
-        status: 'APPROVED',
-        admin_review_status: 'APPROVED',
+        status: 'REJECTED',
+        admin_review_status: 'REJECTED',
         admin_review_notes: adminNotes || null,
         reviewed_by_admin_id: req.user?.admin_id || null,
         reviewed_at: new Date(),
         payment_release_status: 'AWAITING_PACKAGE_RECEIPT',
       });
     } catch (_) {
-      await returnRequest.update({ status: 'APPROVED' });
+      await returnRequest.update({ status: 'REJECTED' });
     }
 
     try {
       await order.update({ payment_status: 'pending' });
     } catch (orderUpdateError) {
-      console.warn('[AdminReturnReview] order update warning (approve):', orderUpdateError?.message || orderUpdateError);
+      console.warn('[AdminReturnReview] order update warning (reject):', orderUpdateError?.message || orderUpdateError);
     }
 
     return res.json({
       success: true,
-      message: 'Return proof approved. Customer refund will be processed after package receipt confirmation.',
+      message: 'Rejected: customer refund will be processed after package receipt confirmation.',
       data: {
         return_request_id: returnRequest.return_request_id,
         order_id: order.order_id,
-        review_status: 'APPROVED',
+        review_status: 'REJECTED',
         next_step: 'MARK_PACKAGE_RECEIVED',
       },
     });
@@ -1239,8 +1241,10 @@ exports.confirmReturnedPackageReceived = async (req, res) => {
       return res.status(404).json({ message: 'Return request not found' });
     }
 
-    const approvedByLegacyOrNew = returnRequest.status === 'APPROVED' || returnRequest.admin_review_status === 'APPROVED';
-    if (!approvedByLegacyOrNew) {
+    const eligibleForPackageReceipt =
+      ['APPROVED', 'REJECTED'].includes(String(returnRequest.status || '').toUpperCase()) ||
+      ['APPROVED', 'REJECTED'].includes(String(returnRequest.admin_review_status || '').toUpperCase());
+    if (!eligibleForPackageReceipt) {
       return res.status(400).json({ message: 'Package receipt can be marked only after admin approval' });
     }
 
