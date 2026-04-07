@@ -18,6 +18,153 @@ const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
+const PAYOUT_RELEASE_DELAY_MS = 10 * 60 * 1000;
+
+const toAmount = (value) => {
+  const num = Number(value || 0);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const createTxnSafe = async (payload) => {
+  try {
+    return await Transaction.create(payload);
+  } catch (error) {
+    console.error('[OrderPayoutPolicy] transaction create failed:', error.message);
+    return null;
+  }
+};
+
+const settleStakeholderPayouts = async (order, productFarmerId) => {
+  const existing = await Transaction.findAll({
+    where: {
+      order_id: order.order_id,
+      user_type: ['farmer', 'transporter', 'admin'],
+      status: 'completed',
+    },
+  });
+  if (existing.length > 0) {
+    return { released: false, reason: 'already_settled' };
+  }
+
+  const farmer = await FarmerUser.findByPk(productFarmerId || null);
+  const farmerAmount = toAmount(order.farmer_amount);
+  if (farmer && farmer.account_number && farmer.ifsc_code && farmerAmount > 0) {
+    const result = await RazorpayService.transferFunds({
+      account_number: farmer.account_number,
+      ifsc_code: farmer.ifsc_code,
+      amount: farmerAmount,
+      purpose: 'Farmer order settlement',
+      reference: `order_${order.order_id}_farmer_settlement`,
+    });
+    await createTxnSafe({
+      farmer_id: farmer.farmer_id,
+      user_type: 'farmer',
+      user_id: farmer.farmer_id,
+      order_id: order.order_id,
+      amount: farmerAmount,
+      type: 'credit',
+      status: result.success ? 'completed' : 'failed',
+      description: `Farmer payout settlement for order #${order.order_id}`,
+    });
+  }
+
+  const halfTransport = toAmount(order.transport_charge) / 2;
+  if (halfTransport > 0) {
+    const sourceTransporter = await TransporterUser.findByPk(order.source_transporter_id || null);
+    if (sourceTransporter?.account_number && sourceTransporter?.ifsc_code) {
+      const result = await RazorpayService.transferFunds({
+        account_number: sourceTransporter.account_number,
+        ifsc_code: sourceTransporter.ifsc_code,
+        amount: halfTransport,
+        purpose: 'Source transporter settlement',
+        reference: `order_${order.order_id}_source_transport_settlement`,
+      });
+      await createTxnSafe({
+        user_type: 'transporter',
+        user_id: sourceTransporter.transporter_id,
+        order_id: order.order_id,
+        amount: halfTransport,
+        type: 'credit',
+        status: result.success ? 'completed' : 'failed',
+        description: `Source transporter payout settlement for order #${order.order_id}`,
+      });
+    }
+
+    const destinationTransporter = await TransporterUser.findByPk(order.destination_transporter_id || null);
+    if (destinationTransporter?.account_number && destinationTransporter?.ifsc_code) {
+      const result = await RazorpayService.transferFunds({
+        account_number: destinationTransporter.account_number,
+        ifsc_code: destinationTransporter.ifsc_code,
+        amount: halfTransport,
+        purpose: 'Destination transporter settlement',
+        reference: `order_${order.order_id}_destination_transport_settlement`,
+      });
+      await createTxnSafe({
+        user_type: 'transporter',
+        user_id: destinationTransporter.transporter_id,
+        order_id: order.order_id,
+        amount: halfTransport,
+        type: 'credit',
+        status: result.success ? 'completed' : 'failed',
+        description: `Destination transporter payout settlement for order #${order.order_id}`,
+      });
+    }
+  }
+
+  const adminCommission = toAmount(order.admin_commission);
+  if (adminCommission > 0) {
+    await createTxnSafe({
+      user_type: 'admin',
+      user_id: 1,
+      order_id: order.order_id,
+      amount: adminCommission,
+      type: 'commission',
+      status: 'completed',
+      description: `Admin commission settlement for order #${order.order_id}`,
+    });
+  }
+
+  await order.update({ payment_status: 'completed' });
+  return { released: true };
+};
+
+const evaluateAndReleasePayoutForOrder = async (order, options = {}) => {
+  const nowMs = options.nowMs || Date.now();
+  if (!order || String(order.current_status || '').toUpperCase() !== 'COMPLETED') {
+    return { released: false, reason: 'not_completed' };
+  }
+
+  const returnRequest = await CustomerReturnRequest.findOne({ where: { order_id: order.order_id } });
+  const hasReturnPolicyRequest = !!returnRequest;
+
+  if (hasReturnPolicyRequest) {
+    const decision = String(returnRequest.admin_review_status || returnRequest.status || '').toUpperCase();
+    if (decision !== 'REJECTED') {
+      return { released: false, reason: 'awaiting_admin_return_decision_or_refund' };
+    }
+  } else {
+    const completedAt = new Date(order.updated_at || order.created_at).getTime();
+    if (!Number.isFinite(completedAt) || (nowMs - completedAt) < PAYOUT_RELEASE_DELAY_MS) {
+      return { released: false, reason: 'delay_window_not_elapsed' };
+    }
+  }
+
+  const product = await Product.findByPk(order.product_id, { attributes: ['product_id', 'farmer_id'] });
+  return settleStakeholderPayouts(order, product?.farmer_id || null);
+};
+
+const processEligibleAutoPayouts = async (orders) => {
+  if (!Array.isArray(orders) || orders.length === 0) return;
+  const nowMs = Date.now();
+  for (const order of orders) {
+    try {
+      await evaluateAndReleasePayoutForOrder(order, { nowMs });
+    } catch (error) {
+      console.error('[OrderPayoutPolicy] auto evaluation failed for order', order?.order_id, error.message);
+    }
+  }
+};
+
 const getScannerIdFromRequest = (req) => {
   if (req.role === 'transporter') return req.user?.transporter_id;
   if (req.role === 'delivery') return req.user?.delivery_person_id;
@@ -431,6 +578,8 @@ exports.getOrders = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    await processEligibleAutoPayouts(orders);
+
     res.json({
       success: true,
       count: orders.length,
@@ -522,6 +671,8 @@ exports.getAllOrders = async (req, res) => {
       });
     }
     
+    await processEligibleAutoPayouts(orders);
+
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     console.error('Get all orders error:', error);
@@ -577,6 +728,9 @@ exports.updateOrderStatusByQR = async (req, res) => {
       location_address,
       notes
     });
+
+    const updatedOrder = await Order.findByPk(order_id);
+    await evaluateAndReleasePayoutForOrder(updatedOrder);
 
     res.json({
       success: true,
@@ -818,6 +972,9 @@ exports.updateOrderStatus = async (req, res) => {
       await order.update({ current_status: 'IN_TRANSIT' });
       appliedStatus = 'IN_TRANSIT';
     }
+
+    const refreshedOrder = await Order.findByPk(order_id);
+    await evaluateAndReleasePayoutForOrder(refreshedOrder);
 
     res.json({
       success: true,

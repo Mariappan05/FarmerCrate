@@ -319,21 +319,40 @@ exports.approveTransporter = async (req, res) => {
 
 exports.getDashboardStats = async (req, res) => {
   try {
+    const { Op } = require('sequelize');
     const [
       totalFarmers,
       pendingFarmers,
       verifiedFarmers,
       totalCustomers,
       totalTransporters,
-      totalOrders
+      totalOrders,
+      pendingTransporters,
+      activeOrders,
+      completedOrders
     ] = await Promise.all([
       FarmerUser.count(),
       FarmerUser.count({ where: { is_verified_by_gov: false } }),
       FarmerUser.count({ where: { is_verified_by_gov: true } }),
       CustomerUser.count(),
       TransporterUser.count(),
-      Order.count()
+      Order.count(),
+      TransporterUser.count({ where: { verified_status: 'pending' } }),
+      Order.count({
+        where: {
+          current_status: {
+            [Op.in]: ['PENDING', 'PLACED', 'CONFIRMED', 'ASSIGNED', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP', 'RECEIVED', 'SHIPPED', 'IN_TRANSIT', 'REACHED_DESTINATION', 'OUT_FOR_DELIVERY']
+          }
+        }
+      }),
+      Order.count({ where: { current_status: 'COMPLETED' } })
     ]);
+
+    const completedOrderRows = await Order.findAll({
+      where: { current_status: 'COMPLETED' },
+      attributes: ['total_price']
+    });
+    const totalRevenue = completedOrderRows.reduce((sum, row) => sum + parseFloat(row.total_price || 0), 0);
 
     res.json({
       success: true,
@@ -343,7 +362,11 @@ exports.getDashboardStats = async (req, res) => {
         verified_farmers: verifiedFarmers,
         total_customers: totalCustomers,
         total_transporters: totalTransporters,
-        total_orders: totalOrders
+        total_orders: totalOrders,
+        active_orders: activeOrders,
+        completed_orders: completedOrders,
+        total_revenue: totalRevenue,
+        pending_verifications: pendingFarmers + pendingTransporters
       }
     });
   } catch (error) {
@@ -932,6 +955,19 @@ exports.getDashboardMetrics = async (req, res) => {
 exports.getReturnRequests = async (req, res) => {
   try {
     const rows = await CustomerReturnRequest.findAll({
+      attributes: [
+        'return_request_id',
+        'order_id',
+        'customer_id',
+        'status',
+        'report',
+        'opening_video_url',
+        'related_photos',
+        'proof_evidence_photos',
+        'submitted_at',
+        'created_at',
+        'updated_at',
+      ],
       include: [
         {
           model: Order,
@@ -968,6 +1004,19 @@ exports.getReturnRequestByOrder = async (req, res) => {
 
     const row = await CustomerReturnRequest.findOne({
       where: { order_id: orderId },
+      attributes: [
+        'return_request_id',
+        'order_id',
+        'customer_id',
+        'status',
+        'report',
+        'opening_video_url',
+        'related_photos',
+        'proof_evidence_photos',
+        'submitted_at',
+        'created_at',
+        'updated_at',
+      ],
       include: [
         {
           model: Order,
@@ -1034,14 +1083,18 @@ exports.reviewReturnRequest = async (req, res) => {
     if (decision === 'REJECT') {
       const payoutResult = await settleOrderPayoutsIfNeeded(order);
 
-      await returnRequest.update({
-        status: 'REJECTED',
-        admin_review_status: 'REJECTED',
-        admin_review_notes: adminNotes || null,
-        reviewed_by_admin_id: req.user?.admin_id || null,
-        reviewed_at: new Date(),
-        payment_release_status: 'PAYOUT_RELEASED',
-      });
+      try {
+        await returnRequest.update({
+          status: 'REJECTED',
+          admin_review_status: 'REJECTED',
+          admin_review_notes: adminNotes || null,
+          reviewed_by_admin_id: req.user?.admin_id || null,
+          reviewed_at: new Date(),
+          payment_release_status: 'PAYOUT_RELEASED',
+        });
+      } catch (_) {
+        await returnRequest.update({ status: 'REJECTED' });
+      }
 
       await order.update({
         current_status: order.current_status === 'COMPLETED' ? order.current_status : 'COMPLETED',
@@ -1060,14 +1113,18 @@ exports.reviewReturnRequest = async (req, res) => {
       });
     }
 
-    await returnRequest.update({
-      status: 'APPROVED',
-      admin_review_status: 'APPROVED',
-      admin_review_notes: adminNotes || null,
-      reviewed_by_admin_id: req.user?.admin_id || null,
-      reviewed_at: new Date(),
-      payment_release_status: 'AWAITING_PACKAGE_RECEIPT',
-    });
+    try {
+      await returnRequest.update({
+        status: 'APPROVED',
+        admin_review_status: 'APPROVED',
+        admin_review_notes: adminNotes || null,
+        reviewed_by_admin_id: req.user?.admin_id || null,
+        reviewed_at: new Date(),
+        payment_release_status: 'AWAITING_PACKAGE_RECEIPT',
+      });
+    } catch (_) {
+      await returnRequest.update({ status: 'APPROVED' });
+    }
 
     await order.update({ payment_status: 'pending' });
 
@@ -1104,7 +1161,8 @@ exports.confirmReturnedPackageReceived = async (req, res) => {
       return res.status(404).json({ message: 'Return request not found' });
     }
 
-    if (returnRequest.admin_review_status !== 'APPROVED') {
+    const approvedByLegacyOrNew = returnRequest.status === 'APPROVED' || returnRequest.admin_review_status === 'APPROVED';
+    if (!approvedByLegacyOrNew) {
       return res.status(400).json({ message: 'Package receipt can be marked only after admin approval' });
     }
 
@@ -1135,13 +1193,17 @@ exports.confirmReturnedPackageReceived = async (req, res) => {
       });
     }
 
-    await returnRequest.update({
-      status: 'COMPLETED',
-      payment_release_status: 'REFUND_COMPLETED',
-      package_received_from_customer_at: new Date(),
-      refund_processed_at: new Date(),
-      refund_reference: refundReference || null,
-    });
+    try {
+      await returnRequest.update({
+        status: 'COMPLETED',
+        payment_release_status: 'REFUND_COMPLETED',
+        package_received_from_customer_at: new Date(),
+        refund_processed_at: new Date(),
+        refund_reference: refundReference || null,
+      });
+    } catch (_) {
+      await returnRequest.update({ status: 'COMPLETED' });
+    }
 
     await order.update({ payment_status: 'failed' });
 
