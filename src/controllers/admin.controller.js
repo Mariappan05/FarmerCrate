@@ -1065,21 +1065,38 @@ exports.reviewReturnRequest = async (req, res) => {
       return res.status(400).json({ message: 'decision must be APPROVE or REJECT' });
     }
 
-    const returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
-      include: [
-        {
-          model: Order,
-          as: 'order',
-          include: [{ model: Product, attributes: ['product_id', 'farmer_id', 'name'] }],
-        },
-      ],
-    });
+    let returnRequest;
+    try {
+      returnRequest = await CustomerReturnRequest.findByPk(returnRequestId, {
+        include: [
+          {
+            model: Order,
+            as: 'order',
+            include: [{ model: Product, attributes: ['product_id', 'farmer_id', 'name'], required: false }],
+          },
+        ],
+      });
+    } catch (includeError) {
+      // Keep endpoint functional even when eager-loading associations are out of sync.
+      console.warn('[AdminReturnReview] reviewReturnRequest include fallback:', includeError?.message || includeError);
+      returnRequest = await CustomerReturnRequest.findByPk(returnRequestId);
+    }
 
     if (!returnRequest) {
       return res.status(404).json({ message: 'Return request not found' });
     }
 
-    const order = returnRequest.order;
+    let order = returnRequest.order || null;
+    if (!order && returnRequest.order_id) {
+      try {
+        order = await Order.findByPk(returnRequest.order_id, {
+          include: [{ model: Product, attributes: ['product_id', 'farmer_id', 'name'], required: false }],
+        });
+      } catch (orderIncludeError) {
+        console.warn('[AdminReturnReview] order include fallback:', orderIncludeError?.message || orderIncludeError);
+        order = await Order.findByPk(returnRequest.order_id);
+      }
+    }
     if (!order) {
       return res.status(400).json({ message: 'Order not found for this return request' });
     }
