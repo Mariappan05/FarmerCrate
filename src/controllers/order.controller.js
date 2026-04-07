@@ -478,36 +478,49 @@ exports.getOrder = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.findAll({
-      include: [
-        { 
-          model: Product, 
-          attributes: ['product_id', 'name', 'current_price'],
-          include: [
-            {
-              model: ProductImage,
-              as: 'images',
-              attributes: ['image_url', 'is_primary']
-            },
-            {
-              model: FarmerUser,
-              as: 'farmer',
-              attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'image_url']
-            }
-          ]
-        },
-        { model: CustomerUser, as: 'customer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
-        { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
-        { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
-        { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] },
-        {
-          model: CustomerReturnRequest,
-          as: 'return_request',
-          required: false,
-        }
-      ],
-      order: [['created_at', 'DESC']]
-    });
+    const baseIncludes = [
+      {
+        model: Product,
+        attributes: ['product_id', 'name', 'current_price'],
+        include: [
+          {
+            model: ProductImage,
+            as: 'images',
+            attributes: ['image_url', 'is_primary']
+          },
+          {
+            model: FarmerUser,
+            as: 'farmer',
+            attributes: ['farmer_id', 'name', 'email', 'mobile_number', 'address', 'image_url']
+          }
+        ]
+      },
+      { model: CustomerUser, as: 'customer', attributes: ['name', 'email', 'mobile_number', 'image_url'] },
+      { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
+      { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'image_url'] },
+      { model: DeliveryPerson, as: 'delivery_person', attributes: ['name', 'mobile_number', 'vehicle_number'] }
+    ];
+
+    let orders = [];
+    try {
+      orders = await Order.findAll({
+        include: [
+          ...baseIncludes,
+          {
+            model: CustomerReturnRequest,
+            as: 'return_request',
+            required: false,
+          }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+    } catch (joinError) {
+      console.warn('[OrderController] getAllOrders return_request include failed, using fallback:', joinError.message);
+      orders = await Order.findAll({
+        include: baseIncludes,
+        order: [['created_at', 'DESC']]
+      });
+    }
     
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
