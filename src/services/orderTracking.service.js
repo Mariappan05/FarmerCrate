@@ -27,7 +27,10 @@ class OrderTrackingService {
 
   static getStatusFlow() {
     return {
-      ASSIGNED: 'SHIPPED',
+      ASSIGNED: 'PICKUP_ASSIGNED',
+      PICKUP_ASSIGNED: 'PICKED_UP',
+      PICKUP_IN_PROGRESS: 'PICKED_UP',
+      PICKED_UP: 'RECEIVED',
       RECEIVED: 'SHIPPED',
       SHIPPED: 'IN_TRANSIT',
       IN_TRANSIT: 'REACHED_DESTINATION',
@@ -43,7 +46,14 @@ class OrderTrackingService {
   static getRequiredTransporterForTransition(order, currentStatus) {
     const normalizedStatus = this.normalizeStatus(currentStatus);
 
-    if (normalizedStatus === 'ASSIGNED' || normalizedStatus === 'RECEIVED' || normalizedStatus === 'SHIPPED') {
+    if (
+      normalizedStatus === 'ASSIGNED' ||
+      normalizedStatus === 'PICKUP_ASSIGNED' ||
+      normalizedStatus === 'PICKUP_IN_PROGRESS' ||
+      normalizedStatus === 'PICKED_UP' ||
+      normalizedStatus === 'RECEIVED' ||
+      normalizedStatus === 'SHIPPED'
+    ) {
       return order.source_transporter_id;
     }
 
