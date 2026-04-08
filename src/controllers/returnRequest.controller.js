@@ -4,6 +4,7 @@ const CustomerReturnRequest = require('../models/customerReturnRequest.model');
 const RETURN_WINDOW_MS = 10 * 60 * 1000;
 const ALLOWED_ORDER_STATUSES = ['DELIVERED', 'COMPLETED'];
 let returnRequestColumnsCache = null;
+const isProduction = process.env.NODE_ENV === 'production';
 
 const parseUrlArray = (value) => {
   if (Array.isArray(value)) {
@@ -164,6 +165,17 @@ exports.submitReturnRequest = async (req, res) => {
       submitted_at: Number.isNaN(submittedAt.getTime()) ? new Date() : submittedAt,
     }, existingColumns);
 
+    if (!Object.keys(createPayload).length) {
+      return res.status(500).json({
+        message: 'Return request table mapping is invalid. No writable columns available.',
+        ...(isProduction ? {} : {
+          debug: {
+            existingColumns: Array.from(existingColumns),
+          },
+        }),
+      });
+    }
+
     const created = await CustomerReturnRequest.create(createPayload, {
       fields: Object.keys(createPayload),
     });
@@ -177,15 +189,19 @@ exports.submitReturnRequest = async (req, res) => {
       ) : created,
     });
   } catch (error) {
-    console.error('[ReturnRequest] submitReturnRequest error:', {
+    const debugPayload = {
       message: error?.message,
       name: error?.name,
       stack: error?.stack,
       parentMessage: error?.parent?.message,
       originalMessage: error?.original?.message,
       sql: error?.sql,
+    };
+    console.error('[ReturnRequest] submitReturnRequest error:', debugPayload);
+    return res.status(500).json({
+      message: 'Failed to submit return request',
+      ...(isProduction ? {} : { debug: debugPayload }),
     });
-    return res.status(500).json({ message: 'Failed to submit return request' });
   }
 };
 
@@ -229,14 +245,18 @@ exports.getMyReturnRequestByOrder = async (req, res) => {
 
     return res.json({ success: true, data: row });
   } catch (error) {
-    console.error('[ReturnRequest] getMyReturnRequestByOrder error:', {
+    const debugPayload = {
       message: error?.message,
       name: error?.name,
       stack: error?.stack,
       parentMessage: error?.parent?.message,
       originalMessage: error?.original?.message,
       sql: error?.sql,
+    };
+    console.error('[ReturnRequest] getMyReturnRequestByOrder error:', debugPayload);
+    return res.status(500).json({
+      message: 'Failed to load return request',
+      ...(isProduction ? {} : { debug: debugPayload }),
     });
-    return res.status(500).json({ message: 'Failed to load return request' });
   }
 };
