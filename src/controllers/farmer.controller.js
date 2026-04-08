@@ -409,6 +409,19 @@ exports.assignTransporters = async (req, res) => {
     const selectedTransporters = transportersWithDelivery.length > 0 ? transportersWithDelivery : allTransporters;
     console.log('Selected transporters for assignment:', selectedTransporters.length);
 
+    const allTransportersWithAddress = allTransporters
+      .map((transporter) => ({
+        transporter,
+        transporterAddress: buildAddress(
+          transporter.address,
+          transporter.zone,
+          transporter.district,
+          transporter.state,
+          transporter.pincode
+        )
+      }))
+      .filter((entry) => entry.transporterAddress);
+
     const transportersWithAddress = selectedTransporters
       .map((transporter) => ({
         transporter,
@@ -517,7 +530,7 @@ exports.assignTransporters = async (req, res) => {
       sourceTransporter &&
       destTransporter &&
       sourceTransporter.transporter_id === destTransporter.transporter_id &&
-      selectedTransporters.length > 1
+      allTransportersWithAddress.length > 1
     ) {
       console.log('⚠️ Source and destination transporter matched. Trying distinct destination transporter...');
 
@@ -525,15 +538,51 @@ exports.assignTransporters = async (req, res) => {
         .filter(candidate => candidate.transporter.transporter_id !== sourceTransporter.transporter_id)
         .sort((a, b) => a.distance - b.distance)[0];
 
-      const alternateFallback = selectedTransporters.find(
-        transporter => transporter.transporter_id !== sourceTransporter.transporter_id
+      let alternateByDistanceFromFullPool = null;
+      if (!alternateByDistance) {
+        const fullPoolAlternates = allTransportersWithAddress.filter(
+          (entry) => entry.transporter.transporter_id !== sourceTransporter.transporter_id
+        );
+
+        console.log('[AssignTransporters] Trying full transporter pool for distinct destination...', {
+          alternate_candidates: fullPoolAlternates.map((entry) => ({
+            transporter_id: entry.transporter.transporter_id,
+            transporter_name: entry.transporter.name,
+            transporter_address: entry.transporterAddress,
+          })),
+        });
+
+        const fullPoolDistanceCandidates = [];
+        for (const entry of fullPoolAlternates) {
+          try {
+            const distanceData = await GoogleMapsService.calculateDistanceAndDuration(
+              [deliveryAddress],
+              [entry.transporterAddress]
+            );
+            fullPoolDistanceCandidates.push({
+              transporter: entry.transporter,
+              distance: distanceData.distance,
+            });
+          } catch (error) {
+            console.log(`  ⚠️ Google Maps error for full-pool candidate ${entry.transporter.name}:`, error.message);
+          }
+        }
+
+        alternateByDistanceFromFullPool = fullPoolDistanceCandidates.sort((a, b) => a.distance - b.distance)[0] || null;
+      }
+
+      const alternateFallback = allTransportersWithAddress.find(
+        (entry) => entry.transporter.transporter_id !== sourceTransporter.transporter_id
       );
 
       if (alternateByDistance) {
         destTransporter = alternateByDistance.transporter;
         shortestDestDistance = alternateByDistance.distance;
+      } else if (alternateByDistanceFromFullPool) {
+        destTransporter = alternateByDistanceFromFullPool.transporter;
+        shortestDestDistance = alternateByDistanceFromFullPool.distance;
       } else if (alternateFallback) {
-        destTransporter = alternateFallback;
+        destTransporter = alternateFallback.transporter;
       }
 
       console.log(`✅ Distinct destination transporter selected: ${destTransporter.name}`);
