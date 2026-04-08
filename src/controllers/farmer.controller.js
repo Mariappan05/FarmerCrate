@@ -2,6 +2,42 @@ const FarmerUser = require('../models/farmer_user.model');
 const ProductImage = require('../models/productImage.model');
 const { validationResult } = require('express-validator');
 
+const buildAddress = (...parts) => parts
+  .map((part) => (part == null ? '' : String(part).trim()))
+  .filter((part) => part && part.toLowerCase() !== 'undefined' && part.toLowerCase() !== 'null')
+  .join(', ');
+
+const parseDeliveryAddress = (rawAddress) => {
+  if (!rawAddress) return '';
+
+  if (typeof rawAddress === 'object') {
+    return buildAddress(
+      rawAddress.fullAddress || rawAddress.formatted_address || rawAddress.address,
+      rawAddress.landmark,
+      rawAddress.area,
+      rawAddress.zone,
+      rawAddress.district,
+      rawAddress.state,
+      rawAddress.pincode || rawAddress.pin
+    );
+  }
+
+  const asString = String(rawAddress).trim();
+  if (!asString) return '';
+
+  if (asString.startsWith('{') || asString.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(asString);
+      const normalized = parseDeliveryAddress(parsed);
+      if (normalized) return normalized;
+    } catch (_error) {
+      // Keep raw string when delivery_address is not valid JSON.
+    }
+  }
+
+  return asString;
+};
+
 exports.getMe = async (req, res) => {
   try {
     const farmer = await FarmerUser.findByPk(req.user.farmer_id, {
@@ -232,6 +268,7 @@ exports.assignTransporters = async (req, res) => {
     const { order_id } = req.params;
     const Order = require('../models/order.model');
     const Product = require('../models/product.model');
+    const CustomerUser = require('../models/customer_user.model');
     const TransporterUser = require('../models/transporter_user.model');
     const Notification = require('../models/notification.model');
     const DeliveryPerson = require('../models/deliveryPerson.model');
@@ -244,10 +281,17 @@ exports.assignTransporters = async (req, res) => {
     // Find the order
     const order = await Order.findOne({
       where: { order_id },
-      include: [{
-        model: Product,
-        where: { farmer_id: req.user.farmer_id }
-      }]
+      include: [
+        {
+          model: Product,
+          where: { farmer_id: req.user.farmer_id }
+        },
+        {
+          model: CustomerUser,
+          as: 'customer',
+          required: false
+        }
+      ]
     });
     
     if (!order) {
@@ -273,8 +317,31 @@ exports.assignTransporters = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Farmer not found' });
     }
     
-    const farmerAddress = `${farmer.address}, ${farmer.zone}, ${farmer.district}, ${farmer.state}`;
+    const farmerAddress = buildAddress(farmer.address, farmer.zone, farmer.district, farmer.state);
+    const customerAddress = buildAddress(
+      order.customer?.address,
+      order.customer?.zone,
+      order.customer?.district,
+      order.customer?.state
+    );
+    const deliveryAddress = parseDeliveryAddress(order.delivery_address) || customerAddress;
+
+    if (!farmerAddress) {
+      return res.status(400).json({
+        success: false,
+        message: 'Farmer address is incomplete. Please update address before transporter assignment.'
+      });
+    }
+
+    if (!deliveryAddress) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer delivery address is missing or invalid for distance calculation.'
+      });
+    }
+
     console.log('✅ Farmer Address:', farmerAddress);
+    console.log('✅ Customer/Delivery Address used for distance:', deliveryAddress);
     
     // Get all transporters
     const allTransporters = await TransporterUser.findAll();
@@ -330,14 +397,33 @@ exports.assignTransporters = async (req, res) => {
     // Use transporters with delivery persons if available, otherwise use all
     const selectedTransporters = transportersWithDelivery.length > 0 ? transportersWithDelivery : allTransporters;
     console.log('Selected transporters for assignment:', selectedTransporters.length);
+
+    const transportersWithAddress = selectedTransporters
+      .map((transporter) => ({
+        transporter,
+        transporterAddress: buildAddress(
+          transporter.address,
+          transporter.zone,
+          transporter.district,
+          transporter.state,
+          transporter.pincode
+        )
+      }))
+      .filter((entry) => entry.transporterAddress);
+
+    if (transportersWithAddress.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No transporter has a usable address for Google Maps distance calculation.'
+      });
+    }
     
     // Find closest transporter to farmer (source)
     let sourceTransporter = null;
     let shortestSourceDistance = Infinity;
     
     console.log('\n--- Finding Source Transporter (closest to farmer) ---');
-    for (const transporter of selectedTransporters) {
-      const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+    for (const { transporter, transporterAddress } of transportersWithAddress) {
       console.log(`Checking transporter: ${transporter.name} at ${transporterAddress}`);
       
       try {
@@ -346,7 +432,7 @@ exports.assignTransporters = async (req, res) => {
           [transporterAddress]
         );
         
-        console.log(`  Distance: ${distanceData.distance} meters, Duration: ${distanceData.duration} seconds`);
+        console.log(`  Distance: ${distanceData.distance.toFixed(2)} km, Duration: ${distanceData.duration.toFixed(2)} mins`);
         
         if (distanceData.distance < shortestSourceDistance) {
           shortestSourceDistance = distanceData.distance;
@@ -361,10 +447,14 @@ exports.assignTransporters = async (req, res) => {
     // Fallback if Google Maps failed for all
     if (!sourceTransporter) {
       console.log('⚠️ Google Maps failed for all source transporters, using first available');
-      sourceTransporter = selectedTransporters[0];
+      sourceTransporter = transportersWithAddress[0].transporter;
     }
     
-    console.log(`\n✅ Selected Source Transporter: ${sourceTransporter.name} (${shortestSourceDistance}m from farmer)`);
+    if (!Number.isFinite(shortestSourceDistance)) {
+      shortestSourceDistance = null;
+    }
+
+    console.log(`\n✅ Selected Source Transporter: ${sourceTransporter.name} (${shortestSourceDistance ?? 'N/A'} km from farmer)`);
     
     // Find closest transporter to customer (destination)
     let destTransporter = null;
@@ -372,17 +462,16 @@ exports.assignTransporters = async (req, res) => {
     const destinationCandidates = [];
     
     console.log('\n--- Finding Destination Transporter (closest to customer) ---');
-    for (const transporter of selectedTransporters) {
-      const transporterAddress = `${transporter.address}, ${transporter.zone}, ${transporter.district}, ${transporter.state}`;
+    for (const { transporter, transporterAddress } of transportersWithAddress) {
       console.log(`Checking transporter: ${transporter.name} at ${transporterAddress}`);
       
       try {
         const distanceData = await GoogleMapsService.calculateDistanceAndDuration(
-          [order.delivery_address],
+          [deliveryAddress],
           [transporterAddress]
         );
         
-        console.log(`  Distance: ${distanceData.distance} meters, Duration: ${distanceData.duration} seconds`);
+        console.log(`  Distance: ${distanceData.distance.toFixed(2)} km, Duration: ${distanceData.duration.toFixed(2)} mins`);
         
         if (distanceData.distance < shortestDestDistance) {
           shortestDestDistance = distanceData.distance;
@@ -399,7 +488,9 @@ exports.assignTransporters = async (req, res) => {
     // Fallback if Google Maps failed for all
     if (!destTransporter) {
       console.log('⚠️ Google Maps failed for all destination transporters, using second available or same as source');
-      destTransporter = selectedTransporters.length > 1 ? selectedTransporters[1] : selectedTransporters[0];
+      destTransporter = transportersWithAddress.length > 1
+        ? transportersWithAddress[1].transporter
+        : transportersWithAddress[0].transporter;
     }
 
     // Enforce different source and destination transporters when possible.
@@ -428,8 +519,12 @@ exports.assignTransporters = async (req, res) => {
 
       console.log(`✅ Distinct destination transporter selected: ${destTransporter.name}`);
     }
+
+    if (!Number.isFinite(shortestDestDistance)) {
+      shortestDestDistance = null;
+    }
     
-    console.log(`\n✅ Selected Destination Transporter: ${destTransporter.name} (${shortestDestDistance}m from customer)`);
+    console.log(`\n✅ Selected Destination Transporter: ${destTransporter.name} (${shortestDestDistance ?? 'N/A'} km from customer)`);
     
     // Update order with transporter assignments
     await order.update({
@@ -458,8 +553,8 @@ exports.assignTransporters = async (req, res) => {
     console.log('\n=== TRANSPORTER ASSIGNMENT COMPLETED ===');
     console.log('Order ID:', order_id);
     console.log('Status: PLACED → ASSIGNED');
-    console.log('Source Transporter:', sourceTransporter.name, `(${(shortestSourceDistance / 1000).toFixed(2)} km from farmer)`);
-    console.log('Destination Transporter:', destTransporter.name, `(${(shortestDestDistance / 1000).toFixed(2)} km from customer)`);
+    console.log('Source Transporter:', sourceTransporter.name, `(${shortestSourceDistance?.toFixed(2) ?? 'N/A'} km from farmer)`);
+    console.log('Destination Transporter:', destTransporter.name, `(${shortestDestDistance?.toFixed(2) ?? 'N/A'} km from customer)`);
     console.log('=== END ASSIGNMENT ===\n');
     
     res.json({
@@ -472,12 +567,12 @@ exports.assignTransporters = async (req, res) => {
         source_transporter: {
           id: sourceTransporter.transporter_id,
           name: sourceTransporter.name,
-          distance_from_farmer_km: (shortestSourceDistance / 1000).toFixed(2)
+          distance_from_farmer_km: shortestSourceDistance?.toFixed(2) || null
         },
         destination_transporter: {
           id: destTransporter.transporter_id,
           name: destTransporter.name,
-          distance_from_customer_km: (shortestDestDistance / 1000).toFixed(2)
+          distance_from_customer_km: shortestDestDistance?.toFixed(2) || null
         }
       }
     });
