@@ -1,5 +1,6 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
+const CustomerReturnRequest = require('../models/customerReturnRequest.model');
 
 // Create Sequelize instance with environment variables
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
@@ -60,7 +61,14 @@ const initializeDatabase = async () => {
       });
     } catch (syncError) {
       console.log('Sync warning (tables may already exist):', syncError.message);
-      // Continue anyway as tables might exist
+      // Global sync can fail on unrelated enum casts. Ensure return-request schema is still aligned.
+      try {
+        await CustomerReturnRequest.sync({ alter: true, logging: console.log });
+        console.log('Customer return request table synchronized successfully.');
+      } catch (returnSyncError) {
+        console.error('Customer return request table sync failed:', returnSyncError.message);
+      }
+      // Continue anyway as most tables may already exist.
     }
     console.log('Database synchronized successfully.');
 
