@@ -186,12 +186,26 @@ exports.getMyReturnRequestByOrder = async (req, res) => {
       return res.status(400).json({ message: 'Valid order_id is required' });
     }
 
+    if (!customerId) {
+      return res.status(401).json({ message: 'Customer authentication required' });
+    }
+
+    const order = await Order.findOne({
+      where: { order_id: orderId, customer_id: customerId },
+      attributes: ['order_id', 'customer_id'],
+    });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found for this customer' });
+    }
+
     const rowQuery = {
       where: {
         order_id: orderId,
-        customer_id: customerId,
       },
     };
+    if (existingColumns.has('customer_id')) {
+      rowQuery.where.customer_id = customerId;
+    }
     if (safeAttributes.length) rowQuery.attributes = safeAttributes;
     const row = await CustomerReturnRequest.findOne(rowQuery);
 
