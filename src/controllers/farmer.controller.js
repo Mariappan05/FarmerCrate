@@ -275,8 +275,13 @@ exports.assignTransporters = async (req, res) => {
     const GoogleMapsService = require('../services/googleMaps.service');
     
     console.log('\n=== TRANSPORTER ASSIGNMENT WITH GOOGLE MAPS STARTED ===');
-    console.log('Order ID:', order_id);
-    console.log('Farmer ID:', req.user.farmer_id);
+    console.log('[AssignTransporters] Request context:', {
+      order_id,
+      farmer_id: req.user.farmer_id,
+      route: req.originalUrl,
+      method: req.method,
+      started_at: new Date().toISOString(),
+    });
     
     // Find the order
     const order = await Order.findOne({
@@ -386,6 +391,12 @@ exports.assignTransporters = async (req, res) => {
           is_available: true
         }
       });
+
+      console.log('[AssignTransporters] Transporter delivery availability:', {
+        transporter_id: transporter.transporter_id,
+        transporter_name: transporter.name,
+        available_delivery_person_count: availableDeliveryCount,
+      });
       
       if (availableDeliveryCount > 0) {
         transportersWithDelivery.push(transporter);
@@ -410,6 +421,14 @@ exports.assignTransporters = async (req, res) => {
         )
       }))
       .filter((entry) => entry.transporterAddress);
+
+    console.log('[AssignTransporters] Candidate transporter pool (with address):',
+      transportersWithAddress.map(({ transporter, transporterAddress }) => ({
+        transporter_id: transporter.transporter_id,
+        transporter_name: transporter.name,
+        transporter_address: transporterAddress,
+      }))
+    );
 
     if (transportersWithAddress.length === 0) {
       return res.status(400).json({
@@ -531,6 +550,19 @@ exports.assignTransporters = async (req, res) => {
       current_status: 'ASSIGNED',
       source_transporter_id: sourceTransporter.transporter_id,
       destination_transporter_id: destTransporter.transporter_id
+    });
+
+    console.log('[AssignTransporters] Final assignment payload:', {
+      order_id,
+      assigned_status: 'ASSIGNED',
+      source_transporter_id: sourceTransporter.transporter_id,
+      source_transporter_name: sourceTransporter.name,
+      source_distance_from_farmer_km: shortestSourceDistance,
+      destination_transporter_id: destTransporter.transporter_id,
+      destination_transporter_name: destTransporter.name,
+      destination_distance_from_customer_km: shortestDestDistance,
+      used_same_transporter: sourceTransporter.transporter_id === destTransporter.transporter_id,
+      completed_at: new Date().toISOString(),
     });
     
     console.log('\n✅ Order updated with transporter assignments');
