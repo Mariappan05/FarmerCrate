@@ -39,16 +39,23 @@ const getCompletionTimestamp = (order) => {
 const getReturnRequestColumns = async () => {
   if (returnRequestColumnsCache) return returnRequestColumnsCache;
 
-  const tableName = CustomerReturnRequest.getTableName();
-  const tableRef = typeof tableName === 'string'
-    ? tableName
-    : { tableName: tableName.tableName, schema: tableName.schema };
+  try {
+    const tableName = CustomerReturnRequest.getTableName();
+    const tableRef = typeof tableName === 'string'
+      ? tableName
+      : { tableName: tableName.tableName, schema: tableName.schema };
 
-  const description = await CustomerReturnRequest.sequelize
-    .getQueryInterface()
-    .describeTable(tableRef);
+    const description = await CustomerReturnRequest.sequelize
+      .getQueryInterface()
+      .describeTable(tableRef);
 
-  returnRequestColumnsCache = new Set(Object.keys(description || {}));
+    returnRequestColumnsCache = new Set(Object.keys(description || {}));
+  } catch (error) {
+    // Fallback keeps API functional when table introspection is unavailable.
+    console.warn('[ReturnRequest] describeTable failed, falling back to model rawAttributes:', error?.message);
+    returnRequestColumnsCache = new Set(Object.keys(CustomerReturnRequest.rawAttributes || {}));
+  }
+
   return returnRequestColumnsCache;
 };
 
@@ -170,7 +177,14 @@ exports.submitReturnRequest = async (req, res) => {
       ) : created,
     });
   } catch (error) {
-    console.error('[ReturnRequest] submitReturnRequest error:', error);
+    console.error('[ReturnRequest] submitReturnRequest error:', {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      parentMessage: error?.parent?.message,
+      originalMessage: error?.original?.message,
+      sql: error?.sql,
+    });
     return res.status(500).json({ message: 'Failed to submit return request' });
   }
 };
@@ -215,7 +229,14 @@ exports.getMyReturnRequestByOrder = async (req, res) => {
 
     return res.json({ success: true, data: row });
   } catch (error) {
-    console.error('[ReturnRequest] getMyReturnRequestByOrder error:', error);
+    console.error('[ReturnRequest] getMyReturnRequestByOrder error:', {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      parentMessage: error?.parent?.message,
+      originalMessage: error?.original?.message,
+      sql: error?.sql,
+    });
     return res.status(500).json({ message: 'Failed to load return request' });
   }
 };
