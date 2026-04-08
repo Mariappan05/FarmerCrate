@@ -3,6 +3,7 @@ const CustomerReturnRequest = require('../models/customerReturnRequest.model');
 
 const RETURN_WINDOW_MS = 10 * 60 * 1000;
 const ALLOWED_ORDER_STATUSES = ['DELIVERED', 'COMPLETED'];
+let returnRequestColumnsCache = null;
 
 const parseUrlArray = (value) => {
   if (Array.isArray(value)) {
@@ -35,8 +36,54 @@ const getCompletionTimestamp = (order) => {
   return null;
 };
 
+const getReturnRequestColumns = async () => {
+  if (returnRequestColumnsCache) return returnRequestColumnsCache;
+
+  const tableName = CustomerReturnRequest.getTableName();
+  const tableRef = typeof tableName === 'string'
+    ? tableName
+    : { tableName: tableName.tableName, schema: tableName.schema };
+
+  const description = await CustomerReturnRequest.sequelize
+    .getQueryInterface()
+    .describeTable(tableRef);
+
+  returnRequestColumnsCache = new Set(Object.keys(description || {}));
+  return returnRequestColumnsCache;
+};
+
+const filterExistingFields = (payload, existingColumns) => {
+  return Object.entries(payload).reduce((acc, [key, value]) => {
+    if (existingColumns.has(key) && value !== undefined) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+};
+
+const preferredReturnRequestAttributes = [
+  'return_request_id',
+  'order_id',
+  'customer_id',
+  'status',
+  'report',
+  'opening_video_url',
+  'related_photos',
+  'proof_evidence_photos',
+  'submitted_at',
+  'admin_review_status',
+  'payment_release_status',
+  'created_at',
+  'updated_at',
+];
+
+const getSafeAttributes = (existingColumns) => preferredReturnRequestAttributes
+  .filter((column) => existingColumns.has(column));
+
 exports.submitReturnRequest = async (req, res) => {
   try {
+    const existingColumns = await getReturnRequestColumns();
+    const safeAttributes = getSafeAttributes(existingColumns);
     const orderId = Number(req.params.order_id || req.body.order_id || req.body.orderId);
     const customerId = req.user?.customer_id;
 
@@ -89,7 +136,9 @@ exports.submitReturnRequest = async (req, res) => {
       return res.status(400).json({ message: 'Report is required' });
     }
 
-    const existing = await CustomerReturnRequest.findOne({ where: { order_id: orderId } });
+    const existingQuery = { where: { order_id: orderId } };
+    if (safeAttributes.length) existingQuery.attributes = safeAttributes;
+    const existing = await CustomerReturnRequest.findOne(existingQuery);
     if (existing) {
       return res.status(409).json({
         message: 'Return request already submitted for this order',
@@ -97,7 +146,7 @@ exports.submitReturnRequest = async (req, res) => {
       });
     }
 
-    const created = await CustomerReturnRequest.create({
+    const createPayload = filterExistingFields({
       order_id: orderId,
       customer_id: customerId,
       status: 'REQUESTED',
@@ -106,12 +155,19 @@ exports.submitReturnRequest = async (req, res) => {
       related_photos: relatedPhotos,
       proof_evidence_photos: proofPhotos,
       submitted_at: Number.isNaN(submittedAt.getTime()) ? new Date() : submittedAt,
+    }, existingColumns);
+
+    const created = await CustomerReturnRequest.create(createPayload, {
+      fields: Object.keys(createPayload),
     });
 
     return res.status(201).json({
       success: true,
       message: 'Return request submitted successfully',
-      data: created,
+      data: safeAttributes.length ? await CustomerReturnRequest.findByPk(
+        created.return_request_id,
+        { attributes: safeAttributes }
+      ) : created,
     });
   } catch (error) {
     console.error('[ReturnRequest] submitReturnRequest error:', error);
@@ -121,6 +177,8 @@ exports.submitReturnRequest = async (req, res) => {
 
 exports.getMyReturnRequestByOrder = async (req, res) => {
   try {
+    const existingColumns = await getReturnRequestColumns();
+    const safeAttributes = getSafeAttributes(existingColumns);
     const orderId = Number(req.params.order_id);
     const customerId = req.user?.customer_id;
 
@@ -128,12 +186,14 @@ exports.getMyReturnRequestByOrder = async (req, res) => {
       return res.status(400).json({ message: 'Valid order_id is required' });
     }
 
-    const row = await CustomerReturnRequest.findOne({
+    const rowQuery = {
       where: {
         order_id: orderId,
         customer_id: customerId,
       },
-    });
+    };
+    if (safeAttributes.length) rowQuery.attributes = safeAttributes;
+    const row = await CustomerReturnRequest.findOne(rowQuery);
 
     if (!row) {
       return res.status(404).json({ message: 'Return request not found for this order' });
