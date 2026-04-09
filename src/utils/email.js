@@ -8,6 +8,11 @@ const isUsableEmailPassword = (value) => {
   return true;
 };
 
+const parseBooleanEnv = (value, defaultValue = false) => {
+  if (value === undefined || value === null || String(value).trim() === '') return defaultValue;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+};
+
 const createGmailTransporters = () => {
   const user = String(process.env.EMAIL_USER || '').trim();
   const pass = String(process.env.EMAIL_PASSWORD || '').trim();
@@ -42,18 +47,45 @@ const createGmailTransporters = () => {
   ];
 };
 
-const mapGmailReason = (error) => {
+const createCustomSmtpTransporters = () => {
+  const host = String(process.env.SMTP_HOST || '').trim();
+  if (!host) return [];
+
+  const port = Number(process.env.SMTP_PORT || 587);
+  const secure = parseBooleanEnv(process.env.SMTP_SECURE, port === 465);
+  const requireTLS = parseBooleanEnv(process.env.SMTP_REQUIRE_TLS, !secure);
+  const user = String(process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
+  const pass = String(process.env.SMTP_PASS || process.env.EMAIL_PASSWORD || '').trim();
+
+  return [
+    {
+      label: `custom-${host}:${port}`,
+      transporter: nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        requireTLS,
+        auth: user && pass ? { user, pass } : undefined,
+        connectionTimeout: 6000,
+        greetingTimeout: 6000,
+        socketTimeout: 7000,
+      }),
+    },
+  ];
+};
+
+const mapSmtpReason = (error) => {
   const lowerMessage = String(error?.message || '').toLowerCase();
   if (lowerMessage.includes('invalid login') || lowerMessage.includes('username and password not accepted')) {
-    return 'GMAIL_SMTP_AUTH_FAILED';
+    return 'SMTP_AUTH_FAILED';
   }
   if (lowerMessage.includes('authentication')) {
-    return 'GMAIL_SMTP_AUTH_ERROR';
+    return 'SMTP_AUTH_ERROR';
   }
   if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
-    return 'GMAIL_SMTP_TIMEOUT';
+    return 'SMTP_TIMEOUT';
   }
-  return 'GMAIL_SMTP_SEND_FAILED';
+  return 'SMTP_SEND_FAILED';
 };
 
 exports.sendOTPEmail = async (email, otp) => {
@@ -79,9 +111,10 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
 
   const fromEmail = String(process.env.EMAIL_USER || '').trim();
   const emailPassword = String(process.env.EMAIL_PASSWORD || '').trim();
+  const smtpHost = String(process.env.SMTP_HOST || '').trim();
 
   if (!fromEmail) {
-    console.error('⚠️  EMAIL_USER not set. Configure Gmail sender email.');
+    console.error('⚠️  EMAIL_USER not set. Configure sender email.');
     return returnMeta
       ? { success: false, reason: 'EMAIL_USER_NOT_SET' }
       : false;
@@ -131,8 +164,11 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     let lastError = null;
     let lastReason = null;
 
-    if (isUsableEmailPassword(emailPassword)) {
-      const attempts = createGmailTransporters();
+    const attempts = smtpHost
+      ? createCustomSmtpTransporters()
+      : (isUsableEmailPassword(emailPassword) ? createGmailTransporters() : []);
+
+    if (attempts.length > 0) {
       for (const attempt of attempts) {
         try {
           console.log(`[EMAIL] Trying Nodemailer SMTP transport: ${attempt.label}`);
@@ -144,14 +180,14 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
             : true;
         } catch (attemptError) {
           lastError = attemptError;
-          lastReason = mapGmailReason(attemptError);
+          lastReason = mapSmtpReason(attemptError);
           console.error(`[EMAIL] Transport failed (${attempt.label}):`, attemptError.message);
         }
       }
     } else {
-      console.log('[EMAIL] EMAIL_PASSWORD not configured for Nodemailer SMTP');
+      console.log('[EMAIL] SMTP credentials/config missing for Nodemailer SMTP');
       if (!lastReason) {
-        lastReason = 'EMAIL_PASSWORD_NOT_SET_OR_INVALID';
+        lastReason = smtpHost ? 'SMTP_CONFIG_INVALID' : 'EMAIL_PASSWORD_NOT_SET_OR_INVALID';
       }
     }
 
@@ -167,7 +203,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     }
 
     console.error('=== END EMAIL ERROR ===\n');
-    const reason = error?.reason || mapGmailReason(error);
+    const reason = error?.reason || mapSmtpReason(error);
 
     return returnMeta
       ? {
