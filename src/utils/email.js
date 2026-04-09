@@ -42,6 +42,20 @@ const createGmailTransporters = () => {
   ];
 };
 
+const mapGmailReason = (error) => {
+  const lowerMessage = String(error?.message || '').toLowerCase();
+  if (lowerMessage.includes('invalid login') || lowerMessage.includes('username and password not accepted')) {
+    return 'GMAIL_SMTP_AUTH_FAILED';
+  }
+  if (lowerMessage.includes('authentication')) {
+    return 'GMAIL_SMTP_AUTH_ERROR';
+  }
+  if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
+    return 'GMAIL_SMTP_TIMEOUT';
+  }
+  return 'GMAIL_SMTP_SEND_FAILED';
+};
+
 exports.sendOTPEmail = async (email, otp) => {
   return exports.sendOTPEmailWithContext(email, otp, {
     subject: 'FarmerCrate - First Login Verification',
@@ -70,13 +84,6 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     console.error('⚠️  EMAIL_USER not set. Configure Gmail sender email.');
     return returnMeta
       ? { success: false, reason: 'EMAIL_USER_NOT_SET' }
-      : false;
-  }
-
-  if (!isUsableEmailPassword(emailPassword)) {
-    console.error('⚠️  EMAIL_PASSWORD not set/invalid. Use Gmail App Password for SMTP.');
-    return returnMeta
-      ? { success: false, reason: 'EMAIL_PASSWORD_NOT_SET_OR_INVALID' }
       : false;
   }
   
@@ -122,23 +129,35 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       });
 
     let lastError = null;
-    const attempts = createGmailTransporters();
-    for (const attempt of attempts) {
-      try {
-        console.log(`[EMAIL] Trying SMTP transport: ${attempt.label}`);
-        await sendMailWithTimeout(attempt.transporter, attempt.label);
-        console.log('✅ Email sent via Gmail SMTP!');
-        console.log('=== EMAIL SENT ===\n');
-        return returnMeta
-          ? { success: true, reason: null }
-          : true;
-      } catch (attemptError) {
-        lastError = attemptError;
-        console.error(`[EMAIL] Transport failed (${attempt.label}):`, attemptError.message);
+    let lastReason = null;
+
+    if (isUsableEmailPassword(emailPassword)) {
+      const attempts = createGmailTransporters();
+      for (const attempt of attempts) {
+        try {
+          console.log(`[EMAIL] Trying Nodemailer SMTP transport: ${attempt.label}`);
+          await sendMailWithTimeout(attempt.transporter, attempt.label);
+          console.log('✅ Email sent via Nodemailer SMTP!');
+          console.log('=== EMAIL SENT ===\n');
+          return returnMeta
+            ? { success: true, reason: null, provider: attempt.label }
+            : true;
+        } catch (attemptError) {
+          lastError = attemptError;
+          lastReason = mapGmailReason(attemptError);
+          console.error(`[EMAIL] Transport failed (${attempt.label}):`, attemptError.message);
+        }
+      }
+    } else {
+      console.log('[EMAIL] EMAIL_PASSWORD not configured for Nodemailer SMTP');
+      if (!lastReason) {
+        lastReason = 'EMAIL_PASSWORD_NOT_SET_OR_INVALID';
       }
     }
 
-    throw lastError || new Error('SMTP send failed on all transports');
+    const aggregateError = lastError || new Error('All email providers failed');
+    aggregateError.reason = lastReason || 'EMAIL_SEND_FAILED';
+    throw aggregateError;
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
     console.error('Error:', error.message);
@@ -148,15 +167,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     }
 
     console.error('=== END EMAIL ERROR ===\n');
-    const lowerMessage = String(error?.message || '').toLowerCase();
-
-    const reason = lowerMessage.includes('invalid login') || lowerMessage.includes('username and password not accepted')
-      ? 'GMAIL_SMTP_AUTH_FAILED'
-      : lowerMessage.includes('authentication')
-        ? 'GMAIL_SMTP_AUTH_ERROR'
-        : lowerMessage.includes('timeout') || lowerMessage.includes('timed out')
-          ? 'GMAIL_SMTP_TIMEOUT'
-          : 'GMAIL_SMTP_SEND_FAILED';
+    const reason = error?.reason || mapGmailReason(error);
 
     return returnMeta
       ? {
