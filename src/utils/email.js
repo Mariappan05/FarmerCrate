@@ -1,8 +1,22 @@
-const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
+const isUsableEmailPassword = (value) => {
+  const pwd = String(value || '').trim();
+  if (!pwd) return false;
+  if (/^your[_-]?email[_-]?password/i.test(pwd)) return false;
+  if (/^your[_-]?gmail[_-]?app[_-]?password/i.test(pwd)) return false;
+  return true;
+};
+
+const createGmailTransporter = () => {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: String(process.env.EMAIL_USER || '').trim(),
+      pass: String(process.env.EMAIL_PASSWORD || '').trim(),
+    },
+  });
+};
 
 exports.sendOTPEmail = async (email, otp) => {
   return exports.sendOTPEmailWithContext(email, otp, {
@@ -24,25 +38,30 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   console.log('From:', process.env.EMAIL_USER);
   console.log('To:', email);
   console.log('OTP:', otp);
-  
-  if (!process.env.SENDGRID_API_KEY) {
-    console.error('⚠️  SENDGRID_API_KEY not set. Get it from: https://signup.sendgrid.com/');
-    return returnMeta
-      ? { success: false, reason: 'SENDGRID_API_KEY_NOT_SET' }
-      : false;
-  }
 
-  if (!process.env.EMAIL_USER) {
-    console.error('⚠️  EMAIL_USER not set. Configure verified sender email.');
+  const fromEmail = String(process.env.EMAIL_USER || '').trim();
+  const emailPassword = String(process.env.EMAIL_PASSWORD || '').trim();
+
+  if (!fromEmail) {
+    console.error('⚠️  EMAIL_USER not set. Configure Gmail sender email.');
     return returnMeta
       ? { success: false, reason: 'EMAIL_USER_NOT_SET' }
       : false;
   }
+
+  if (!isUsableEmailPassword(emailPassword)) {
+    console.error('⚠️  EMAIL_PASSWORD not set/invalid. Use Gmail App Password for SMTP.');
+    return returnMeta
+      ? { success: false, reason: 'EMAIL_PASSWORD_NOT_SET_OR_INVALID' }
+      : false;
+  }
   
   try {
+    const transporter = createGmailTransporter();
+
     const msg = {
       to: email,
-      from: process.env.EMAIL_USER,
+      from: fromEmail,
       subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -64,8 +83,8 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       `
     };
 
-    await sgMail.send(msg);
-    console.log('✅ Email sent via SendGrid!');
+    await transporter.sendMail(msg);
+    console.log('✅ Email sent via Gmail SMTP!');
     console.log('=== EMAIL SENT ===\n');
     return returnMeta
       ? { success: true, reason: null }
@@ -73,28 +92,21 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
     console.error('Error:', error.message);
-    
-    if (error.response) {
-      console.error('Status Code:', error.response.statusCode);
-      console.error('Response Body:', JSON.stringify(error.response.body, null, 2));
+
+    if (String(error?.message || '').toLowerCase().includes('invalid login')) {
+      console.error('⚠️  Gmail SMTP invalid login. Use a valid Gmail App Password (not normal Gmail password).');
     }
-    
-    if (error.message === 'Forbidden') {
-      console.error('\n⚠️  SENDER EMAIL NOT VERIFIED');
-      console.error('You MUST verify farmercrate@gmail.com in SendGrid:');
-      console.error('1. Go to: https://app.sendgrid.com/settings/sender_auth');
-      console.error('2. Click "Verify a Single Sender"');
-      console.error('3. Enter: farmercrate@gmail.com');
-      console.error('4. Check farmercrate@gmail.com inbox');
-      console.error('5. Click verification link');
-    }
-    
+
     console.error('=== END EMAIL ERROR ===\n');
-    const reason = error?.response?.statusCode === 403
-      ? 'SENDGRID_FORBIDDEN_OR_SENDER_NOT_VERIFIED'
-      : error?.response?.statusCode
-        ? `SENDGRID_HTTP_${error.response.statusCode}`
-        : 'SENDGRID_SEND_FAILED';
+    const lowerMessage = String(error?.message || '').toLowerCase();
+
+    const reason = lowerMessage.includes('invalid login') || lowerMessage.includes('username and password not accepted')
+      ? 'GMAIL_SMTP_AUTH_FAILED'
+      : lowerMessage.includes('authentication')
+        ? 'GMAIL_SMTP_AUTH_ERROR'
+        : lowerMessage.includes('timed out')
+          ? 'GMAIL_SMTP_TIMEOUT'
+          : 'GMAIL_SMTP_SEND_FAILED';
 
     return returnMeta
       ? {
