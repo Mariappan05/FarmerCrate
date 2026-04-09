@@ -175,10 +175,12 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
 
     let lastError = null;
     let lastReason = null;
+    let lastProvider = null;
 
     // Provider 1: Brevo Transactional Email API over HTTPS (443).
     if (brevoApiKey) {
       try {
+        lastProvider = 'brevo-api';
         console.log('[EMAIL] Trying Brevo API provider');
         await axios.post(
           'https://api.brevo.com/v3/smtp/email',
@@ -216,6 +218,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     if (attempts.length > 0) {
       for (const attempt of attempts) {
         try {
+          lastProvider = attempt.label;
           console.log(`[EMAIL] Trying Nodemailer SMTP transport: ${attempt.label}`);
           await sendMailWithTimeout(attempt.transporter, attempt.label);
           console.log('✅ Email sent via Nodemailer SMTP!');
@@ -238,6 +241,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
 
     const aggregateError = lastError || new Error('All email providers failed');
     aggregateError.reason = lastReason || 'EMAIL_SEND_FAILED';
+    aggregateError.provider = lastProvider || null;
     throw aggregateError;
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
@@ -254,6 +258,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       ? {
           success: false,
           reason,
+          provider: error?.provider || null,
           message: error?.message || 'Email send failed',
         }
       : false;
