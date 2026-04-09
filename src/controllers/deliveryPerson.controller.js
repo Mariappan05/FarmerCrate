@@ -145,6 +145,8 @@ const sendDeliveryCompletionOtp = async (req, res) => {
       console.log(`\n=== DELIVERY OTP (DEV FALLBACK) for order ${orderId} / ${customer.email}: ${otp} ===\n`);
     }
 
+    const exposeFallbackOtp = !sent && String(process.env.NODE_ENV || '').toLowerCase() !== 'production';
+
     return res.json({
       success: true,
       message: sent
@@ -158,6 +160,7 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         fallback_logged: !sent,
         email_failure_reason: emailFailureReason,
         email_failure_message: emailFailureMessage,
+        fallback_otp: exposeFallbackOtp ? otp : undefined,
       }
     });
   } catch (error) {
