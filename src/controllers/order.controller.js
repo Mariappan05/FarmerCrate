@@ -1121,7 +1121,7 @@ exports.getOrderDetailsById = async (req, res) => {
             {
               model: ProductImage,
               as: 'images',
-              attributes: ['image_url', 'is_primary', 'display_order']
+              attributes: ['image_url', 'is_primary']
             },
             {
               model: FarmerUser,
