@@ -18,6 +18,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   const subject = options.subject || 'FarmerCrate - OTP Verification';
   const title = options.title || 'FarmerCrate Verification';
   const subtitle = options.subtitle || 'Your verification code is:';
+  const returnMeta = options.returnMeta === true;
 
   console.log('\n=== SENDING EMAIL ===');
   console.log('From:', process.env.EMAIL_USER);
@@ -26,7 +27,16 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   
   if (!process.env.SENDGRID_API_KEY) {
     console.error('⚠️  SENDGRID_API_KEY not set. Get it from: https://signup.sendgrid.com/');
-    return false;
+    return returnMeta
+      ? { success: false, reason: 'SENDGRID_API_KEY_NOT_SET' }
+      : false;
+  }
+
+  if (!process.env.EMAIL_USER) {
+    console.error('⚠️  EMAIL_USER not set. Configure verified sender email.');
+    return returnMeta
+      ? { success: false, reason: 'EMAIL_USER_NOT_SET' }
+      : false;
   }
   
   try {
@@ -57,7 +67,9 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     await sgMail.send(msg);
     console.log('✅ Email sent via SendGrid!');
     console.log('=== EMAIL SENT ===\n');
-    return true;
+    return returnMeta
+      ? { success: true, reason: null }
+      : true;
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
     console.error('Error:', error.message);
@@ -78,15 +90,28 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     }
     
     console.error('=== END EMAIL ERROR ===\n');
-    return false;
+    const reason = error?.response?.statusCode === 403
+      ? 'SENDGRID_FORBIDDEN_OR_SENDER_NOT_VERIFIED'
+      : error?.response?.statusCode
+        ? `SENDGRID_HTTP_${error.response.statusCode}`
+        : 'SENDGRID_SEND_FAILED';
+
+    return returnMeta
+      ? {
+          success: false,
+          reason,
+          message: error?.message || 'Email send failed',
+        }
+      : false;
   }
 };
 
-exports.sendDeliveryCompletionOTPEmail = async (email, otp, expiryMinutes = 5) => {
+exports.sendDeliveryCompletionOTPEmail = async (email, otp, expiryMinutes = 5, returnMeta = false) => {
   return exports.sendOTPEmailWithContext(email, otp, {
     subject: 'FarmerCrate - Delivery Completion OTP',
     title: 'Delivery Confirmation Required',
     subtitle: 'Share this OTP with the delivery person to complete your order:',
     expiryMinutes,
+    returnMeta,
   });
 };

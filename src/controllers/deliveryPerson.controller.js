@@ -118,11 +118,28 @@ const sendDeliveryCompletionOtp = async (req, res) => {
     });
 
     let sent = false;
+    let emailFailureReason = null;
+    let emailFailureMessage = null;
     try {
-      sent = await sendDeliveryCompletionOTPEmail(customer.email, otp, DELIVERY_OTP_EXPIRY_MINUTES);
+      const mailResult = await sendDeliveryCompletionOTPEmail(
+        customer.email,
+        otp,
+        DELIVERY_OTP_EXPIRY_MINUTES,
+        true
+      );
+
+      if (typeof mailResult === 'object' && mailResult !== null) {
+        sent = mailResult.success === true;
+        emailFailureReason = mailResult.success ? null : mailResult.reason || 'UNKNOWN_MAIL_ERROR';
+        emailFailureMessage = mailResult.success ? null : mailResult.message || null;
+      } else {
+        sent = Boolean(mailResult);
+      }
     } catch (mailError) {
       console.error('Delivery OTP mail send error:', mailError.message || mailError);
       sent = false;
+      emailFailureReason = 'SENDGRID_SEND_EXCEPTION';
+      emailFailureMessage = mailError.message || 'Email send exception';
     }
     if (!sent) {
       console.log(`\n=== DELIVERY OTP (DEV FALLBACK) for order ${orderId} / ${customer.email}: ${otp} ===\n`);
@@ -139,6 +156,8 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         expires_in_seconds: DELIVERY_OTP_EXPIRY_MINUTES * 60,
         email_sent: sent,
         fallback_logged: !sent,
+        email_failure_reason: emailFailureReason,
+        email_failure_message: emailFailureMessage,
       }
     });
   } catch (error) {
