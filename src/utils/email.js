@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 const isUsableEmailPassword = (value) => {
   const pwd = String(value || '').trim();
@@ -74,6 +75,16 @@ const createCustomSmtpTransporters = () => {
   ];
 };
 
+const mapBrevoApiReason = (error) => {
+  const status = Number(error?.response?.status || 0);
+  const lowerMessage = String(error?.message || '').toLowerCase();
+  if (status === 401 || status === 403) return 'BREVO_API_AUTH_FAILED';
+  if (status === 429) return 'BREVO_API_RATE_LIMITED';
+  if (status >= 400) return 'BREVO_API_REQUEST_FAILED';
+  if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) return 'BREVO_API_TIMEOUT';
+  return 'BREVO_API_SEND_FAILED';
+};
+
 const mapSmtpReason = (error) => {
   const lowerMessage = String(error?.message || '').toLowerCase();
   if (lowerMessage.includes('invalid login') || lowerMessage.includes('username and password not accepted')) {
@@ -112,6 +123,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   const fromEmail = String(process.env.EMAIL_USER || '').trim();
   const emailPassword = String(process.env.EMAIL_PASSWORD || '').trim();
   const smtpHost = String(process.env.SMTP_HOST || '').trim();
+  const brevoApiKey = String(process.env.BREVO_API_KEY || '').trim();
 
   if (!fromEmail) {
     console.error('⚠️  EMAIL_USER not set. Configure sender email.');
@@ -163,6 +175,39 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
 
     let lastError = null;
     let lastReason = null;
+
+    // Provider 1: Brevo Transactional Email API over HTTPS (443).
+    if (brevoApiKey) {
+      try {
+        console.log('[EMAIL] Trying Brevo API provider');
+        await axios.post(
+          'https://api.brevo.com/v3/smtp/email',
+          {
+            sender: { email: fromEmail, name: 'FarmerCrate' },
+            to: [{ email }],
+            subject,
+            htmlContent: msg.html,
+          },
+          {
+            headers: {
+              'api-key': brevoApiKey,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            timeout: 10000,
+          }
+        );
+        console.log('✅ Email sent via Brevo API!');
+        console.log('=== EMAIL SENT ===\n');
+        return returnMeta
+          ? { success: true, reason: null, provider: 'brevo-api' }
+          : true;
+      } catch (brevoError) {
+        lastError = brevoError;
+        lastReason = mapBrevoApiReason(brevoError);
+        console.error('[EMAIL] Brevo API failed:', brevoError.message);
+      }
+    }
 
     const attempts = smtpHost
       ? createCustomSmtpTransporters()
