@@ -18,6 +18,7 @@ const DELIVERY_OTP_EXPIRY_MINUTES = Number(process.env.DELIVERY_OTP_EXPIRY_MINUT
   ? Number(process.env.DELIVERY_OTP_EXPIRY_MINUTES || 5)
   : 5;
 const DELIVERY_OTP_EXPIRY_MS = DELIVERY_OTP_EXPIRY_MINUTES * 60 * 1000;
+const DELIVERY_OTP_EXPOSE_FALLBACK = String(process.env.DELIVERY_OTP_EXPOSE_FALLBACK || 'true').toLowerCase() !== 'false';
 const deliveryCompletionOtpStore = new Map();
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -145,7 +146,7 @@ const sendDeliveryCompletionOtp = async (req, res) => {
       console.log(`\n=== DELIVERY OTP (DEV FALLBACK) for order ${orderId} / ${customer.email}: ${otp} ===\n`);
     }
 
-    const exposeFallbackOtp = !sent && String(process.env.NODE_ENV || '').toLowerCase() !== 'production';
+    const exposeFallbackOtp = !sent && DELIVERY_OTP_EXPOSE_FALLBACK;
 
     return res.json({
       success: true,
@@ -158,6 +159,7 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         expires_in_seconds: DELIVERY_OTP_EXPIRY_MINUTES * 60,
         email_sent: sent,
         fallback_logged: !sent,
+        fallback_otp_included: exposeFallbackOtp,
         email_failure_reason: emailFailureReason,
         email_failure_message: emailFailureMessage,
         fallback_otp: exposeFallbackOtp ? otp : undefined,
