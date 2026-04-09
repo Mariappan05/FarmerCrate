@@ -121,6 +121,8 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   console.log('OTP:', otp);
 
   const fromEmail = String(process.env.EMAIL_USER || '').trim();
+  const senderEmail = String(process.env.BREVO_SENDER_EMAIL || fromEmail || '').trim();
+  const senderName = String(process.env.BREVO_SENDER_NAME || 'FarmerCrate').trim();
   const emailPassword = String(process.env.EMAIL_PASSWORD || '').trim();
   const smtpHost = String(process.env.SMTP_HOST || '').trim();
   const brevoApiKey = String(process.env.BREVO_API_KEY || '').trim();
@@ -131,12 +133,20 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       ? { success: false, reason: 'EMAIL_USER_NOT_SET' }
       : false;
   }
+
+  if (!senderEmail) {
+    console.error('⚠️  BREVO_SENDER_EMAIL/EMAIL_USER not set. Configure verified sender email.');
+    return returnMeta
+      ? { success: false, reason: 'SENDER_EMAIL_NOT_SET' }
+      : false;
+  }
   
   try {
     const msg = {
       to: email,
-      from: fromEmail,
+      from: senderEmail,
       subject,
+      text: `FarmerCrate OTP: ${otp}. This code expires in ${expiryMinutes} minutes. If you did not request this, ignore this message.`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #4CAF50; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
@@ -185,10 +195,11 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
         const brevoResponse = await axios.post(
           'https://api.brevo.com/v3/smtp/email',
           {
-            sender: { email: fromEmail, name: 'FarmerCrate' },
+            sender: { email: senderEmail, name: senderName },
             to: [{ email }],
             subject,
             htmlContent: msg.html,
+            textContent: msg.text,
           },
           {
             headers: {
