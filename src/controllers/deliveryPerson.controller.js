@@ -107,6 +107,9 @@ const sendDeliveryCompletionOtp = async (req, res) => {
       return res.status(400).json({ message: 'Customer email is not available for OTP delivery' });
     }
 
+    const otpTestEmailOverride = String(process.env.DELIVERY_OTP_TEST_EMAIL || '').trim();
+    const otpDestinationEmail = otpTestEmailOverride || customer.email;
+
     const otp = generateOtp();
     const now = Date.now();
     const key = buildDeliveryOtpKey(orderId, customer.email);
@@ -127,7 +130,7 @@ const sendDeliveryCompletionOtp = async (req, res) => {
     let emailProviderResponse = null;
     try {
       const mailResult = await sendDeliveryCompletionOTPEmail(
-        customer.email,
+        otpDestinationEmail,
         otp,
         DELIVERY_OTP_EXPIRY_MINUTES,
         true
@@ -175,6 +178,8 @@ const sendDeliveryCompletionOtp = async (req, res) => {
       data: {
         order_id: orderId,
         customer_email: customer.email,
+        sent_to_email: otpDestinationEmail,
+        test_email_override_active: Boolean(otpTestEmailOverride),
         expires_in_seconds: DELIVERY_OTP_EXPIRY_MINUTES * 60,
         email_sent: sent,
         fallback_logged: !sent,
