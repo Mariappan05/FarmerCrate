@@ -5,6 +5,20 @@ if (process.env.SENDGRID_API_KEY) {
 }
 
 exports.sendOTPEmail = async (email, otp) => {
+  return exports.sendOTPEmailWithContext(email, otp, {
+    subject: 'FarmerCrate - First Login Verification',
+    title: 'Welcome to FarmerCrate!',
+    subtitle: 'Your verification code is:',
+    expiryMinutes: 10,
+  });
+};
+
+exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
+  const expiryMinutes = Number(options.expiryMinutes) > 0 ? Number(options.expiryMinutes) : 10;
+  const subject = options.subject || 'FarmerCrate - OTP Verification';
+  const title = options.title || 'FarmerCrate Verification';
+  const subtitle = options.subtitle || 'Your verification code is:';
+
   console.log('\n=== SENDING EMAIL ===');
   console.log('From:', process.env.EMAIL_USER);
   console.log('To:', email);
@@ -19,19 +33,19 @@ exports.sendOTPEmail = async (email, otp) => {
     const msg = {
       to: email,
       from: process.env.EMAIL_USER,
-      subject: 'FarmerCrate - First Login Verification',
+      subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #4CAF50; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
             <h1 style="color: white; margin: 0;">FarmerCrate</h1>
           </div>
           <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-            <h2 style="color: #333;">Welcome to FarmerCrate!</h2>
-            <p style="color: #666; font-size: 16px;">Your verification code is:</p>
+            <h2 style="color: #333;">${title}</h2>
+            <p style="color: #666; font-size: 16px;">${subtitle}</p>
             <div style="background-color: white; padding: 25px; text-align: center; border-radius: 8px; margin: 20px 0; border: 2px dashed #4CAF50;">
               <h1 style="color: #4CAF50; font-size: 42px; margin: 0; letter-spacing: 8px;">${otp}</h1>
             </div>
-            <p style="color: #666; font-size: 14px; margin-top: 20px;">⏰ This code will expire in <strong>10 minutes</strong>.</p>
+            <p style="color: #666; font-size: 14px; margin-top: 20px;">⏰ This code will expire in <strong>${expiryMinutes} minutes</strong>.</p>
             <p style="color: #999; font-size: 13px; margin-top: 30px;">If you didn't request this, ignore this email.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
             <p style="color: #999; font-size: 12px; text-align: center;">© 2024 FarmerCrate. All rights reserved.</p>
@@ -66,4 +80,13 @@ exports.sendOTPEmail = async (email, otp) => {
     console.error('=== END EMAIL ERROR ===\n');
     return false;
   }
+};
+
+exports.sendDeliveryCompletionOTPEmail = async (email, otp, expiryMinutes = 5) => {
+  return exports.sendOTPEmailWithContext(email, otp, {
+    subject: 'FarmerCrate - Delivery Completion OTP',
+    title: 'Delivery Confirmation Required',
+    subtitle: 'Share this OTP with the delivery person to complete your order:',
+    expiryMinutes,
+  });
 };

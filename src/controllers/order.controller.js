@@ -1131,9 +1131,9 @@ exports.getOrderDetailsById = async (req, res) => {
           ]
         },
         { model: CustomerUser, as: 'customer', attributes: ['customer_id', 'name', 'email', 'mobile_number', 'address', 'image_url'] },
-        { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
-        { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district'] },
-        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'transporter_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type'] }
+        { model: TransporterUser, as: 'source_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url'] },
+        { model: TransporterUser, as: 'destination_transporter', attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'state', 'district', 'image_url'] },
+        { model: DeliveryPerson, as: 'delivery_person', attributes: ['delivery_person_id', 'transporter_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'image_url'] }
       ]
     });
 
@@ -1226,17 +1226,17 @@ exports.trackOrder = async (req, res) => {
         {
           model: TransporterUser,
           as: 'source_transporter',
-          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state']
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state', 'image_url']
         },
         {
           model: TransporterUser,
           as: 'destination_transporter',
-          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state']
+          attributes: ['transporter_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state', 'image_url']
         },
         {
           model: DeliveryPerson,
           as: 'delivery_person',
-          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'transporter_id']
+          attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_number', 'vehicle_type', 'transporter_id', 'image_url']
         }
       ]
     });

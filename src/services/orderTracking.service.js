@@ -108,6 +108,25 @@ class OrderTrackingService {
         throw new Error('Delivery person can scan only at final customer delivery step');
       }
 
+      const remarks = String(order.delivery_remarks || '').trim();
+      const otpVerified = /\[delivery_otp_verified\]\s*true/i.test(remarks);
+      const proofMatch = remarks.match(/\[proof_media_urls\]\s*(\[[\s\S]*?\])/i);
+      let proofCount = order.delivery_proof_image_url ? 1 : 0;
+      if (proofMatch?.[1]) {
+        try {
+          const parsedProof = JSON.parse(proofMatch[1]);
+          if (Array.isArray(parsedProof)) {
+            proofCount = Math.max(proofCount, parsedProof.filter(Boolean).length);
+          }
+        } catch {
+          // Ignore malformed proof metadata and rely on other proof indicators.
+        }
+      }
+
+      if (!otpVerified || proofCount < 1) {
+        throw new Error('Complete OTP and delivery proof verification before scanning final QR');
+      }
+
       if (!order.delivery_person_id || scannerId !== order.delivery_person_id) {
         throw new Error('Only assigned destination delivery person can complete this order');
       }

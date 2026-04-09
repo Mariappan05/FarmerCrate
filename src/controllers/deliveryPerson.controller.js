@@ -12,6 +12,86 @@ const TemporaryVehicle = require('../models/temporaryVehicle.model');
 const DeliveryTracking = require('../models/deliveryTracking.model');
 const GoogleMapsService = require('../services/googleMaps.service');
 const { sequelize } = require('../config/database');
+const { sendDeliveryCompletionOTPEmail } = require('../utils/email');
+
+const DELIVERY_OTP_EXPIRY_MINUTES = Number(process.env.DELIVERY_OTP_EXPIRY_MINUTES || 5) > 0
+  ? Number(process.env.DELIVERY_OTP_EXPIRY_MINUTES || 5)
+  : 5;
+const DELIVERY_OTP_EXPIRY_MS = DELIVERY_OTP_EXPIRY_MINUTES * 60 * 1000;
+const deliveryCompletionOtpStore = new Map();
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const buildDeliveryOtpKey = (orderId, customerEmail) => `${orderId}:${String(customerEmail || '').trim().toLowerCase()}`;
+
+const normalizeProofMediaUrls = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v || '').trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((v) => v.trim()).filter(Boolean);
+  }
+  return [];
+};
+
+const sendDeliveryCompletionOtp = async (req, res) => {
+  try {
+    const orderId = Number(req.body.order_id || req.body.orderId);
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      return res.status(400).json({ message: 'Valid order_id is required' });
+    }
+
+    const order = await Order.findOne({
+      where: {
+        order_id: orderId,
+        delivery_person_id: req.user.delivery_person_id,
+      },
+      attributes: ['order_id', 'customer_id', 'current_status']
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found or not assigned to you' });
+    }
+
+    const customer = await CustomerUser.findByPk(order.customer_id, {
+      attributes: ['customer_id', 'name', 'email']
+    });
+
+    if (!customer?.email) {
+      return res.status(400).json({ message: 'Customer email is not available for OTP delivery' });
+    }
+
+    const otp = generateOtp();
+    const now = Date.now();
+    const key = buildDeliveryOtpKey(orderId, customer.email);
+    deliveryCompletionOtpStore.set(key, {
+      otp,
+      expiresAt: now + DELIVERY_OTP_EXPIRY_MS,
+      attempts: 0,
+      orderId,
+      customerEmail: customer.email,
+      deliveryPersonId: req.user.delivery_person_id,
+    });
+
+    const sent = await sendDeliveryCompletionOTPEmail(customer.email, otp, DELIVERY_OTP_EXPIRY_MINUTES);
+    if (!sent) {
+      console.log(`\n=== DELIVERY OTP (DEV FALLBACK) for order ${orderId} / ${customer.email}: ${otp} ===\n`);
+    }
+
+    return res.json({
+      success: true,
+      message: `OTP sent to customer email and valid for ${DELIVERY_OTP_EXPIRY_MINUTES} minutes`,
+      data: {
+        order_id: orderId,
+        customer_email: customer.email,
+        expires_in_seconds: DELIVERY_OTP_EXPIRY_MINUTES * 60,
+      }
+    });
+  } catch (error) {
+    console.error('Send delivery completion OTP error:', error);
+    return res.status(500).json({ message: 'Error sending delivery completion OTP' });
+  }
+};
 
 const fetchOrdersRaw = async (deliveryPersonId, statuses) => {
   const placeholders = statuses.map((_, idx) => `:s${idx}`).join(', ');
@@ -541,7 +621,16 @@ const getProfile = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
   try {
-    const { order_id, status, proof_image_url, signature_url, remarks } = req.body;
+    const {
+      order_id,
+      status,
+      proof_image_url,
+      proof_video_url,
+      delivery_proof_media_urls,
+      signature_url,
+      remarks,
+      delivery_otp,
+    } = req.body;
     
     const pickupStatuses = ['PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS', 'PICKED_UP'];
     const validStatuses = [...pickupStatuses, 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'COMPLETED'];
@@ -562,17 +651,91 @@ const updateOrderStatus = async (req, res) => {
 
     const isPickupStatusUpdate = pickupStatuses.includes(status) || pickupStatuses.includes(order.current_status);
 
-    if (order.source_transporter_id && order.destination_transporter_id && !isPickupStatusUpdate) {
+    const isOutForDeliveryVerificationAttempt =
+      status === 'OUT_FOR_DELIVERY' && String(order.current_status || '').toUpperCase() === 'OUT_FOR_DELIVERY';
+
+    if (
+      order.source_transporter_id &&
+      order.destination_transporter_id &&
+      !isPickupStatusUpdate &&
+      !isOutForDeliveryVerificationAttempt
+    ) {
       return res.status(403).json({
         message: 'After transporter assignment, delivery status updates must be done via QR scan only'
       });
     }
     
     const previousStatus = order.current_status;
+    const mediaUrls = normalizeProofMediaUrls(delivery_proof_media_urls || req.body?.proof_media_urls);
+    const mergedProofUrls = [
+      ...mediaUrls,
+      proof_image_url,
+      proof_video_url,
+    ].map((v) => String(v || '').trim()).filter(Boolean);
+
+    const requiresDeliveryConfirmationVerification =
+      status === 'COMPLETED' ||
+      (status === 'OUT_FOR_DELIVERY' && (Boolean(delivery_otp) || mergedProofUrls.length > 0));
+
+    if (requiresDeliveryConfirmationVerification) {
+      if (!mergedProofUrls.length) {
+        return res.status(400).json({
+          message: 'Delivery proof is required (photo or video) before marking order as completed'
+        });
+      }
+
+      const customer = await CustomerUser.findByPk(order.customer_id, {
+        attributes: ['customer_id', 'email']
+      });
+
+      if (!customer?.email) {
+        return res.status(400).json({ message: 'Customer email not found for OTP verification' });
+      }
+
+      if (!delivery_otp || String(delivery_otp).trim().length !== 6) {
+        return res.status(400).json({ message: 'Valid 6-digit delivery OTP is required' });
+      }
+
+      const key = buildDeliveryOtpKey(order.order_id, customer.email);
+      const storedOtp = deliveryCompletionOtpStore.get(key);
+      if (!storedOtp) {
+        return res.status(400).json({ message: 'OTP not found or expired. Please resend OTP.' });
+      }
+      if (storedOtp.expiresAt < Date.now()) {
+        deliveryCompletionOtpStore.delete(key);
+        return res.status(400).json({ message: 'OTP has expired. Please resend OTP.' });
+      }
+
+      if (storedOtp.otp !== String(delivery_otp).trim()) {
+        const nextAttempts = Number(storedOtp.attempts || 0) + 1;
+        storedOtp.attempts = nextAttempts;
+        if (nextAttempts >= 5) {
+          deliveryCompletionOtpStore.delete(key);
+          return res.status(400).json({ message: 'Too many invalid attempts. Please resend OTP.' });
+        }
+        deliveryCompletionOtpStore.set(key, storedOtp);
+        return res.status(400).json({ message: 'Invalid OTP' });
+      }
+
+      deliveryCompletionOtpStore.delete(key);
+    }
+
     const updateData = { current_status: status };
-    if (proof_image_url) updateData.delivery_proof_image_url = proof_image_url;
+    if (proof_image_url) {
+      updateData.delivery_proof_image_url = proof_image_url;
+    } else if (mergedProofUrls.length) {
+      updateData.delivery_proof_image_url = mergedProofUrls[0];
+    }
     if (signature_url) updateData.delivery_signature_url = signature_url;
-    if (remarks) updateData.delivery_remarks = remarks;
+    if (remarks || mergedProofUrls.length || requiresDeliveryConfirmationVerification) {
+      const proofMeta = mergedProofUrls.length
+        ? `\n[proof_media_urls] ${JSON.stringify(mergedProofUrls)}`
+        : '';
+      const completionMeta = requiresDeliveryConfirmationVerification
+        ? `\n[delivery_otp_verified] true\n[delivery_otp_verified_at] ${new Date().toISOString()}`
+        : '';
+      updateData.delivery_remarks = `${remarks || ''}${proofMeta}${completionMeta}`.trim();
+    }
 
     await order.update(updateData);
     
@@ -587,7 +750,8 @@ const updateOrderStatus = async (req, res) => {
       data: {
         order_id,
         previous_status: previousStatus,
-        new_status: status
+        new_status: status,
+        proof_media_count: mergedProofUrls.length,
       }
     });
   } catch (error) {
@@ -781,6 +945,7 @@ module.exports = {
   getEarnings,
   getProfile,
   updateProfile,
+  sendDeliveryCompletionOtp,
   updateOrderStatus,
   updateLocation,
   trackOrder,

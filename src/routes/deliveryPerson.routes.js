@@ -60,6 +60,13 @@ router.put('/profile',
   deliveryPersonController.updateProfile
 );
 
+router.post('/send-delivery-otp',
+  authenticate,
+  authorize('delivery'),
+  body('order_id').isInt().withMessage('Valid order ID required'),
+  deliveryPersonController.sendDeliveryCompletionOtp
+);
+
 router.put('/update-status',
   authenticate,
   authorize('delivery'),

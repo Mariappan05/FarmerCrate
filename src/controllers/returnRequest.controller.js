@@ -1,7 +1,10 @@
 const Order = require('../models/order.model');
 const CustomerReturnRequest = require('../models/customerReturnRequest.model');
 
-const RETURN_WINDOW_MS = 10 * 60 * 1000;
+const RETURN_WINDOW_MINUTES = Number(process.env.RETURN_WINDOW_MINUTES || 15) > 0
+  ? Number(process.env.RETURN_WINDOW_MINUTES || 15)
+  : 15;
+const RETURN_WINDOW_MS = RETURN_WINDOW_MINUTES * 60 * 1000;
 const ALLOWED_ORDER_STATUSES = ['DELIVERED', 'COMPLETED'];
 let returnRequestColumnsCache = null;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -122,7 +125,9 @@ exports.submitReturnRequest = async (req, res) => {
 
     const remainingMs = RETURN_WINDOW_MS - (Date.now() - completedAt);
     if (remainingMs <= 0) {
-      return res.status(400).json({ message: 'Return window closed. Returns are allowed only for 10 minutes after delivery.' });
+      return res.status(400).json({
+        message: `Return window closed. Returns are allowed only for ${RETURN_WINDOW_MINUTES} minutes after delivery.`
+      });
     }
 
     const report = String(req.body.report || req.body.return_reason || req.body.issue_report || '').trim();

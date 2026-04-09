@@ -913,22 +913,22 @@ exports.trackOrder = async (req, res) => {
       }, {
         model: CustomerUser,
         as: 'customer',
-        attributes: ['customer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state'],
+        attributes: ['customer_id', 'name', 'mobile_number', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       }, {
         model: TransporterUser,
         as: 'source_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       }, {
         model: TransporterUser,
         as: 'destination_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       }, {
         model: DeliveryPerson,
         as: 'delivery_person',
-        attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number'],
+        attributes: ['delivery_person_id', 'name', 'mobile_number', 'vehicle_type', 'vehicle_number', 'image_url'],
         required: false
       }]
     });
@@ -1073,17 +1073,17 @@ exports.getActiveShipments = async (req, res) => {
       }, {
         model: TransporterUser,
         as: 'source_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       }, {
         model: TransporterUser,
         as: 'destination_transporter',
-        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state'],
+        attributes: ['transporter_id', 'name', 'mobile_number', 'email', 'address', 'zone', 'district', 'state', 'image_url'],
         required: false
       }, {
         model: DeliveryPerson,
         as: 'delivery_person',
-        attributes: ['delivery_person_id', 'name', 'mobile_number', 'email', 'vehicle_type', 'vehicle_number', 'current_latitude', 'current_longitude'],
+        attributes: ['delivery_person_id', 'name', 'mobile_number', 'email', 'vehicle_type', 'vehicle_number', 'current_latitude', 'current_longitude', 'image_url'],
         required: false
       }],
       where: {
