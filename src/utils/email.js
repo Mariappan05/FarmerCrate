@@ -121,7 +121,8 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   console.log('OTP:', otp);
 
   const fromEmail = String(process.env.EMAIL_USER || '').trim();
-  const senderEmail = String(process.env.BREVO_SENDER_EMAIL || fromEmail || '').trim();
+  const configuredBrevoSender = String(process.env.BREVO_SENDER_EMAIL || '').trim();
+  const senderEmail = String(configuredBrevoSender || fromEmail || '').trim();
   const senderName = String(process.env.BREVO_SENDER_NAME || 'FarmerCrate').trim();
   const emailPassword = String(process.env.EMAIL_PASSWORD || '').trim();
   const smtpHost = String(process.env.SMTP_HOST || '').trim();
@@ -220,6 +221,9 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
               provider: 'brevo-api',
               provider_message_id: brevoMessageId,
               provider_response: brevoResponse?.data || null,
+              sender_email_used: senderEmail,
+              sender_source: configuredBrevoSender ? 'BREVO_SENDER_EMAIL' : 'EMAIL_USER_FALLBACK',
+              verified_sender_configured: Boolean(configuredBrevoSender),
             }
           : true;
       } catch (brevoError) {
@@ -252,6 +256,9 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
                   rejected: smtpResult?.rejected,
                   response: smtpResult?.response,
                 },
+                sender_email_used: senderEmail,
+                sender_source: configuredBrevoSender ? 'BREVO_SENDER_EMAIL' : 'EMAIL_USER_FALLBACK',
+                verified_sender_configured: Boolean(configuredBrevoSender),
               }
             : true;
         } catch (attemptError) {
@@ -289,6 +296,9 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
           provider: error?.provider || null,
           provider_message_id: null,
           provider_response: error?.response?.data || null,
+          sender_email_used: senderEmail,
+          sender_source: configuredBrevoSender ? 'BREVO_SENDER_EMAIL' : 'EMAIL_USER_FALLBACK',
+          verified_sender_configured: Boolean(configuredBrevoSender),
           message: error?.message || 'Email send failed',
         }
       : false;

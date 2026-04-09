@@ -128,6 +128,9 @@ const sendDeliveryCompletionOtp = async (req, res) => {
     let emailProvider = null;
     let emailProviderMessageId = null;
     let emailProviderResponse = null;
+    let senderEmailUsed = null;
+    let senderSource = null;
+    let verifiedSenderConfigured = null;
     try {
       const mailResult = await sendDeliveryCompletionOTPEmail(
         otpDestinationEmail,
@@ -141,6 +144,9 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         emailProvider = mailResult.provider || null;
         emailProviderMessageId = mailResult.provider_message_id || null;
         emailProviderResponse = mailResult.provider_response || null;
+        senderEmailUsed = mailResult.sender_email_used || null;
+        senderSource = mailResult.sender_source || null;
+        verifiedSenderConfigured = mailResult.verified_sender_configured;
         emailFailureReason = mailResult.success ? null : mailResult.reason || 'UNKNOWN_MAIL_ERROR';
         emailFailureMessage = mailResult.success ? null : mailResult.message || null;
       } else {
@@ -189,10 +195,16 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         email_provider_message_id: emailProviderMessageId,
         email_failure_reason: emailFailureReason,
         email_failure_message: emailFailureMessage,
+        sender_email_used: senderEmailUsed,
+        sender_source: senderSource,
+        verified_sender_configured: verifiedSenderConfigured,
         email_debug: {
           provider: emailProvider,
           provider_message_id: emailProviderMessageId,
           provider_response: emailProviderResponse,
+          sender_email_used: senderEmailUsed,
+          sender_source: senderSource,
+          verified_sender_configured: verifiedSenderConfigured,
           sent,
           failure_reason: emailFailureReason,
           failure_message: emailFailureMessage,
