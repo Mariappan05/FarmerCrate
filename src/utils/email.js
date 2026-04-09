@@ -15,6 +15,9 @@ const createGmailTransporter = () => {
       user: String(process.env.EMAIL_USER || '').trim(),
       pass: String(process.env.EMAIL_PASSWORD || '').trim(),
     },
+    connectionTimeout: 12000,
+    greetingTimeout: 12000,
+    socketTimeout: 15000,
   });
 };
 
@@ -83,7 +86,23 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       `
     };
 
-    await transporter.sendMail(msg);
+    // Avoid hanging requests when SMTP is unreachable.
+    const sendMailWithTimeout = () =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('SMTP send timeout')), 15000);
+        transporter
+          .sendMail(msg)
+          .then((result) => {
+            clearTimeout(timer);
+            resolve(result);
+          })
+          .catch((err) => {
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+
+    await sendMailWithTimeout();
     console.log('✅ Email sent via Gmail SMTP!');
     console.log('=== EMAIL SENT ===\n');
     return returnMeta
