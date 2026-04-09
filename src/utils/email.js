@@ -182,7 +182,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       try {
         lastProvider = 'brevo-api';
         console.log('[EMAIL] Trying Brevo API provider');
-        await axios.post(
+        const brevoResponse = await axios.post(
           'https://api.brevo.com/v3/smtp/email',
           {
             sender: { email: fromEmail, name: 'FarmerCrate' },
@@ -201,8 +201,15 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
         );
         console.log('✅ Email sent via Brevo API!');
         console.log('=== EMAIL SENT ===\n');
+        const brevoMessageId = brevoResponse?.data?.messageId || brevoResponse?.data?.message_id || null;
         return returnMeta
-          ? { success: true, reason: null, provider: 'brevo-api' }
+          ? {
+              success: true,
+              reason: null,
+              provider: 'brevo-api',
+              provider_message_id: brevoMessageId,
+              provider_response: brevoResponse?.data || null,
+            }
           : true;
       } catch (brevoError) {
         lastError = brevoError;
@@ -220,11 +227,21 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
         try {
           lastProvider = attempt.label;
           console.log(`[EMAIL] Trying Nodemailer SMTP transport: ${attempt.label}`);
-          await sendMailWithTimeout(attempt.transporter, attempt.label);
+          const smtpResult = await sendMailWithTimeout(attempt.transporter, attempt.label);
           console.log('✅ Email sent via Nodemailer SMTP!');
           console.log('=== EMAIL SENT ===\n');
           return returnMeta
-            ? { success: true, reason: null, provider: attempt.label }
+            ? {
+                success: true,
+                reason: null,
+                provider: attempt.label,
+                provider_message_id: smtpResult?.messageId || null,
+                provider_response: {
+                  accepted: smtpResult?.accepted,
+                  rejected: smtpResult?.rejected,
+                  response: smtpResult?.response,
+                },
+              }
             : true;
         } catch (attemptError) {
           lastError = attemptError;
@@ -259,6 +276,8 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
           success: false,
           reason,
           provider: error?.provider || null,
+          provider_message_id: null,
+          provider_response: error?.response?.data || null,
           message: error?.message || 'Email send failed',
         }
       : false;

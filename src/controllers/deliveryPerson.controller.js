@@ -123,6 +123,8 @@ const sendDeliveryCompletionOtp = async (req, res) => {
     let emailFailureReason = null;
     let emailFailureMessage = null;
     let emailProvider = null;
+    let emailProviderMessageId = null;
+    let emailProviderResponse = null;
     try {
       const mailResult = await sendDeliveryCompletionOTPEmail(
         customer.email,
@@ -134,6 +136,8 @@ const sendDeliveryCompletionOtp = async (req, res) => {
       if (typeof mailResult === 'object' && mailResult !== null) {
         sent = mailResult.success === true;
         emailProvider = mailResult.provider || null;
+        emailProviderMessageId = mailResult.provider_message_id || null;
+        emailProviderResponse = mailResult.provider_response || null;
         emailFailureReason = mailResult.success ? null : mailResult.reason || 'UNKNOWN_MAIL_ERROR';
         emailFailureMessage = mailResult.success ? null : mailResult.message || null;
       } else {
@@ -177,10 +181,13 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         fallback_otp_included: exposeFallbackOtp,
         auto_verified: autoVerified,
         email_provider: emailProvider,
+        email_provider_message_id: emailProviderMessageId,
         email_failure_reason: emailFailureReason,
         email_failure_message: emailFailureMessage,
         email_debug: {
           provider: emailProvider,
+          provider_message_id: emailProviderMessageId,
+          provider_response: emailProviderResponse,
           sent,
           failure_reason: emailFailureReason,
           failure_message: emailFailureMessage,
