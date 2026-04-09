@@ -21,9 +21,9 @@ const createGmailTransporters = () => {
         port: 465,
         secure: true,
         auth: { user, pass },
-        connectionTimeout: 12000,
-        greetingTimeout: 12000,
-        socketTimeout: 15000,
+        connectionTimeout: 6000,
+        greetingTimeout: 6000,
+        socketTimeout: 7000,
       }),
     },
     {
@@ -34,9 +34,9 @@ const createGmailTransporters = () => {
         secure: false,
         requireTLS: true,
         auth: { user, pass },
-        connectionTimeout: 12000,
-        greetingTimeout: 12000,
-        socketTimeout: 15000,
+        connectionTimeout: 6000,
+        greetingTimeout: 6000,
+        socketTimeout: 7000,
       }),
     },
   ];
@@ -108,7 +108,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     // Avoid hanging requests when SMTP is unreachable.
     const sendMailWithTimeout = (transporter, label) =>
       new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`SMTP send timeout (${label})`)), 15000);
+        const timer = setTimeout(() => reject(new Error(`SMTP send timeout (${label})`)), 8000);
         transporter
           .sendMail(msg)
           .then((result) => {
