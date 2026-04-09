@@ -130,11 +130,15 @@ const sendDeliveryCompletionOtp = async (req, res) => {
 
     return res.json({
       success: true,
-      message: `OTP sent to customer email and valid for ${DELIVERY_OTP_EXPIRY_MINUTES} minutes`,
+      message: sent
+        ? `OTP sent to customer email and valid for ${DELIVERY_OTP_EXPIRY_MINUTES} minutes`
+        : 'OTP generated, but email delivery failed. Please check email configuration and retry.',
       data: {
         order_id: orderId,
         customer_email: customer.email,
         expires_in_seconds: DELIVERY_OTP_EXPIRY_MINUTES * 60,
+        email_sent: sent,
+        fallback_logged: !sent,
       }
     });
   } catch (error) {
