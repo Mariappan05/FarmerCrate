@@ -1,8 +1,8 @@
 # Email Setup - Gmail SMTP
 
 ## Configuration
-- Email: `farmercrate@gmail.com`
-- Password: `ozihonxsuhkumrpp`
+- Email: `EMAIL_USER` from environment
+- Password: `EMAIL_PASSWORD` (Gmail App Password) from environment
 - Method: Gmail SMTP
 
 ## Deploy Steps
@@ -21,8 +21,10 @@ git push
 
 3. **Set Environment Variables (if not set):**
 ```
-EMAIL_USER=farmercrate@gmail.com
-EMAIL_PASSWORD=ozihonxsuhkumrpp
+EMAIL_USER=your_gmail@gmail.com
+EMAIL_PASSWORD=your_16_char_gmail_app_password
+DELIVERY_OTP_EXPIRY_MINUTES=5
+DELIVERY_OTP_EXPOSE_FALLBACK=true
 NODE_ENV=production
 ```
 
