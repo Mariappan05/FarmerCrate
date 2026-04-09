@@ -8,17 +8,38 @@ const isUsableEmailPassword = (value) => {
   return true;
 };
 
-const createGmailTransporter = () => {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: String(process.env.EMAIL_USER || '').trim(),
-      pass: String(process.env.EMAIL_PASSWORD || '').trim(),
+const createGmailTransporters = () => {
+  const user = String(process.env.EMAIL_USER || '').trim();
+  const pass = String(process.env.EMAIL_PASSWORD || '').trim();
+
+  // Try SSL first (465), then STARTTLS (587) as fallback.
+  return [
+    {
+      label: 'gmail-465-ssl',
+      transporter: nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user, pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 12000,
+        socketTimeout: 15000,
+      }),
     },
-    connectionTimeout: 12000,
-    greetingTimeout: 12000,
-    socketTimeout: 15000,
-  });
+    {
+      label: 'gmail-587-starttls',
+      transporter: nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        auth: { user, pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 12000,
+        socketTimeout: 15000,
+      }),
+    },
+  ];
 };
 
 exports.sendOTPEmail = async (email, otp) => {
@@ -60,8 +81,6 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
   }
   
   try {
-    const transporter = createGmailTransporter();
-
     const msg = {
       to: email,
       from: fromEmail,
@@ -87,9 +106,9 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
     };
 
     // Avoid hanging requests when SMTP is unreachable.
-    const sendMailWithTimeout = () =>
+    const sendMailWithTimeout = (transporter, label) =>
       new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('SMTP send timeout')), 15000);
+        const timer = setTimeout(() => reject(new Error(`SMTP send timeout (${label})`)), 15000);
         transporter
           .sendMail(msg)
           .then((result) => {
@@ -102,12 +121,24 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
           });
       });
 
-    await sendMailWithTimeout();
-    console.log('✅ Email sent via Gmail SMTP!');
-    console.log('=== EMAIL SENT ===\n');
-    return returnMeta
-      ? { success: true, reason: null }
-      : true;
+    let lastError = null;
+    const attempts = createGmailTransporters();
+    for (const attempt of attempts) {
+      try {
+        console.log(`[EMAIL] Trying SMTP transport: ${attempt.label}`);
+        await sendMailWithTimeout(attempt.transporter, attempt.label);
+        console.log('✅ Email sent via Gmail SMTP!');
+        console.log('=== EMAIL SENT ===\n');
+        return returnMeta
+          ? { success: true, reason: null }
+          : true;
+      } catch (attemptError) {
+        lastError = attemptError;
+        console.error(`[EMAIL] Transport failed (${attempt.label}):`, attemptError.message);
+      }
+    }
+
+    throw lastError || new Error('SMTP send failed on all transports');
   } catch (error) {
     console.error('\n=== EMAIL ERROR ===');
     console.error('Error:', error.message);
@@ -123,7 +154,7 @@ exports.sendOTPEmailWithContext = async (email, otp, options = {}) => {
       ? 'GMAIL_SMTP_AUTH_FAILED'
       : lowerMessage.includes('authentication')
         ? 'GMAIL_SMTP_AUTH_ERROR'
-        : lowerMessage.includes('timed out')
+        : lowerMessage.includes('timeout') || lowerMessage.includes('timed out')
           ? 'GMAIL_SMTP_TIMEOUT'
           : 'GMAIL_SMTP_SEND_FAILED';
 
