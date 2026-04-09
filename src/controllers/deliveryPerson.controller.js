@@ -24,6 +24,50 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 const buildDeliveryOtpKey = (orderId, customerEmail) => `${orderId}:${String(customerEmail || '').trim().toLowerCase()}`;
 
+const validateAndMarkDeliveryOtp = ({ orderId, customerEmail, deliveryOtp, requireInput = true }) => {
+  const key = buildDeliveryOtpKey(orderId, customerEmail);
+  const storedOtp = deliveryCompletionOtpStore.get(key);
+
+  if (!storedOtp) {
+    return { ok: false, message: 'OTP not found or expired. Please resend OTP.' };
+  }
+
+  if (storedOtp.expiresAt < Date.now()) {
+    deliveryCompletionOtpStore.delete(key);
+    return { ok: false, message: 'OTP has expired. Please resend OTP.' };
+  }
+
+  if (!deliveryOtp || String(deliveryOtp).trim().length === 0) {
+    if (!requireInput && storedOtp.verified) {
+      return { ok: true, message: 'OTP already verified' };
+    }
+    return { ok: false, message: 'Valid 6-digit delivery OTP is required' };
+  }
+
+  const normalizedOtp = String(deliveryOtp).trim();
+  if (normalizedOtp.length !== 6) {
+    return { ok: false, message: 'Valid 6-digit delivery OTP is required' };
+  }
+
+  if (storedOtp.otp !== normalizedOtp) {
+    const nextAttempts = Number(storedOtp.attempts || 0) + 1;
+    storedOtp.attempts = nextAttempts;
+    if (nextAttempts >= 5) {
+      deliveryCompletionOtpStore.delete(key);
+      return { ok: false, message: 'Too many invalid attempts. Please resend OTP.' };
+    }
+    deliveryCompletionOtpStore.set(key, storedOtp);
+    return { ok: false, message: 'Invalid OTP' };
+  }
+
+  storedOtp.verified = true;
+  storedOtp.verifiedAt = Date.now();
+  storedOtp.attempts = 0;
+  deliveryCompletionOtpStore.set(key, storedOtp);
+
+  return { ok: true, message: 'OTP verified successfully' };
+};
+
 const normalizeProofMediaUrls = (value) => {
   if (Array.isArray(value)) {
     return value.map((v) => String(v || '').trim()).filter(Boolean);
@@ -73,7 +117,13 @@ const sendDeliveryCompletionOtp = async (req, res) => {
       deliveryPersonId: req.user.delivery_person_id,
     });
 
-    const sent = await sendDeliveryCompletionOTPEmail(customer.email, otp, DELIVERY_OTP_EXPIRY_MINUTES);
+    let sent = false;
+    try {
+      sent = await sendDeliveryCompletionOTPEmail(customer.email, otp, DELIVERY_OTP_EXPIRY_MINUTES);
+    } catch (mailError) {
+      console.error('Delivery OTP mail send error:', mailError.message || mailError);
+      sent = false;
+    }
     if (!sent) {
       console.log(`\n=== DELIVERY OTP (DEV FALLBACK) for order ${orderId} / ${customer.email}: ${otp} ===\n`);
     }
@@ -90,6 +140,60 @@ const sendDeliveryCompletionOtp = async (req, res) => {
   } catch (error) {
     console.error('Send delivery completion OTP error:', error);
     return res.status(500).json({ message: 'Error sending delivery completion OTP' });
+  }
+};
+
+const verifyDeliveryCompletionOtp = async (req, res) => {
+  try {
+    const orderId = Number(req.body.order_id || req.body.orderId);
+    const deliveryOtp = String(req.body.delivery_otp || req.body.deliveryOtp || '').trim();
+
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      return res.status(400).json({ message: 'Valid order_id is required' });
+    }
+
+    const order = await Order.findOne({
+      where: {
+        order_id: orderId,
+        delivery_person_id: req.user.delivery_person_id,
+      },
+      attributes: ['order_id', 'customer_id']
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found or not assigned to you' });
+    }
+
+    const customer = await CustomerUser.findByPk(order.customer_id, {
+      attributes: ['customer_id', 'email']
+    });
+
+    if (!customer?.email) {
+      return res.status(400).json({ message: 'Customer email not found for OTP verification' });
+    }
+
+    const result = validateAndMarkDeliveryOtp({
+      orderId,
+      customerEmail: customer.email,
+      deliveryOtp,
+      requireInput: true,
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({ message: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: 'OTP verified successfully',
+      data: {
+        order_id: orderId,
+        verified: true,
+      }
+    });
+  } catch (error) {
+    console.error('Verify delivery completion OTP error:', error);
+    return res.status(500).json({ message: 'Error verifying delivery OTP' });
   }
 };
 
@@ -692,32 +796,21 @@ const updateOrderStatus = async (req, res) => {
         return res.status(400).json({ message: 'Customer email not found for OTP verification' });
       }
 
-      if (!delivery_otp || String(delivery_otp).trim().length !== 6) {
-        return res.status(400).json({ message: 'Valid 6-digit delivery OTP is required' });
+      const otpResult = validateAndMarkDeliveryOtp({
+        orderId: order.order_id,
+        customerEmail: customer.email,
+        deliveryOtp: delivery_otp,
+        requireInput: false,
+      });
+
+      if (!otpResult.ok) {
+        return res.status(400).json({ message: otpResult.message });
       }
 
-      const key = buildDeliveryOtpKey(order.order_id, customer.email);
-      const storedOtp = deliveryCompletionOtpStore.get(key);
-      if (!storedOtp) {
-        return res.status(400).json({ message: 'OTP not found or expired. Please resend OTP.' });
-      }
-      if (storedOtp.expiresAt < Date.now()) {
+      if (status === 'COMPLETED') {
+        const key = buildDeliveryOtpKey(order.order_id, customer.email);
         deliveryCompletionOtpStore.delete(key);
-        return res.status(400).json({ message: 'OTP has expired. Please resend OTP.' });
       }
-
-      if (storedOtp.otp !== String(delivery_otp).trim()) {
-        const nextAttempts = Number(storedOtp.attempts || 0) + 1;
-        storedOtp.attempts = nextAttempts;
-        if (nextAttempts >= 5) {
-          deliveryCompletionOtpStore.delete(key);
-          return res.status(400).json({ message: 'Too many invalid attempts. Please resend OTP.' });
-        }
-        deliveryCompletionOtpStore.set(key, storedOtp);
-        return res.status(400).json({ message: 'Invalid OTP' });
-      }
-
-      deliveryCompletionOtpStore.delete(key);
     }
 
     const updateData = { current_status: status };
@@ -946,6 +1039,7 @@ module.exports = {
   getProfile,
   updateProfile,
   sendDeliveryCompletionOtp,
+  verifyDeliveryCompletionOtp,
   updateOrderStatus,
   updateLocation,
   trackOrder,

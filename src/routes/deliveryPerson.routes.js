@@ -67,6 +67,14 @@ router.post('/send-delivery-otp',
   deliveryPersonController.sendDeliveryCompletionOtp
 );
 
+router.post('/verify-delivery-otp',
+  authenticate,
+  authorize('delivery'),
+  body('order_id').isInt().withMessage('Valid order ID required'),
+  body('delivery_otp').isLength({ min: 6, max: 6 }).withMessage('Valid 6-digit OTP required'),
+  deliveryPersonController.verifyDeliveryCompletionOtp
+);
+
 router.put('/update-status',
   authenticate,
   authorize('delivery'),
