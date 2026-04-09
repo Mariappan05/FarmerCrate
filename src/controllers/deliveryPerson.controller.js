@@ -19,6 +19,7 @@ const DELIVERY_OTP_EXPIRY_MINUTES = Number(process.env.DELIVERY_OTP_EXPIRY_MINUT
   : 5;
 const DELIVERY_OTP_EXPIRY_MS = DELIVERY_OTP_EXPIRY_MINUTES * 60 * 1000;
 const DELIVERY_OTP_EXPOSE_FALLBACK = String(process.env.DELIVERY_OTP_EXPOSE_FALLBACK || 'true').toLowerCase() !== 'false';
+const DELIVERY_OTP_AUTO_VERIFY_ON_EMAIL_FAILURE = String(process.env.DELIVERY_OTP_AUTO_VERIFY_ON_EMAIL_FAILURE || 'false').toLowerCase() === 'true';
 const deliveryCompletionOtpStore = new Map();
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -147,12 +148,24 @@ const sendDeliveryCompletionOtp = async (req, res) => {
     }
 
     const exposeFallbackOtp = !sent && DELIVERY_OTP_EXPOSE_FALLBACK;
+    const autoVerified = !sent && DELIVERY_OTP_AUTO_VERIFY_ON_EMAIL_FAILURE;
+    if (autoVerified) {
+      const entry = deliveryCompletionOtpStore.get(key);
+      if (entry) {
+        entry.verified = true;
+        entry.verifiedAt = Date.now();
+        entry.attempts = 0;
+        deliveryCompletionOtpStore.set(key, entry);
+      }
+    }
 
     return res.json({
       success: true,
       message: sent
         ? `OTP sent to customer email and valid for ${DELIVERY_OTP_EXPIRY_MINUTES} minutes`
-        : 'OTP generated, but email delivery failed. Please check email configuration and retry.',
+        : autoVerified
+          ? 'OTP generated. Email delivery failed, but fallback auto-verification is enabled for this environment.'
+          : 'OTP generated, but email delivery failed. Using fallback OTP mode.',
       data: {
         order_id: orderId,
         customer_email: customer.email,
@@ -160,6 +173,7 @@ const sendDeliveryCompletionOtp = async (req, res) => {
         email_sent: sent,
         fallback_logged: !sent,
         fallback_otp_included: exposeFallbackOtp,
+        auto_verified: autoVerified,
         email_failure_reason: emailFailureReason,
         email_failure_message: emailFailureMessage,
         fallback_otp: exposeFallbackOtp ? otp : undefined,
